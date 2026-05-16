@@ -24,6 +24,7 @@ import {
   stopEventListening,
   subscribeToEvents,
 } from "../../src/opencode/events.js";
+import { logger } from "../../src/utils/logger.js";
 
 function createStream<T>(events: T[]): AsyncGenerator<T, void, unknown> {
   return (async function* () {
@@ -113,6 +114,32 @@ describe("opencode/events", () => {
     expect(callback).toHaveBeenCalledTimes(2);
     expect(callback.mock.calls[0][0]).toEqual(eventA);
     expect(callback.mock.calls[1][0]).toEqual(eventB);
+  });
+
+  it("logs callback errors without failing event delivery", async () => {
+    const eventA = { type: "session.status", properties: { sessionID: "s1" } } as Event;
+    const eventB = { type: "session.idle", properties: { sessionID: "s1" } } as Event;
+    subscribeMock.mockResolvedValueOnce({ stream: createStream([eventA, eventB]) });
+    const callbackError = new Error("callback failed");
+    const loggerErrorSpy = vi.spyOn(logger, "error").mockImplementation(() => undefined);
+    const callback = vi
+      .fn()
+      .mockImplementationOnce(() => {
+        throw callbackError;
+      })
+      .mockImplementationOnce(() => undefined);
+
+    const subscription = subscribeToEvents("D:/repo", callback);
+
+    await vi.waitFor(() => {
+      expect(callback).toHaveBeenCalledTimes(2);
+    });
+
+    expect(loggerErrorSpy).toHaveBeenCalledWith("[Events] Callback failed:", callbackError);
+
+    stopEventListening();
+    await subscription;
+    loggerErrorSpy.mockRestore();
   });
 
   it("unwraps global event payloads before forwarding them", async () => {

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  __getUserAbortErrorSuppressionSizeForTests,
   __resetUserAbortErrorSuppressionForTests,
   markUserAbortRequested,
   shouldSuppressUserAbortSessionError,
@@ -33,8 +34,26 @@ describe("bot/utils/abort-error-suppression", () => {
 
   it("does not suppress stale abort errors", () => {
     markUserAbortRequested("session-1");
-    vi.advanceTimersByTime(30_001);
+    vi.advanceTimersByTime(90_001);
 
     expect(shouldSuppressUserAbortSessionError("session-1", "Aborted")).toBe(false);
+  });
+
+  it("keeps abort markers active within the suppression window", () => {
+    markUserAbortRequested("session-1");
+    vi.advanceTimersByTime(89_999);
+
+    expect(shouldSuppressUserAbortSessionError("session-1", "Aborted")).toBe(true);
+  });
+
+  it("removes expired markers when a new abort request is marked", () => {
+    markUserAbortRequested("session-1");
+    vi.advanceTimersByTime(90_001);
+
+    markUserAbortRequested("session-2");
+
+    expect(__getUserAbortErrorSuppressionSizeForTests()).toBe(1);
+    expect(shouldSuppressUserAbortSessionError("session-1", "Aborted")).toBe(false);
+    expect(shouldSuppressUserAbortSessionError("session-2", "Aborted")).toBe(true);
   });
 });

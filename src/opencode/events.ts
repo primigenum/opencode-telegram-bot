@@ -320,7 +320,11 @@ export async function subscribeToEvents(directory: string, callback: EventCallba
                   return;
                 }
 
-                callbackSnapshot(normalizedEvent);
+                try {
+                  callbackSnapshot(normalizedEvent);
+                } catch (error) {
+                  logger.error("[Events] Callback failed:", error);
+                }
               });
             }
           }
