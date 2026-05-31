@@ -217,7 +217,7 @@ When installed via npm, the configuration wizard handles the initial setup. The 
 | `OPENCODE_SERVER_PASSWORD`                 | Server auth password                                                                                                  |    No    | —                        |
 | `OPENCODE_MODEL_PROVIDER`                  | Default model provider                                                                                                |   Yes    | `opencode`               |
 | `OPENCODE_MODEL_ID`                        | Default model ID                                                                                                      |   Yes    | `big-pickle`             |
-| `BOT_LOCALE`                               | Bot UI language (supported locale code, e.g. `en`, `ar`, `de`, `es`, `fr`, `ru`, `zh`)                                      |    No    | `en`                     |
+| `BOT_LOCALE`                               | Bot UI language (supported locale code, e.g. `en`, `ar`, `de`, `es`, `fr`, `ru`, `zh`)                                |    No    | `en`                     |
 | `SESSIONS_LIST_LIMIT`                      | Sessions per page in `/sessions`                                                                                      |    No    | `10`                     |
 | `MESSAGES_LIST_LIMIT`                      | User messages per page in `/messages`                                                                                 |    No    | `10`                     |
 | `PROJECTS_LIST_LIMIT`                      | Projects per page in `/projects`                                                                                      |    No    | `10`                     |
@@ -357,6 +357,7 @@ The model picker uses OpenCode local model state (`favorite` + `recent`):
 To add a model to favorites, open OpenCode TUI (`opencode`), go to model selection, and press **Cmd+F/Ctrl+F** on the model.
 
 ## Security
+
 The bot enforces a strict **user ID whitelist**. Only the Telegram user whose numeric ID matches `TELEGRAM_ALLOWED_USER_ID` can interact with the bot. Messages from any other user are silently ignored and logged as unauthorized access attempts.
 
 Since the bot runs locally on your machine and connects to your local OpenCode server, there is no external attack surface beyond the Telegram Bot API itself.
