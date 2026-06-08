@@ -8,7 +8,7 @@ const mocked = vi.hoisted(() => ({
   sendBotTextMock: vi.fn(),
 }));
 
-vi.mock("../../../src/bot/utils/telegram-text.js", () => ({
+vi.mock("../../../src/bot/ui/telegram-text.js", () => ({
   sendBotText: mocked.sendBotTextMock,
 }));
 

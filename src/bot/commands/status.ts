@@ -6,11 +6,11 @@ import { getCurrentProject, isTtsEnabled } from "../../settings/manager.js";
 import { fetchCurrentAgent } from "../../agent/manager.js";
 import { getAgentDisplayName } from "../../agent/types.js";
 import { fetchCurrentModel } from "../../model/manager.js";
-import { keyboardManager } from "../../keyboard/manager.js";
-import { pinnedMessageManager } from "../../pinned/manager.js";
+import { keyboardManager } from "../ui/keyboard/manager.js";
+import { pinnedMessageManager } from "../ui/pinned/manager.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
-import { sendBotText } from "../utils/telegram-text.js";
+import { sendBotText } from "../ui/telegram-text.js";
 
 export async function statusCommand(ctx: CommandContext<Context>) {
   try {

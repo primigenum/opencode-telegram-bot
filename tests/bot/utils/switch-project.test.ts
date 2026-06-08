@@ -35,14 +35,14 @@ vi.mock("../../../src/summary/aggregator.js", () => ({
 vi.mock("../../../src/interaction/cleanup.js", () => ({
   clearAllInteractionState: mocked.clearAllInteractionStateMock,
 }));
-vi.mock("../../../src/pinned/manager.js", () => ({
+vi.mock("../../../src/bot/ui/pinned/manager.js", () => ({
   pinnedMessageManager: {
     clear: mocked.pinnedClearMock,
     refreshContextLimit: mocked.pinnedRefreshMock,
     getContextLimit: mocked.pinnedGetLimitMock,
   },
 }));
-vi.mock("../../../src/keyboard/manager.js", () => ({
+vi.mock("../../../src/bot/ui/keyboard/manager.js", () => ({
   keyboardManager: {
     initialize: mocked.keyboardInitMock,
     updateContext: mocked.keyboardUpdateMock,
@@ -59,7 +59,7 @@ vi.mock("../../../src/model/manager.js", () => ({
 vi.mock("../../../src/variant/manager.js", () => ({
   formatVariantForButton: mocked.formatVariantMock,
 }));
-vi.mock("../../../src/bot/utils/keyboard.js", () => ({
+vi.mock("../../../src/bot/ui/keyboard/keyboard.js", () => ({
   createMainKeyboard: mocked.createMainKeyboardMock,
 }));
 vi.mock("../../../src/utils/logger.js", () => ({

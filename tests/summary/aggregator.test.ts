@@ -192,7 +192,7 @@ describe("summary/aggregator", () => {
           state: {
             status: "running",
             input: {
-              filePath: "src/pinned/manager.ts",
+              filePath: "src/bot/ui/pinned/manager.ts",
               offset: 1,
               limit: 280,
             },
@@ -219,7 +219,7 @@ describe("summary/aggregator", () => {
         currentTool: "read",
         currentToolTitle: "Reading pinned manager",
         currentToolInput: expect.objectContaining({
-          filePath: "src/pinned/manager.ts",
+          filePath: "src/bot/ui/pinned/manager.ts",
           offset: 1,
           limit: 280,
         }),

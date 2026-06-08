@@ -9,9 +9,9 @@ import {
 import { getStoredModel } from "../../model/manager.js";
 import { getStoredAgent, resolveProjectAgent } from "../../agent/manager.js";
 import { logger } from "../../utils/logger.js";
-import { keyboardManager } from "../../keyboard/manager.js";
-import { pinnedMessageManager } from "../../pinned/manager.js";
-import { createMainKeyboard } from "../utils/keyboard.js";
+import { keyboardManager } from "../ui/keyboard/manager.js";
+import { pinnedMessageManager } from "../ui/pinned/manager.js";
+import { createMainKeyboard } from "../ui/keyboard/keyboard.js";
 import {
   clearActiveInlineMenu,
   ensureActiveInlineMenu,

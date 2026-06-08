@@ -50,7 +50,7 @@ vi.mock("../../../src/git/worktree.js", () => ({
   getGitWorktreeContext: mocked.getGitWorktreeContextMock,
 }));
 
-vi.mock("../../../src/keyboard/manager.js", () => ({
+vi.mock("../../../src/bot/ui/keyboard/manager.js", () => ({
   keyboardManager: {
     initialize: mocked.keyboardInitializeMock,
     updateContext: mocked.keyboardUpdateContextMock,
@@ -58,7 +58,7 @@ vi.mock("../../../src/keyboard/manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/pinned/manager.js", () => ({
+vi.mock("../../../src/bot/ui/pinned/manager.js", () => ({
   pinnedMessageManager: {
     isInitialized: mocked.pinnedIsInitializedMock,
     initialize: mocked.pinnedInitializeMock,
@@ -68,7 +68,7 @@ vi.mock("../../../src/pinned/manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/bot/utils/telegram-text.js", () => ({
+vi.mock("../../../src/bot/ui/telegram-text.js", () => ({
   sendBotText: mocked.sendBotTextMock,
 }));
 

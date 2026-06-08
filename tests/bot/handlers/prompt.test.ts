@@ -60,7 +60,7 @@ vi.mock("../../../src/model/manager.js", () => ({
   })),
 }));
 
-vi.mock("../../../src/pinned/manager.js", () => ({
+vi.mock("../../../src/bot/ui/pinned/manager.js", () => ({
   pinnedMessageManager: {
     isInitialized: vi.fn(() => true),
     initialize: vi.fn(),
@@ -71,7 +71,7 @@ vi.mock("../../../src/pinned/manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/keyboard/manager.js", () => ({
+vi.mock("../../../src/bot/ui/keyboard/manager.js", () => ({
   keyboardManager: {
     initialize: vi.fn(),
     clearContext: vi.fn(),

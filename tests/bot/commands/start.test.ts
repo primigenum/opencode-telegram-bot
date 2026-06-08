@@ -40,7 +40,7 @@ vi.mock("../../../src/settings/manager.js", () => ({
   clearProject: mocked.clearProjectMock,
 }));
 
-vi.mock("../../../src/bot/utils/keyboard.js", () => ({
+vi.mock("../../../src/bot/ui/keyboard/keyboard.js", () => ({
   createMainKeyboard: mocked.createMainKeyboardMock,
 }));
 
@@ -56,7 +56,7 @@ vi.mock("../../../src/variant/manager.js", () => ({
   formatVariantForButton: mocked.formatVariantForButtonMock,
 }));
 
-vi.mock("../../../src/pinned/manager.js", () => ({
+vi.mock("../../../src/bot/ui/pinned/manager.js", () => ({
   pinnedMessageManager: {
     isInitialized: mocked.pinnedIsInitializedMock,
     initialize: mocked.pinnedInitializeMock,
@@ -67,7 +67,7 @@ vi.mock("../../../src/pinned/manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/keyboard/manager.js", () => ({
+vi.mock("../../../src/bot/ui/keyboard/manager.js", () => ({
   keyboardManager: {
     initialize: mocked.keyboardInitializeMock,
     updateAgent: mocked.keyboardUpdateAgentMock,

@@ -66,7 +66,7 @@ import { handleInlineMenuCancel } from "./handlers/inline-menu.js";
 import { questionManager } from "../question/manager.js";
 import { interactionManager } from "../interaction/manager.js";
 import { clearAllInteractionState } from "../interaction/cleanup.js";
-import { keyboardManager } from "../keyboard/manager.js";
+import { keyboardManager } from "./ui/keyboard/manager.js";
 import { stopEventListening, subscribeToEvents } from "../opencode/events.js";
 import { opencodeReadyLifecycle } from "../opencode/ready-lifecycle.js";
 import { summaryAggregator } from "../summary/aggregator.js";
@@ -78,7 +78,7 @@ import { ingestSessionInfoForCache } from "../session/cache-manager.js";
 import { logger } from "../utils/logger.js";
 import { safeBackgroundTask } from "../utils/safe-background-task.js";
 import { withTelegramRateLimitRetry } from "../utils/telegram-rate-limit-retry.js";
-import { pinnedMessageManager } from "../pinned/manager.js";
+import { pinnedMessageManager } from "./ui/pinned/manager.js";
 import { t } from "../i18n/index.js";
 import { getCurrentProject } from "../settings/manager.js";
 import { createTelegramBotOptions } from "./telegram-client-options.js";
@@ -90,7 +90,7 @@ import { downloadTelegramFile, toDataUri } from "./utils/file-download.js";
 import { reconcileBusyState, setResponseStreamerForReconciliation } from "./utils/busy-reconciliation.js";
 import { finalizeAssistantResponse } from "./utils/finalize-assistant-response.js";
 import { sendTtsResponseForSession } from "./utils/send-tts-response.js";
-import { deliverThinkingMessage } from "./utils/thinking-message.js";
+import { deliverThinkingMessage } from "./ui/thinking-message.js";
 import { shouldSuppressUserAbortSessionError } from "./utils/abort-error-suppression.js";
 import {
   completeDraftPart,
@@ -99,7 +99,7 @@ import {
   sendBotText,
   sendDraftBotPart,
   sendRenderedBotPart,
-} from "./utils/telegram-text.js";
+} from "./ui/telegram-text.js";
 import { formatAssistantRunFooter } from "./utils/assistant-run-footer.js";
 import { getModelCapabilities, supportsInput } from "../model/capabilities.js";
 import { getStoredModel } from "../model/manager.js";
@@ -107,9 +107,9 @@ import type { FilePartInput } from "@opencode-ai/sdk/v2";
 import { foregroundSessionState } from "../scheduled-task/foreground-state.js";
 import { scheduledTaskRuntime } from "../scheduled-task/runtime.js";
 import { assistantRunState } from "./assistant-run-state.js";
-import { ResponseStreamer } from "./streaming/response-streamer.js";
-import type { StreamingMessagePayload } from "./streaming/response-streamer.js";
-import { ToolCallStreamer, type ToolStreamKey } from "./streaming/tool-call-streamer.js";
+import { ResponseStreamer } from "./ui/streaming/response-streamer.js";
+import type { StreamingMessagePayload } from "./ui/streaming/response-streamer.js";
+import { ToolCallStreamer, type ToolStreamKey } from "./ui/streaming/tool-call-streamer.js";
 import { attachManager } from "../attach/manager.js";
 import {
   markAttachedSessionBusy,
@@ -121,7 +121,7 @@ import {
   prepareAssistantFinalStreamingPayload,
   prepareAssistantStreamingPayload,
   renderAssistantFinalPartsSafe,
-} from "./utils/assistant-rendering.js";
+} from "./ui/render/assistant-rendering.js";
 import { deliverExternalUserInputNotification } from "./utils/external-user-input.js";
 import {
   backgroundSessionTracker,

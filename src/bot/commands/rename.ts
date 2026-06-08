@@ -3,7 +3,7 @@ import { opencodeClient } from "../../opencode/client.js";
 import { getCurrentSession, setCurrentSession } from "../../session/manager.js";
 import { renameManager } from "../../rename/manager.js";
 import { interactionManager } from "../../interaction/manager.js";
-import { pinnedMessageManager } from "../../pinned/manager.js";
+import { pinnedMessageManager } from "../ui/pinned/manager.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
 

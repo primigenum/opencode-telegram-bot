@@ -9,7 +9,7 @@ import { markAttachedSessionBusy, markAttachedSessionIdle } from "../../attach/s
 import { assistantRunState } from "../assistant-run-state.js";
 import { clearPromptResponseMode } from "../handlers/prompt.js";
 import { logger } from "../../utils/logger.js";
-import type { ResponseStreamer } from "../streaming/response-streamer.js";
+import type { ResponseStreamer } from "../ui/streaming/response-streamer.js";
 
 const RECONCILE_MIN_INTERVAL_MS = 10_000;
 const FOREGROUND_BUSY_RECONCILE_GRACE_MS = 2_000;

@@ -1,6 +1,6 @@
 import { opencodeClient } from "../opencode/client.js";
 import { logger } from "../utils/logger.js";
-import { DEFAULT_CONTEXT_LIMIT } from "../pinned/format.js";
+import { DEFAULT_CONTEXT_LIMIT } from "../bot/ui/pinned/format.js";
 import { isExpectedOpencodeUnavailableError } from "../utils/opencode-error.js";
 
 const PROVIDER_CACHE_TTL_MS = 10 * 60 * 1000;

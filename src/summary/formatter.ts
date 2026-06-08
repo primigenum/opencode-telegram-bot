@@ -6,7 +6,7 @@ import { logger } from "../utils/logger.js";
 import { t } from "../i18n/index.js";
 import { getCurrentProject } from "../settings/manager.js";
 import { convertToTelegramMarkdownV2 } from "./markdown-to-telegram-v2.js";
-import { normalizeMarkdownForTelegramRendering } from "../telegram/render/markdown-normalizer.js";
+import { normalizeMarkdownForTelegramRendering } from "../bot/ui/render/markdown-normalizer.js";
 
 const TELEGRAM_MESSAGE_LIMIT = 4096;
 const MARKDOWN_V2_RESERVED_CHARS = /([_\*\[\]\(\)~`>#+\-=|{}.!\\])/g;

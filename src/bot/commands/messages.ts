@@ -12,8 +12,8 @@ import { ingestSessionInfoForCache } from "../../session/cache-manager.js";
 import { t } from "../../i18n/index.js";
 import { logger } from "../../utils/logger.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";
-import { renderAssistantFinalPartsSafe } from "../utils/assistant-rendering.js";
-import { sendRenderedBotPart } from "../utils/telegram-text.js";
+import { renderAssistantFinalPartsSafe } from "../ui/render/assistant-rendering.js";
+import { sendRenderedBotPart } from "../ui/telegram-text.js";
 
 const MESSAGES_CALLBACK_PREFIX = "messages:";
 const MESSAGES_CALLBACK_SELECT_PREFIX = `${MESSAGES_CALLBACK_PREFIX}select:`;

@@ -1,4 +1,4 @@
-import { formatModelDisplayName } from "../pinned/format.js";
+import { formatModelDisplayName } from "../bot/ui/pinned/format.js";
 import { t } from "../i18n/index.js";
 import { formatCompactToolInfo } from "./formatter.js";
 import type { SubagentInfo } from "./aggregator.js";

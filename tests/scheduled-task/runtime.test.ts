@@ -56,7 +56,7 @@ vi.mock("../../src/scheduled-task/session-ignore.js", () => ({
   cleanupScheduledTaskSessionIgnores: mocked.cleanupIgnoresMock,
 }));
 
-vi.mock("../../src/bot/utils/telegram-text.js", () => ({
+vi.mock("../../src/bot/ui/telegram-text.js", () => ({
   sendBotText: mocked.sendBotTextMock,
 }));
 

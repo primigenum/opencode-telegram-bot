@@ -40,7 +40,7 @@ vi.mock("../../../src/summary/aggregator.js", () => ({
   summaryAggregator: { clear: vi.fn() },
 }));
 
-vi.mock("../../../src/pinned/manager.js", () => ({
+vi.mock("../../../src/bot/ui/pinned/manager.js", () => ({
   pinnedMessageManager: {
     isInitialized: vi.fn(() => false),
     initialize: vi.fn(),
@@ -48,7 +48,7 @@ vi.mock("../../../src/pinned/manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/keyboard/manager.js", () => ({
+vi.mock("../../../src/bot/ui/keyboard/manager.js", () => ({
   keyboardManager: {
     initialize: vi.fn(),
     updateAgent: vi.fn(),
@@ -69,7 +69,7 @@ vi.mock("../../../src/variant/manager.js", () => ({
   formatVariantForButton: vi.fn(() => "Default"),
 }));
 
-vi.mock("../../../src/bot/utils/keyboard.js", () => ({
+vi.mock("../../../src/bot/ui/keyboard/keyboard.js", () => ({
   createMainKeyboard: vi.fn(() => ({ keyboard: true })),
 }));
 

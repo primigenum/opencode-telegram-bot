@@ -8,7 +8,7 @@ import {
 } from "../../opencode/process.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
-import { editBotText } from "../utils/telegram-text.js";
+import { editBotText } from "../ui/telegram-text.js";
 
 /**
  * Command handler for /opencode-stop

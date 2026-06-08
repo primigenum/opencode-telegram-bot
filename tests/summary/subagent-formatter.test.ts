@@ -31,7 +31,7 @@ describe("summary/subagent-formatter", () => {
         cost: 0.18,
         currentTool: "read",
         currentToolInput: {
-          filePath: "src/pinned/manager.ts",
+          filePath: "src/bot/ui/pinned/manager.ts",
           offset: 1,
           limit: 280,
         },
@@ -45,7 +45,7 @@ describe("summary/subagent-formatter", () => {
     expect(text).toContain("Model: openai/gpt-5.4");
     expect(text).not.toContain("Context:");
     expect(text).not.toContain("Cost:");
-    expect(text).toContain("📖 read src/pinned/manager.ts");
+    expect(text).toContain("📖 read src/bot/ui/pinned/manager.ts");
     expect(text).not.toContain("Working:");
   });
 
