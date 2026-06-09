@@ -399,7 +399,7 @@ src/bot/
   6. Обновить prompt/final delivery imports и tests.
   7. Запустить stt/tts/voice/send-tts-response тесты, затем build.
 
-- [ ] **Этап 11. Files**
+- [x] **Этап 11. Files**
 
   1. Перенести `bot/commands/open.ts` -> `bot/commands/open-command.ts`.
   2. Перенести `bot/commands/ls.ts` -> `bot/commands/ls-command.ts`.

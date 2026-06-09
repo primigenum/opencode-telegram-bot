@@ -6,7 +6,7 @@ import {
   toDataUri,
   isTextMimeType,
   isFileSizeAllowed,
-} from "../utils/file-download.js";
+} from "../../app/services/file-download-service.js";
 import { getModelCapabilities, supportsInput } from "../../app/services/model-capabilities-service.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
 import { logger } from "../../utils/logger.js";

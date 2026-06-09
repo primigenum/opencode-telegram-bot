@@ -10,7 +10,7 @@ import {
   isFileSizeAllowed,
   isTextMimeType,
   toDataUri,
-} from "../utils/file-download.js";
+} from "../../app/services/file-download-service.js";
 import { processUserPrompt, type ProcessPromptDeps } from "./prompt.js";
 
 const DEFAULT_MEDIA_GROUP_DEBOUNCE_MS = 1_000;

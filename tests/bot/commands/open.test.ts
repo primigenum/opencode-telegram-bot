@@ -32,16 +32,13 @@ const mocked = vi.hoisted(() => ({
   interactionStartMock: vi.fn(),
 }));
 
-vi.mock("../../../src/bot/utils/file-tree.js", () => ({
+vi.mock("../../../src/app/services/file-browser-service.js", () => ({
   pathToDisplayPath: mocked.pathToDisplayPathMock,
   scanDirectory: mocked.scanDirectoryMock,
   buildEntryLabel: mocked.buildEntryLabelMock,
   buildTreeHeader: mocked.buildTreeHeaderMock,
   isScanError: mocked.isScanErrorMock,
   MAX_ENTRIES_PER_PAGE: 8,
-}));
-
-vi.mock("../../../src/bot/utils/browser-roots.js", () => ({
   getBrowserRoots: mocked.getBrowserRootsMock,
   isWithinAllowedRoot: mocked.isWithinAllowedRootMock,
   isAllowedRoot: mocked.isAllowedRootMock,
@@ -86,11 +83,9 @@ vi.mock("../../../src/utils/logger.js", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-import {
-  openCommand,
-  handleOpenCallback,
-  clearOpenPathIndex,
-} from "../../../src/bot/commands/open.js";
+import { openCommand } from "../../../src/bot/commands/open-command.js";
+import { handleOpenCallback } from "../../../src/bot/callbacks/file-browser-callback-handler.js";
+import { clearOpenPathIndex } from "../../../src/bot/menus/file-browser-menu.js";
 
 // --- Context factories ---
 

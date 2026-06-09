@@ -24,8 +24,8 @@ import {
 import { newCommand } from "./commands/new.js";
 import { projectsCommand, handleProjectSelect } from "./commands/projects.js";
 import { worktreeCommand, handleWorktreeCallback } from "./commands/worktree.js";
-import { openCommand, handleOpenCallback, clearOpenPathIndex } from "./commands/open.js";
-import { clearLsPathIndex, handleLsCallback, lsCommand } from "./commands/ls.js";
+import { openCommand } from "./commands/open-command.js";
+import { lsCommand } from "./commands/ls-command.js";
 import { abortCommand } from "./commands/abort.js";
 import { detachCommand } from "./commands/detach.js";
 import { opencodeStartCommand } from "./commands/opencode-start.js";
@@ -64,6 +64,7 @@ import { showVariantSelectionMenu } from "./menus/variant-selection-menu.js";
 import { handleContextButtonPress } from "./menus/context-control-menu.js";
 import { handleCompactConfirm } from "./callbacks/context-control-callback-handler.js";
 import { handleInlineMenuCancel } from "./callbacks/inline-menu-cancel-callback-handler.js";
+import { handleLsCallback, handleOpenCallback } from "./callbacks/file-browser-callback-handler.js";
 import { questionManager } from "../app/managers/question-manager.js";
 import { interactionManager } from "../app/managers/interaction-manager.js";
 import { clearAllInteractionState } from "../app/managers/interaction-manager.js";
@@ -85,9 +86,9 @@ import { getCurrentProject } from "../settings/manager.js";
 import { createTelegramBotOptions } from "./telegram-client-options.js";
 import { clearPromptResponseMode, processUserPrompt } from "./handlers/prompt.js";
 import { handleVoiceMessage } from "./handlers/voice-handler.js";
-import { handleDocumentMessage } from "./handlers/document.js";
-import { createMediaGroupAttachmentMiddleware } from "./handlers/media-group.js";
-import { downloadTelegramFile, toDataUri } from "./utils/file-download.js";
+import { handleDocumentMessage } from "./handlers/document-handler.js";
+import { createMediaGroupAttachmentMiddleware } from "./handlers/media-group-handler.js";
+import { handlePhotoMessage } from "./handlers/photo-handler.js";
 import {
   reconcileBusyState,
   setPromptResponseModeClearerForReconciliation,
@@ -106,9 +107,7 @@ import {
   sendRenderedBotPart,
 } from "./ui/telegram-text.js";
 import { formatAssistantRunFooter } from "../app/formatters/assistant-run-footer-formatter.js";
-import { getModelCapabilities, supportsInput } from "../app/services/model-capabilities-service.js";
-import { getStoredModel } from "../app/services/model-selection-service.js";
-import type { FilePartInput } from "@opencode-ai/sdk/v2";
+import { clearLsPathIndex, clearOpenPathIndex } from "./menus/file-browser-menu.js";
 import { foregroundSessionState } from "../scheduled-task/foreground-state.js";
 import { scheduledTaskRuntime } from "../scheduled-task/runtime.js";
 import { assistantRunState } from "../app/managers/assistant-run-state-manager.js";
@@ -1454,65 +1453,9 @@ export function createBot(): Bot<Context> {
   // Photo message handler
   bot.on("message:photo", async (ctx) => {
     logger.debug(`[Bot] Received photo message, chatId=${ctx.chat.id}`);
-
-    const photos = ctx.message?.photo;
-    if (!photos || photos.length === 0) {
-      return;
-    }
-
-    const caption = ctx.message.caption || "";
-
-    try {
-      // Get the largest photo (last element in array)
-      const largestPhoto = photos[photos.length - 1];
-
-      // Check model capabilities
-      const storedModel = getStoredModel();
-      const capabilities = await getModelCapabilities(storedModel.providerID, storedModel.modelID);
-
-      if (!supportsInput(capabilities, "image")) {
-        logger.warn(
-          `[Bot] Model ${storedModel.providerID}/${storedModel.modelID} doesn't support image input`,
-        );
-        await ctx.reply(t("bot.photo_model_no_image"));
-
-        // Fall back to caption-only if present
-        if (caption.trim().length > 0) {
-          botInstance = bot;
-          chatIdInstance = ctx.chat.id;
-          const promptDeps = { bot, ensureEventSubscription };
-          await processUserPrompt(ctx, caption, promptDeps);
-        }
-        return;
-      }
-
-      // Download photo
-      await ctx.reply(t("bot.photo_downloading"));
-      const downloadedFile = await downloadTelegramFile(ctx.api, largestPhoto.file_id);
-
-      // Convert to data URI (Telegram always converts photos to JPEG)
-      const dataUri = toDataUri(downloadedFile.buffer, "image/jpeg");
-
-      // Create file part
-      const filePart: FilePartInput = {
-        type: "file",
-        mime: "image/jpeg",
-        filename: "photo.jpg",
-        url: dataUri,
-      };
-
-      logger.info(`[Bot] Sending photo (${downloadedFile.buffer.length} bytes) with prompt`);
-
-      botInstance = bot;
-      chatIdInstance = ctx.chat.id;
-
-      // Send via processUserPrompt with file part
-      const promptDeps = { bot, ensureEventSubscription };
-      await processUserPrompt(ctx, caption, promptDeps, [filePart]);
-    } catch (err) {
-      logger.error("[Bot] Error handling photo message:", err);
-      await ctx.reply(t("bot.photo_download_error"));
-    }
+    botInstance = bot;
+    chatIdInstance = ctx.chat.id;
+    await handlePhotoMessage(ctx, { bot, ensureEventSubscription });
   });
 
   // Document message handler (PDF and text files)

@@ -63,7 +63,12 @@ vi.mock("../../../src/utils/logger.js", () => ({
   },
 }));
 
-import { clearLsPathIndex, clearSessionDirectories, handleLsCallback, lsCommand } from "../../../src/bot/commands/ls.js";
+import { lsCommand } from "../../../src/bot/commands/ls-command.js";
+import {
+  clearSessionDirectories,
+  handleLsCallback,
+} from "../../../src/bot/callbacks/file-browser-callback-handler.js";
+import { clearLsPathIndex } from "../../../src/bot/menus/file-browser-menu.js";
 
 function createCommandContext(): Context {
   return {

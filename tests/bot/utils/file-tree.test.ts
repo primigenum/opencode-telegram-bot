@@ -11,7 +11,7 @@ import {
   buildTreeHeader,
   isScanError,
   MAX_ENTRIES_PER_PAGE,
-} from "../../../src/bot/utils/file-tree.js";
+} from "../../../src/app/services/file-browser-service.js";
 
 vi.mock("../../../src/utils/logger.js", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },

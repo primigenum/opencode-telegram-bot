@@ -3,7 +3,7 @@ import type { Context } from "grammy";
 import {
   handleDocumentMessage,
   type DocumentHandlerDeps,
-} from "../../../src/bot/handlers/document.js";
+} from "../../../src/bot/handlers/document-handler.js";
 import { t } from "../../../src/i18n/index.js";
 
 function createDocumentContext(overrides: Partial<Context["message"]> = {}): {

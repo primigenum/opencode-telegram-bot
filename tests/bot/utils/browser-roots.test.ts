@@ -12,7 +12,7 @@ import {
   isWithinAllowedRoot,
   isAllowedRoot,
   __resetBrowserRootsForTests,
-} from "../../../src/bot/utils/browser-roots.js";
+} from "../../../src/app/services/file-browser-service.js";
 
 describe("browser-roots", () => {
   const originalPlatform = process.platform;
