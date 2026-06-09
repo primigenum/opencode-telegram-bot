@@ -1,15 +1,13 @@
-import { opencodeClient } from "../../../opencode/client.js";
+import { opencodeClient } from "../../opencode/client.js";
 import {
   foregroundSessionState,
   type ForegroundBusySession,
-} from "../../../scheduled-task/foreground-state.js";
-import { scheduledTaskRuntime } from "../../../scheduled-task/runtime.js";
-import { attachManager } from "../../../attach/manager.js";
-import { markAttachedSessionBusy, markAttachedSessionIdle } from "../../../attach/service.js";
-import { assistantRunState } from "./assistant-run-state.js";
-import { clearPromptResponseMode } from "../../handlers/prompt.js";
-import { logger } from "../../../utils/logger.js";
-import type { ResponseStreamer } from "../../streaming/response-streamer.js";
+} from "../../scheduled-task/foreground-state.js";
+import { scheduledTaskRuntime } from "../../scheduled-task/runtime.js";
+import { attachManager } from "../../attach/manager.js";
+import { markAttachedSessionBusy, markAttachedSessionIdle } from "../../attach/service.js";
+import { assistantRunState } from "../managers/assistant-run-state-manager.js";
+import { logger } from "../../utils/logger.js";
 
 const RECONCILE_MIN_INTERVAL_MS = 10_000;
 const FOREGROUND_BUSY_RECONCILE_GRACE_MS = 2_000;
@@ -18,13 +16,26 @@ type SessionStatus = {
   type?: string;
 };
 
+type ResponseStreamerForReconciliation = {
+  hasActiveStream(sessionId: string): boolean;
+};
+
 const inFlightDirectories = new Set<string>();
 const lastReconcileAtByDirectory = new Map<string, number>();
 
-let responseStreamerInstance: ResponseStreamer | null = null;
+let responseStreamerInstance: ResponseStreamerForReconciliation | null = null;
+let clearPromptResponseModeForReconciliation: ((sessionId: string) => void) | null = null;
 
-export function setResponseStreamerForReconciliation(streamer: ResponseStreamer): void {
+export function setResponseStreamerForReconciliation(
+  streamer: ResponseStreamerForReconciliation,
+): void {
   responseStreamerInstance = streamer;
+}
+
+export function setPromptResponseModeClearerForReconciliation(
+  clearer: (sessionId: string) => void,
+): void {
+  clearPromptResponseModeForReconciliation = clearer;
 }
 
 function getReconciliationTargets(directory: string): {
@@ -64,7 +75,7 @@ function isWithinForegroundBusyGracePeriod(
 async function clearForegroundBusySession(sessionId: string, reason: string): Promise<void> {
   foregroundSessionState.markIdle(sessionId);
   assistantRunState.clearRun(sessionId, reason);
-  clearPromptResponseMode(sessionId);
+  clearPromptResponseModeForReconciliation?.(sessionId);
 }
 
 export async function reconcileBusyStateNow(directory: string, now: number = Date.now()): Promise<void> {
@@ -171,4 +182,6 @@ export async function reconcileBusyState(directory: string, now: number = Date.n
 export function __resetBusyReconciliationForTests(): void {
   inFlightDirectories.clear();
   lastReconcileAtByDirectory.clear();
+  responseStreamerInstance = null;
+  clearPromptResponseModeForReconciliation = null;
 }

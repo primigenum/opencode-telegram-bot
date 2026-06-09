@@ -4,9 +4,9 @@ import {
   __resetUserAbortErrorSuppressionForTests,
   markUserAbortRequested,
   shouldSuppressUserAbortSessionError,
-} from "../../../../src/bot/core/assistant-execution/abort-error-suppression.js";
+} from "../../../../src/app/managers/abort-suppression-manager.js";
 
-describe("bot/core/assistant-execution/abort-error-suppression", () => {
+describe("app/managers/abort-suppression-manager", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-16T10:00:00Z"));

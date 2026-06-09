@@ -85,11 +85,15 @@ import { handleVoiceMessage } from "./handlers/voice.js";
 import { handleDocumentMessage } from "./handlers/document.js";
 import { createMediaGroupAttachmentMiddleware } from "./handlers/media-group.js";
 import { downloadTelegramFile, toDataUri } from "./utils/file-download.js";
-import { reconcileBusyState, setResponseStreamerForReconciliation } from "./core/assistant-execution/busy-reconciliation.js";
+import {
+  reconcileBusyState,
+  setPromptResponseModeClearerForReconciliation,
+  setResponseStreamerForReconciliation,
+} from "../app/services/busy-reconciliation-service.js";
 import { finalizeAssistantResponse } from "./core/assistant-execution/finalize-assistant-response.js";
 import { sendTtsResponseForSession } from "./utils/send-tts-response.js";
 import { deliverThinkingMessage } from "./ui/thinking-message.js";
-import { shouldSuppressUserAbortSessionError } from "./core/assistant-execution/abort-error-suppression.js";
+import { shouldSuppressUserAbortSessionError } from "../app/managers/abort-suppression-manager.js";
 import {
   completeDraftPart,
   editRenderedBotPart,
@@ -98,13 +102,13 @@ import {
   sendDraftBotPart,
   sendRenderedBotPart,
 } from "./ui/telegram-text.js";
-import { formatAssistantRunFooter } from "./core/assistant-execution/assistant-run-footer.js";
+import { formatAssistantRunFooter } from "../app/formatters/assistant-run-footer-formatter.js";
 import { getModelCapabilities, supportsInput } from "../model/capabilities.js";
 import { getStoredModel } from "../model/manager.js";
 import type { FilePartInput } from "@opencode-ai/sdk/v2";
 import { foregroundSessionState } from "../scheduled-task/foreground-state.js";
 import { scheduledTaskRuntime } from "../scheduled-task/runtime.js";
-import { assistantRunState } from "./core/assistant-execution/assistant-run-state.js";
+import { assistantRunState } from "../app/managers/assistant-run-state-manager.js";
 import { ResponseStreamer } from "./streaming/response-streamer.js";
 import type { StreamingMessagePayload } from "./streaming/response-streamer.js";
 import { ToolCallStreamer, type ToolStreamKey } from "./streaming/tool-call-streamer.js";
@@ -350,6 +354,7 @@ const responseStreamer = RESPONSE_STREAMING_MODE === "draft"
     });
 
 setResponseStreamerForReconciliation(responseStreamer);
+setPromptResponseModeClearerForReconciliation(clearPromptResponseMode);
 
 const toolCallStreamer = new ToolCallStreamer({
   throttleMs: RESPONSE_STREAM_THROTTLE_MS,

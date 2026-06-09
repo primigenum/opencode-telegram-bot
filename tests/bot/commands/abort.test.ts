@@ -13,7 +13,7 @@ import { t } from "../../../src/i18n/index.js";
 import {
   __resetUserAbortErrorSuppressionForTests,
   shouldSuppressUserAbortSessionError,
-} from "../../../src/bot/core/assistant-execution/abort-error-suppression.js";
+} from "../../../src/app/managers/abort-suppression-manager.js";
 
 const mocked = vi.hoisted(() => ({
   currentSession: null as { id: string; title: string; directory: string } | null,
@@ -37,7 +37,7 @@ vi.mock("../../../src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("../../../src/bot/core/assistant-execution/assistant-run-state.js", () => ({
+vi.mock("../../../src/app/managers/assistant-run-state-manager.js", () => ({
   assistantRunState: {
     clearRun: mocked.clearRunMock,
   },

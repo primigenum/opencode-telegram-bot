@@ -22,14 +22,10 @@ vi.mock("../../../../src/attach/service.js", () => ({
   markAttachedSessionIdle: mocked.markAttachedSessionIdleMock,
 }));
 
-vi.mock("../../../../src/bot/core/assistant-execution/assistant-run-state.js", () => ({
+vi.mock("../../../../src/app/managers/assistant-run-state-manager.js", () => ({
   assistantRunState: {
     clearRun: mocked.clearRunMock,
   },
-}));
-
-vi.mock("../../../../src/bot/handlers/prompt.js", () => ({
-  clearPromptResponseMode: mocked.clearPromptResponseModeMock,
 }));
 
 vi.mock("../../../../src/scheduled-task/runtime.js", () => ({
@@ -44,8 +40,9 @@ import {
   __resetBusyReconciliationForTests,
   reconcileBusyState,
   reconcileBusyStateNow,
+  setPromptResponseModeClearerForReconciliation,
   setResponseStreamerForReconciliation,
-} from "../../../../src/bot/core/assistant-execution/busy-reconciliation.js";
+} from "../../../../src/app/services/busy-reconciliation-service.js";
 
 function markForegroundBusyAt(
   sessionId: string,
@@ -69,6 +66,7 @@ describe("busy reconciliation", () => {
     mocked.markAttachedSessionIdleMock.mockResolvedValue(undefined);
     mocked.clearRunMock.mockReset();
     mocked.clearPromptResponseModeMock.mockReset();
+    setPromptResponseModeClearerForReconciliation(mocked.clearPromptResponseModeMock);
     mocked.flushDeferredDeliveriesMock.mockReset();
     mocked.flushDeferredDeliveriesMock.mockResolvedValue(undefined);
   });

@@ -5,10 +5,10 @@ import { clearAllInteractionState } from "../../app/managers/interaction-manager
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
 import { foregroundSessionState } from "../../scheduled-task/foreground-state.js";
-import { assistantRunState } from "../core/assistant-execution/assistant-run-state.js";
+import { assistantRunState } from "../../app/managers/assistant-run-state-manager.js";
 import { markAttachedSessionIdle } from "../../attach/service.js";
 import { clearPromptResponseMode } from "../handlers/prompt.js";
-import { markUserAbortRequested } from "../core/assistant-execution/abort-error-suppression.js";
+import { markUserAbortRequested } from "../../app/managers/abort-suppression-manager.js";
 
 type SessionState = "idle" | "busy" | "not-found";
 

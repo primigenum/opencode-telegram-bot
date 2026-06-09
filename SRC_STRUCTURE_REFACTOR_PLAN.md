@@ -365,7 +365,7 @@ src/bot/
   5. Обновить `interaction-guard` imports.
   6. Запустить interaction/question/permission/middleware тесты, затем build.
 
-- [ ] **Этап 8. Assistant execution alignment**
+- [x] **Этап 8. Assistant execution alignment**
 
   1. Перенести `assistant-run-state.ts` в `app/managers/assistant-run-state-manager.ts`.
   2. Перенести `abort-error-suppression.ts` в `app/managers/abort-suppression-manager.ts`.

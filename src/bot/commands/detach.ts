@@ -6,7 +6,7 @@ import { clearAllInteractionState } from "../../app/managers/interaction-manager
 import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
 import { foregroundSessionState } from "../../scheduled-task/foreground-state.js";
-import { assistantRunState } from "../core/assistant-execution/assistant-run-state.js";
+import { assistantRunState } from "../../app/managers/assistant-run-state-manager.js";
 import { clearPromptResponseMode } from "../handlers/prompt.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";

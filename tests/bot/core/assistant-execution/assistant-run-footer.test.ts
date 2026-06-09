@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { formatAssistantRunFooter } from "../../../../src/bot/core/assistant-execution/assistant-run-footer.js";
+import { formatAssistantRunFooter } from "../../../../src/app/formatters/assistant-run-footer-formatter.js";
 
-describe("bot/core/assistant-execution/assistant-run-footer", () => {
+describe("app/formatters/assistant-run-footer-formatter", () => {
   it("formats agent, model, and elapsed time in one line", () => {
     expect(
       formatAssistantRunFooter({

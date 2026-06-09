@@ -113,7 +113,7 @@ vi.mock("../../../src/scheduled-task/foreground-state.js", () => ({
   },
 }));
 
-vi.mock("../../../src/bot/core/assistant-execution/assistant-run-state.js", () => ({
+vi.mock("../../../src/app/managers/assistant-run-state-manager.js", () => ({
   assistantRunState: {
     startRun: vi.fn(),
     clearRun: vi.fn(),

@@ -12,7 +12,8 @@ import {
 } from "../menus/inline-menu.js";
 import { switchToProject } from "../utils/switch-project.js";
 import { clearAllInteractionState } from "../../app/managers/interaction-manager.js";
-import { isForegroundBusy, replyBusyBlocked } from "../core/assistant-execution/busy-guard.js";
+import { isForegroundBusy } from "../../app/services/run-control-service.js";
+import { replyBusyBlocked } from "../render/busy-blocked-renderer.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
 import { config } from "../../config.js";
