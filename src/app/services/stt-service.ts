@@ -1,5 +1,5 @@
-import { config } from "../config.js";
-import { logger } from "../utils/logger.js";
+import { config } from "../../config.js";
+import { logger } from "../../utils/logger.js";
 
 const STT_REQUEST_TIMEOUT_MS = 60_000;
 

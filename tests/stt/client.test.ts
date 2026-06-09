@@ -42,7 +42,7 @@ vi.mock("../../src/config.js", () => ({
   },
 }));
 
-import { isSttConfigured, transcribeAudio } from "../../src/stt/client.js";
+import { isSttConfigured, transcribeAudio } from "../../src/app/services/stt-service.js";
 
 describe("isSttConfigured", () => {
   beforeEach(() => {

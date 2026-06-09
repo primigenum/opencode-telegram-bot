@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Context } from "grammy";
-import { ttsCommand } from "../../../src/bot/commands/tts.js";
+import { ttsCommand } from "../../../src/bot/commands/tts-command.js";
 import { t } from "../../../src/i18n/index.js";
 
 const mocked = vi.hoisted(() => ({
@@ -14,11 +14,11 @@ vi.mock("../../../src/settings/manager.js", () => ({
   setTtsEnabled: mocked.setTtsEnabledMock,
 }));
 
-vi.mock("../../../src/tts/client.js", () => ({
+vi.mock("../../../src/app/services/tts-service.js", () => ({
   isTtsConfigured: mocked.isTtsConfiguredMock,
 }));
 
-describe("bot/commands/tts", () => {
+describe("bot/commands/tts-command", () => {
   beforeEach(() => {
     mocked.isTtsEnabledMock.mockReset();
     mocked.setTtsEnabledMock.mockReset();

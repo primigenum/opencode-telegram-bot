@@ -1,5 +1,5 @@
 import { CommandContext, Context } from "grammy";
-import { isTtsConfigured } from "../../tts/client.js";
+import { isTtsConfigured } from "../../app/services/tts-service.js";
 import { isTtsEnabled, setTtsEnabled } from "../../settings/manager.js";
 import { t } from "../../i18n/index.js";
 

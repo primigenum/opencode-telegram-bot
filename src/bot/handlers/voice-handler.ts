@@ -6,7 +6,7 @@ import type { FilePartInput } from "@opencode-ai/sdk/v2";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import { config } from "../../config.js";
-import { isSttConfigured, transcribeAudio, type SttResult } from "../../stt/client.js";
+import { isSttConfigured, transcribeAudio, type SttResult } from "../../app/services/stt-service.js";
 import { processUserPrompt, type ProcessPromptDeps } from "./prompt.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";

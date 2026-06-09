@@ -73,7 +73,7 @@ import {
   stripMarkdownForSpeech,
   extractLanguageCode,
   _resetGoogleClient,
-} from "../../src/tts/client.js";
+} from "../../src/app/services/tts-service.js";
 
 describe("isTtsConfigured", () => {
   beforeEach(() => {

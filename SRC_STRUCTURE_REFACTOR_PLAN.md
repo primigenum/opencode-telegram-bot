@@ -389,7 +389,7 @@ src/bot/
   10. Обновить keyboard/pinned/status/start/new/session/prompt imports.
   11. Запустить model/agent/variant/context/keyboard/status/start/new tests, затем build.
 
-- [ ] **Этап 10. Speech**
+- [x] **Этап 10. Speech**
 
   1. Перенести `stt/client.ts` -> `app/services/stt-service.ts`.
   2. Перенести `tts/client.ts` -> `app/services/tts-service.ts`.

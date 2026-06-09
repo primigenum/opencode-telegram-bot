@@ -1,14 +1,29 @@
-import { config } from "../config.js";
-import { logger } from "../utils/logger.js";
+import { config } from "../../config.js";
+import { logger } from "../../utils/logger.js";
 import textToSpeech from "@google-cloud/text-to-speech";
 
 const TTS_REQUEST_TIMEOUT_MS = 60_000;
+const MAX_TTS_INPUT_CHARS = 4_000;
 
 export interface TtsResult {
   buffer: Buffer;
   filename: string;
   mimeType: string;
 }
+
+type PromptResponseMode = "text_only" | "text_and_tts";
+
+interface PrepareTtsResponseParams {
+  sessionId: string;
+  text: string;
+  consumeResponseMode: (sessionId: string) => PromptResponseMode | null;
+  isTtsConfigured?: () => boolean;
+  synthesizeSpeech?: (text: string) => Promise<TtsResult>;
+}
+
+export type PreparedTtsResponse =
+  | { shouldSend: false }
+  | { shouldSend: true; speech: TtsResult };
 
 export function isTtsConfigured(): boolean {
   if (config.tts.provider === "google") {
@@ -173,4 +188,36 @@ export async function synthesizeSpeech(text: string): Promise<TtsResult> {
     }
     throw err;
   }
+}
+
+export async function prepareTtsResponseForSession({
+  sessionId,
+  text,
+  consumeResponseMode,
+  isTtsConfigured: isTtsConfiguredImpl = isTtsConfigured,
+  synthesizeSpeech: synthesizeSpeechImpl = synthesizeSpeech,
+}: PrepareTtsResponseParams): Promise<PreparedTtsResponse> {
+  const responseMode = consumeResponseMode(sessionId);
+  if (responseMode !== "text_and_tts") {
+    return { shouldSend: false };
+  }
+
+  const normalizedText = text.trim();
+  if (!normalizedText) {
+    return { shouldSend: false };
+  }
+
+  if (!isTtsConfiguredImpl()) {
+    logger.info(`[TTS] Skipping audio reply for session ${sessionId}: TTS is not configured`);
+    return { shouldSend: false };
+  }
+
+  if (normalizedText.length > MAX_TTS_INPUT_CHARS) {
+    logger.warn(
+      `[TTS] Skipping audio reply for session ${sessionId}: text length ${normalizedText.length} exceeds limit ${MAX_TTS_INPUT_CHARS}`,
+    );
+    return { shouldSend: false };
+  }
+
+  return { shouldSend: true, speech: await synthesizeSpeechImpl(normalizedText) };
 }

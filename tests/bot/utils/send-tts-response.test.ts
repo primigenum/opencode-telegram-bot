@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { InputFile } from "grammy";
-import { sendTtsResponseForSession } from "../../../src/bot/utils/send-tts-response.js";
+import { sendTtsResponseForSession } from "../../../src/bot/handlers/tts-response-handler.js";
 import { t } from "../../../src/i18n/index.js";
 
 vi.mock("../../../src/utils/logger.js", () => ({
@@ -12,7 +12,7 @@ vi.mock("../../../src/utils/logger.js", () => ({
   },
 }));
 
-describe("bot/utils/send-tts-response", () => {
+describe("bot/handlers/tts-response-handler", () => {
   it("sends audio when the session response mode requires TTS", async () => {
     const sendAudioMock = vi.fn().mockResolvedValue(undefined);
     const sendMessageMock = vi.fn().mockResolvedValue(undefined);

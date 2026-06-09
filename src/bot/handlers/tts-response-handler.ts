@@ -1,10 +1,8 @@
 import { InputFile } from "grammy";
-import { consumePromptResponseMode } from "../handlers/prompt.js";
-import { isTtsConfigured, synthesizeSpeech, type TtsResult } from "../../tts/client.js";
+import { prepareTtsResponseForSession, type TtsResult } from "../../app/services/tts-service.js";
 import { t } from "../../i18n/index.js";
 import { logger } from "../../utils/logger.js";
-
-const MAX_TTS_INPUT_CHARS = 4_000;
+import { consumePromptResponseMode } from "./prompt.js";
 
 interface TelegramAudioApi {
   sendAudio: (chatId: number, audio: InputFile) => Promise<unknown>;
@@ -27,34 +25,23 @@ export async function sendTtsResponseForSession({
   chatId,
   text,
   consumeResponseMode: consumeResponseModeImpl = consumePromptResponseMode,
-  isTtsConfigured: isTtsConfiguredImpl = isTtsConfigured,
-  synthesizeSpeech: synthesizeSpeechImpl = synthesizeSpeech,
+  isTtsConfigured,
+  synthesizeSpeech,
 }: SendTtsResponseParams): Promise<boolean> {
-  const responseMode = consumeResponseModeImpl(sessionId);
-  if (responseMode !== "text_and_tts") {
-    return false;
-  }
-
-  const normalizedText = text.trim();
-  if (!normalizedText) {
-    return false;
-  }
-
-  if (!isTtsConfiguredImpl()) {
-    logger.info(`[TTS] Skipping audio reply for session ${sessionId}: TTS is not configured`);
-    return false;
-  }
-
-  if (normalizedText.length > MAX_TTS_INPUT_CHARS) {
-    logger.warn(
-      `[TTS] Skipping audio reply for session ${sessionId}: text length ${normalizedText.length} exceeds limit ${MAX_TTS_INPUT_CHARS}`,
-    );
-    return false;
-  }
-
   try {
-    const speech = await synthesizeSpeechImpl(normalizedText);
-    await api.sendAudio(chatId, new InputFile(speech.buffer, speech.filename));
+    const prepared = await prepareTtsResponseForSession({
+      sessionId,
+      text,
+      consumeResponseMode: consumeResponseModeImpl,
+      isTtsConfigured,
+      synthesizeSpeech,
+    });
+
+    if (!prepared.shouldSend) {
+      return false;
+    }
+
+    await api.sendAudio(chatId, new InputFile(prepared.speech.buffer, prepared.speech.filename));
     logger.info(`[TTS] Sent audio reply for session ${sessionId}`);
     return true;
   } catch (error) {

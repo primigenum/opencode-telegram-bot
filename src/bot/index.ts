@@ -45,7 +45,7 @@ import {
   handleSkillTextArguments,
 } from "./commands/skills.js";
 import { mcpsCommand, handleMcpsCallback } from "./commands/mcps.js";
-import { ttsCommand } from "./commands/tts.js";
+import { ttsCommand } from "./commands/tts-command.js";
 import { showCurrentQuestion } from "./menus/question-menu.js";
 import { handleQuestionCallback, handleQuestionTextAnswer } from "./callbacks/question-callback-handler.js";
 import { showPermissionRequest } from "./menus/permission-menu.js";
@@ -84,7 +84,7 @@ import { t } from "../i18n/index.js";
 import { getCurrentProject } from "../settings/manager.js";
 import { createTelegramBotOptions } from "./telegram-client-options.js";
 import { clearPromptResponseMode, processUserPrompt } from "./handlers/prompt.js";
-import { handleVoiceMessage } from "./handlers/voice.js";
+import { handleVoiceMessage } from "./handlers/voice-handler.js";
 import { handleDocumentMessage } from "./handlers/document.js";
 import { createMediaGroupAttachmentMiddleware } from "./handlers/media-group.js";
 import { downloadTelegramFile, toDataUri } from "./utils/file-download.js";
@@ -94,7 +94,7 @@ import {
   setResponseStreamerForReconciliation,
 } from "../app/services/busy-reconciliation-service.js";
 import { finalizeAssistantResponse } from "./core/assistant-execution/finalize-assistant-response.js";
-import { sendTtsResponseForSession } from "./utils/send-tts-response.js";
+import { sendTtsResponseForSession } from "./handlers/tts-response-handler.js";
 import { deliverThinkingMessage } from "./ui/thinking-message.js";
 import { shouldSuppressUserAbortSessionError } from "../app/managers/abort-suppression-manager.js";
 import {
