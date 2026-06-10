@@ -448,7 +448,7 @@ src/bot/
   5. Обновить prompt, scheduled tasks, summary, pinned, sessions imports.
   6. Запустить abort/detach/attach/background/external-input тесты, затем build.
 
-- [ ] **Этап 16. Message history**
+- [x] **Этап 16. Message history**
 
   1. Перенести `bot/commands/messages.ts` -> `bot/commands/messages-command.ts`.
   2. Перенести message history menu/callback logic в `bot/menus/message-history-menu.ts` и `bot/callbacks/message-history-callback-handler.ts`.

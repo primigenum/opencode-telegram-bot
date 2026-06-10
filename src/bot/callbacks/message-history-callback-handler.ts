@@ -1,41 +1,41 @@
-import type { Bot } from "grammy";
-import { CommandContext, Context, InlineKeyboard } from "grammy";
+import type { Bot, Context } from "grammy";
 import { config } from "../../config.js";
 import type { InteractionState } from "../../app/types/interaction.js";
-import { interactionManager } from "../../app/managers/interaction-manager.js";
+import { clearAllInteractionState, interactionManager } from "../../app/managers/interaction-manager.js";
 import { opencodeClient } from "../../opencode/client.js";
-import { getCurrentSession, setCurrentSession } from "../../app/services/session-service.js";
+import { setCurrentSession } from "../../app/services/session-service.js";
 import type { SessionInfo } from "../../app/types/session.js";
-import { getCurrentProject } from "../../settings/manager.js";
-import { clearAllInteractionState } from "../../app/managers/interaction-manager.js";
 import { attachToSession } from "../../app/services/attach-service.js";
 import { ingestSessionInfoForCache } from "../../app/services/session-cache-service.js";
+import { loadLatestAssistantResponse } from "../../app/services/message-history-service.js";
+import type { UserMessageItem } from "../../app/services/message-history-service.js";
+import { isForegroundBusy } from "../../app/services/run-control-service.js";
 import { t } from "../../i18n/index.js";
 import { logger } from "../../utils/logger.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { renderAssistantFinalPartsSafe } from "../render/assistant-rendering.js";
+import { replyBusyBlocked } from "../render/busy-blocked-renderer.js";
 import { sendRenderedBotPart } from "../ui/telegram-text.js";
-
-const MESSAGES_CALLBACK_PREFIX = "messages:";
-const MESSAGES_CALLBACK_SELECT_PREFIX = `${MESSAGES_CALLBACK_PREFIX}select:`;
-const MESSAGES_CALLBACK_PAGE_PREFIX = `${MESSAGES_CALLBACK_PREFIX}page:`;
-const MESSAGES_CALLBACK_REVERT = `${MESSAGES_CALLBACK_PREFIX}revert`;
-const MESSAGES_CALLBACK_FORK = `${MESSAGES_CALLBACK_PREFIX}fork`;
-const MESSAGES_CALLBACK_BACK = `${MESSAGES_CALLBACK_PREFIX}back`;
-const MESSAGES_CALLBACK_CANCEL = `${MESSAGES_CALLBACK_PREFIX}cancel`;
-const MAX_INLINE_BUTTON_LABEL_LENGTH = 64;
-const TELEGRAM_MESSAGE_LIMIT = 4096;
-const LATEST_ASSISTANT_RESPONSE_MESSAGES_LIMIT = 20;
+import {
+  buildMessageDetailKeyboard,
+  buildMessagesListKeyboard,
+  calculateMessagesPaginationRange,
+  formatMessageDetailText,
+  formatMessagesSelectText,
+  MESSAGES_CALLBACK_BACK,
+  MESSAGES_CALLBACK_CANCEL,
+  MESSAGES_CALLBACK_FORK,
+  MESSAGES_CALLBACK_PREFIX,
+  MESSAGES_CALLBACK_REVERT,
+  parseMessagePageCallback,
+  parseMessageSelectCallback,
+  TELEGRAM_MESSAGE_LIMIT,
+  truncateMessageHistoryText,
+} from "../menus/message-history-menu.js";
 
 export interface MessagesCallbackDeps {
   bot: Bot<Context>;
   ensureEventSubscription: (directory: string) => Promise<void>;
-}
-
-interface UserMessageItem {
-  id: string;
-  text: string;
-  created: number;
 }
 
 interface MessagesListMetadata {
@@ -61,24 +61,6 @@ interface MessagesDetailMetadata {
 
 type MessagesMetadata = MessagesListMetadata | MessagesDetailMetadata;
 
-type SessionMessageLike = {
-  info: {
-    id?: string;
-    role?: string;
-    time?: {
-      created?: number;
-    };
-  };
-  parts: Array<{ type: string; text?: string }>;
-};
-
-export interface MessagesPaginationRange {
-  page: number;
-  totalPages: number;
-  startIndex: number;
-  endIndex: number;
-}
-
 function getCallbackMessageId(ctx: Context): number | null {
   const message = ctx.callbackQuery?.message;
   if (!message || !("message_id" in message)) {
@@ -87,135 +69,6 @@ function getCallbackMessageId(ctx: Context): number | null {
 
   const messageId = (message as { message_id?: number }).message_id;
   return typeof messageId === "number" ? messageId : null;
-}
-
-function extractTextParts(parts: Array<{ type: string; text?: string }>): string | null {
-  const text = parts
-    .filter((part) => part.type === "text" && typeof part.text === "string")
-    .map((part) => part.text as string)
-    .join("")
-    .trim();
-
-  return text.length > 0 ? text : null;
-}
-
-function truncateText(text: string, maxLength: number): string {
-  if (text.length <= maxLength) {
-    return text;
-  }
-
-  return `${text.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
-}
-
-function normalizeButtonText(text: string): string {
-  return text.replace(/\s+/g, " ").trim();
-}
-
-function formatMessageTime(created: number): string {
-  const date = new Date(created);
-  const hours = date.getHours().toString().padStart(2, "0");
-  const minutes = date.getMinutes().toString().padStart(2, "0");
-  return `${hours}:${minutes}`;
-}
-
-function formatMessageButtonLabel(message: UserMessageItem): string {
-  const prefix = `[${formatMessageTime(message.created)}] `;
-  const text = normalizeButtonText(message.text);
-  return `${prefix}${truncateText(text, MAX_INLINE_BUTTON_LABEL_LENGTH - prefix.length)}`;
-}
-
-function formatMessagesSelectText(page: number): string {
-  if (page === 0) {
-    return t("messages.select");
-  }
-
-  return t("messages.select_page", { page: page + 1 });
-}
-
-function formatMessageDetailText(message: UserMessageItem): string {
-  const prefix = `[${formatMessageTime(message.created)}]\n\n`;
-  return truncateText(`${prefix}${message.text}`, TELEGRAM_MESSAGE_LIMIT);
-}
-
-export function buildMessagePageCallback(page: number): string {
-  return `${MESSAGES_CALLBACK_PAGE_PREFIX}${page}`;
-}
-
-export function parseMessagePageCallback(data: string): number | null {
-  if (!data.startsWith(MESSAGES_CALLBACK_PAGE_PREFIX)) {
-    return null;
-  }
-
-  const rawPage = data.slice(MESSAGES_CALLBACK_PAGE_PREFIX.length);
-  const page = Number(rawPage);
-  if (!Number.isInteger(page) || page < 0) {
-    return null;
-  }
-
-  return page;
-}
-
-export function calculateMessagesPaginationRange(
-  totalMessages: number,
-  page: number,
-  pageSize: number,
-): MessagesPaginationRange {
-  const safePageSize = Math.max(1, pageSize);
-  const totalPages = Math.max(1, Math.ceil(totalMessages / safePageSize));
-  const normalizedPage = Math.min(Math.max(0, page), totalPages - 1);
-  const startIndex = normalizedPage * safePageSize;
-  const endIndex = Math.min(startIndex + safePageSize, totalMessages);
-
-  return {
-    page: normalizedPage,
-    totalPages,
-    startIndex,
-    endIndex,
-  };
-}
-
-function buildMessagesListKeyboard(
-  messages: UserMessageItem[],
-  page: number,
-  pageSize: number,
-): InlineKeyboard {
-  const keyboard = new InlineKeyboard();
-  const {
-    page: normalizedPage,
-    totalPages,
-    startIndex,
-    endIndex,
-  } = calculateMessagesPaginationRange(messages.length, page, pageSize);
-
-  messages.slice(startIndex, endIndex).forEach((message, index) => {
-    const globalIndex = startIndex + index;
-    keyboard.text(formatMessageButtonLabel(message), `${MESSAGES_CALLBACK_SELECT_PREFIX}${globalIndex}`).row();
-  });
-
-  if (totalPages > 1) {
-    if (normalizedPage > 0) {
-      keyboard.text(t("messages.button.prev_page"), buildMessagePageCallback(normalizedPage - 1));
-    }
-
-    if (normalizedPage < totalPages - 1) {
-      keyboard.text(t("messages.button.next_page"), buildMessagePageCallback(normalizedPage + 1));
-    }
-
-    keyboard.row();
-  }
-
-  keyboard.text(t("messages.button.cancel"), MESSAGES_CALLBACK_CANCEL);
-  return keyboard;
-}
-
-function buildMessageDetailKeyboard(): InlineKeyboard {
-  return new InlineKeyboard()
-    .text(t("messages.button.revert"), MESSAGES_CALLBACK_REVERT)
-    .row()
-    .text(t("messages.button.fork"), MESSAGES_CALLBACK_FORK)
-    .row()
-    .text(t("messages.button.back"), MESSAGES_CALLBACK_BACK)
-    .text(t("messages.button.cancel"), MESSAGES_CALLBACK_CANCEL);
 }
 
 function parseMessages(value: unknown): UserMessageItem[] | null {
@@ -309,105 +162,6 @@ function clearMessagesInteraction(reason: string): void {
   }
 }
 
-async function loadUserMessages(sessionId: string, directory: string): Promise<UserMessageItem[]> {
-  const { data, error } = await opencodeClient.session.messages({
-    sessionID: sessionId,
-    directory,
-  });
-
-  if (error || !data) {
-    throw error || new Error("No message data received");
-  }
-
-  // Get session info to check for revert
-  const { data: sessionData } = await opencodeClient.session.get({
-    sessionID: sessionId,
-    directory,
-  });
-
-  const revertMessageID = sessionData?.revert?.messageID;
-
-  const messages = (data as SessionMessageLike[])
-    .map((message) => {
-      if (message.info.role !== "user") {
-        return null;
-      }
-
-      const text = extractTextParts(message.parts);
-      if (!text) {
-        return null;
-      }
-
-      return {
-        id: message.info.id ?? `${message.info.time?.created ?? 0}`,
-        text,
-        created: message.info.time?.created ?? 0,
-      } satisfies UserMessageItem;
-    })
-    .filter((message): message is UserMessageItem => Boolean(message))
-    .sort((a, b) => b.created - a.created);
-
-  // If there's a revert, filter messages to only include those before the revert point
-  // Messages are sorted newest first, so we need to skip the revert message and everything after it
-  if (revertMessageID) {
-    const revertIndex = messages.findIndex((msg) => msg.id === revertMessageID);
-    if (revertIndex !== -1) {
-      return messages.slice(revertIndex + 1);
-    }
-  }
-
-  return messages;
-}
-
-async function loadLatestAssistantResponse(
-  sessionId: string,
-  directory: string,
-): Promise<string | null> {
-  try {
-    const { data: messages, error } = await opencodeClient.session.messages({
-      sessionID: sessionId,
-      directory,
-      limit: LATEST_ASSISTANT_RESPONSE_MESSAGES_LIMIT,
-    });
-
-    if (error || !messages) {
-      logger.warn("[Messages] Failed to fetch latest assistant response:", error);
-      return null;
-    }
-
-    const latestResponse = (messages as SessionMessageLike[]).reduce<{
-      text: string;
-      created: number;
-    } | null>((latest, message) => {
-      if (message.info.role !== "assistant") {
-        return latest;
-      }
-
-      const assistantInfo = message.info as { summary?: boolean };
-      if (assistantInfo.summary) {
-        return latest;
-      }
-
-      const text = extractTextParts(message.parts);
-      if (!text) {
-        return latest;
-      }
-
-      const created = message.info.time?.created ?? 0;
-      if (!latest || created >= latest.created) {
-        return { text, created };
-      }
-
-      return latest;
-    }, null);
-
-    return latestResponse?.text ?? null;
-  } catch (err) {
-    logger.error("[Messages] Error loading latest assistant response:", err);
-    return null;
-  }
-}
-
 async function sendLatestAssistantResponse(
   api: Context["api"],
   chatId: number,
@@ -429,71 +183,6 @@ async function sendLatestAssistantResponse(
   }
 }
 
-function parseSelectIndex(data: string): number | null {
-  if (!data.startsWith(MESSAGES_CALLBACK_SELECT_PREFIX)) {
-    return null;
-  }
-
-  const rawIndex = data.slice(MESSAGES_CALLBACK_SELECT_PREFIX.length);
-  const index = Number(rawIndex);
-
-  if (!Number.isInteger(index) || index < 0) {
-    return null;
-  }
-
-  return index;
-}
-
-export async function messagesCommand(ctx: CommandContext<Context>): Promise<void> {
-  try {
-    const currentProject = getCurrentProject();
-    if (!currentProject) {
-      await ctx.reply(t("messages.project_not_selected"));
-      return;
-    }
-
-    const currentSession = getCurrentSession();
-    if (!currentSession) {
-      await ctx.reply(t("messages.session_not_selected"));
-      return;
-    }
-
-    if (currentSession.directory !== currentProject.worktree) {
-      await ctx.reply(t("messages.session_project_mismatch"));
-      return;
-    }
-
-    const messages = await loadUserMessages(currentSession.id, currentSession.directory);
-    if (messages.length === 0) {
-      await ctx.reply(t("messages.empty"));
-      return;
-    }
-
-    const pageSize = config.bot.messagesListLimit;
-    const keyboard = buildMessagesListKeyboard(messages, 0, pageSize);
-    const message = await ctx.reply(formatMessagesSelectText(0), {
-      reply_markup: keyboard,
-    });
-
-    interactionManager.start({
-      kind: "custom",
-      expectedInput: "callback",
-      metadata: {
-        flow: "messages",
-        stage: "list",
-        messageId: message.message_id,
-        projectDirectory: currentProject.worktree,
-        sessionId: currentSession.id,
-        messages,
-        page: 0,
-      },
-    });
-  } catch (error) {
-    logger.error("[Messages] Error fetching messages list:", error);
-    await ctx.reply(t("messages.fetch_error"));
-  }
-}
-
 export async function handleMessagesCallback(
   ctx: Context,
   deps: MessagesCallbackDeps,
@@ -501,6 +190,11 @@ export async function handleMessagesCallback(
   const data = ctx.callbackQuery?.data;
   if (!data || !data.startsWith(MESSAGES_CALLBACK_PREFIX)) {
     return false;
+  }
+
+  if (isForegroundBusy()) {
+    await replyBusyBlocked(ctx);
+    return true;
   }
 
   const metadata = parseMessagesMetadata(interactionManager.getSnapshot());
@@ -534,7 +228,7 @@ export async function handleMessagesCallback(
         });
 
         const successText = t("messages.revert_success", { text: selectedMessage.text });
-        await ctx.editMessageText(truncateText(successText, TELEGRAM_MESSAGE_LIMIT), {
+        await ctx.editMessageText(truncateMessageHistoryText(successText, TELEGRAM_MESSAGE_LIMIT), {
           reply_markup: undefined,
         });
         clearMessagesInteraction("messages_revert_success");
@@ -594,7 +288,7 @@ export async function handleMessagesCallback(
         });
 
         const successText = t("messages.fork_success", { text: selectedMessage.text });
-        await ctx.editMessageText(truncateText(successText, TELEGRAM_MESSAGE_LIMIT), {
+        await ctx.editMessageText(truncateMessageHistoryText(successText, TELEGRAM_MESSAGE_LIMIT), {
           reply_markup: undefined,
         });
         clearMessagesInteraction("messages_fork_success");
@@ -698,7 +392,7 @@ export async function handleMessagesCallback(
       return true;
     }
 
-    const messageIndex = parseSelectIndex(data);
+    const messageIndex = parseMessageSelectCallback(data);
     if (messageIndex === null || metadata.stage !== "list") {
       await ctx.answerCallbackQuery({ text: t("callback.processing_error"), show_alert: true });
       return true;

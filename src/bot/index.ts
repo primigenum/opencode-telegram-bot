@@ -41,7 +41,8 @@ import {
   handleCommandsCallback,
   handleCommandTextArguments,
 } from "./commands/commands.js";
-import { handleMessagesCallback, messagesCommand } from "./commands/messages.js";
+import { messagesCommand } from "./commands/messages-command.js";
+import { handleMessagesCallback } from "./callbacks/message-history-callback-handler.js";
 import {
   skillsCommand,
   handleSkillsCallback,
