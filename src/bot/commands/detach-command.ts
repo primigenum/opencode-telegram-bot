@@ -5,7 +5,7 @@ import { detachAttachedSession } from "../../app/services/attach-service.js";
 import { clearAllInteractionState } from "../../app/managers/interaction-manager.js";
 import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
-import { foregroundSessionState } from "../../scheduled-task/foreground-state.js";
+import { foregroundSessionState } from "../../app/managers/foreground-session-state-manager.js";
 import { assistantRunState } from "../../app/managers/assistant-run-state-manager.js";
 import { clearPromptResponseMode } from "../handlers/prompt.js";
 import { logger } from "../../utils/logger.js";

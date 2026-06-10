@@ -105,7 +105,7 @@ vi.mock("../../../src/utils/error-format.js", () => ({
   formatErrorDetails: vi.fn(() => "formatted error"),
 }));
 
-vi.mock("../../../src/scheduled-task/foreground-state.js", () => ({
+vi.mock("../../../src/app/managers/foreground-session-state-manager.js", () => ({
   foregroundSessionState: {
     markBusy: vi.fn(),
     markIdle: vi.fn(),

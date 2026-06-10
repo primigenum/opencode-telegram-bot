@@ -8,7 +8,7 @@ import type {
   InteractionState,
   InteractionKind,
 } from "../../app/types/interaction.js";
-import { foregroundSessionState } from "../../scheduled-task/foreground-state.js";
+import { foregroundSessionState } from "../../app/managers/foreground-session-state-manager.js";
 import { attachManager } from "../../app/managers/attach-manager.js";
 
 const BUSY_ALLOWED_COMMANDS = ["/abort", "/detach", "/status", "/help"] as const;

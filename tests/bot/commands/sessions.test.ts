@@ -7,7 +7,7 @@ import {
 import { sessionsCommand } from "../../../src/bot/commands/sessions-command.js";
 import { buildBackgroundSessionOpenKeyboard } from "../../../src/bot/menus/session-selection-menu.js";
 import { interactionManager } from "../../../src/app/managers/interaction-manager.js";
-import { foregroundSessionState } from "../../../src/scheduled-task/foreground-state.js";
+import { foregroundSessionState } from "../../../src/app/managers/foreground-session-state-manager.js";
 import { t } from "../../../src/i18n/index.js";
 import { safeBackgroundTask } from "../../../src/utils/safe-background-task.js";
 

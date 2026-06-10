@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Bot, Context } from "grammy";
-import type { ScheduledTask } from "../../src/scheduled-task/types.js";
+import type { ScheduledTask } from "../../src/app/types/scheduled-task.js";
 
 const mocked = vi.hoisted(() => ({
   tasks: [] as ScheduledTask[],
@@ -47,12 +47,12 @@ vi.mock("../../src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("../../src/scheduled-task/executor.js", () => ({
+vi.mock("../../src/app/services/scheduled-task-executor-service.js", () => ({
   executeScheduledTask: mocked.executeScheduledTaskMock,
   SCHEDULED_TASK_AGENT: "build",
 }));
 
-vi.mock("../../src/scheduled-task/session-ignore.js", () => ({
+vi.mock("../../src/app/services/scheduled-task-session-ignore-service.js", () => ({
   cleanupScheduledTaskSessionIgnores: mocked.cleanupIgnoresMock,
 }));
 
@@ -60,7 +60,7 @@ vi.mock("../../src/bot/ui/telegram-text.js", () => ({
   sendBotText: mocked.sendBotTextMock,
 }));
 
-vi.mock("../../src/scheduled-task/store.js", () => ({
+vi.mock("../../src/app/stores/scheduled-task-store.js", () => ({
   listScheduledTasks: vi.fn(() => mocked.tasks.map((task) => cloneTask(task))),
   getScheduledTask: vi.fn((taskId: string) => {
     const task = mocked.tasks.find((item) => item.id === taskId);
@@ -146,8 +146,8 @@ function createTask(partial: Partial<ScheduledTask> = {}): ScheduledTask {
 }
 
 describe("scheduled-task/runtime", () => {
-  let ScheduledTaskRuntimeClass: typeof import("../../src/scheduled-task/runtime.js").ScheduledTaskRuntime;
-  let foregroundSessionState: typeof import("../../src/scheduled-task/foreground-state.js").foregroundSessionState;
+  let ScheduledTaskRuntimeClass: typeof import("../../src/app/services/scheduled-task-runtime-service.js").ScheduledTaskRuntime;
+  let foregroundSessionState: typeof import("../../src/app/managers/foreground-session-state-manager.js").foregroundSessionState;
 
   beforeEach(() => {
     mocked.tasks = [];
@@ -161,8 +161,8 @@ describe("scheduled-task/runtime", () => {
 
   it("queues scheduled task result while foreground session is busy and flushes later", async () => {
     ({ ScheduledTaskRuntime: ScheduledTaskRuntimeClass } =
-      await import("../../src/scheduled-task/runtime.js"));
-    ({ foregroundSessionState } = await import("../../src/scheduled-task/foreground-state.js"));
+      await import("../../src/app/services/scheduled-task-runtime-service.js"));
+    ({ foregroundSessionState } = await import("../../src/app/managers/foreground-session-state-manager.js"));
     foregroundSessionState.__resetForTests();
 
     const runtime = new ScheduledTaskRuntimeClass();
@@ -217,8 +217,8 @@ describe("scheduled-task/runtime", () => {
 
   it("keeps recurring task after execution error and schedules next run", async () => {
     ({ ScheduledTaskRuntime: ScheduledTaskRuntimeClass } =
-      await import("../../src/scheduled-task/runtime.js"));
-    ({ foregroundSessionState } = await import("../../src/scheduled-task/foreground-state.js"));
+      await import("../../src/app/services/scheduled-task-runtime-service.js"));
+    ({ foregroundSessionState } = await import("../../src/app/managers/foreground-session-state-manager.js"));
     foregroundSessionState.__resetForTests();
 
     const runtime = new ScheduledTaskRuntimeClass();
@@ -261,8 +261,8 @@ describe("scheduled-task/runtime", () => {
 
   it("sends the timeout error text returned by executor", async () => {
     ({ ScheduledTaskRuntime: ScheduledTaskRuntimeClass } =
-      await import("../../src/scheduled-task/runtime.js"));
-    ({ foregroundSessionState } = await import("../../src/scheduled-task/foreground-state.js"));
+      await import("../../src/app/services/scheduled-task-runtime-service.js"));
+    ({ foregroundSessionState } = await import("../../src/app/managers/foreground-session-state-manager.js"));
     foregroundSessionState.__resetForTests();
 
     const runtime = new ScheduledTaskRuntimeClass();
@@ -297,8 +297,8 @@ describe("scheduled-task/runtime", () => {
 
   it("does not start the same scheduled task twice while it is already running", async () => {
     ({ ScheduledTaskRuntime: ScheduledTaskRuntimeClass } =
-      await import("../../src/scheduled-task/runtime.js"));
-    ({ foregroundSessionState } = await import("../../src/scheduled-task/foreground-state.js"));
+      await import("../../src/app/services/scheduled-task-runtime-service.js"));
+    ({ foregroundSessionState } = await import("../../src/app/managers/foreground-session-state-manager.js"));
     foregroundSessionState.__resetForTests();
 
     const runtime = new ScheduledTaskRuntimeClass();

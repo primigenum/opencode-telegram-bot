@@ -56,7 +56,7 @@ vi.mock("../../../src/bot/keyboards/keyboard-manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/scheduled-task/foreground-state.js", () => ({
+vi.mock("../../../src/app/managers/foreground-session-state-manager.js", () => ({
   foregroundSessionState: {
     markIdle: mocked.foregroundMarkIdleMock,
   },

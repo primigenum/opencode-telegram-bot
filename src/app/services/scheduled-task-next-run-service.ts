@@ -1,4 +1,4 @@
-import type { ScheduledTask } from "./types.js";
+import type { ScheduledTask } from "../types/scheduled-task.js";
 
 const MINUTE_MS = 60_000;
 const MAX_SEARCH_MINUTES = 60 * 24 * 366 * 2;

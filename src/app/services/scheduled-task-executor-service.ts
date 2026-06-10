@@ -1,12 +1,12 @@
-import { config } from "../config.js";
-import { t } from "../i18n/index.js";
-import { opencodeClient } from "../opencode/client.js";
-import { logger } from "../utils/logger.js";
+import { config } from "../../config.js";
+import { t } from "../../i18n/index.js";
+import { opencodeClient } from "../../opencode/client.js";
+import { logger } from "../../utils/logger.js";
 import {
   cleanupScheduledTaskSessionIgnores,
   registerScheduledTaskSessionIgnore,
-} from "./session-ignore.js";
-import type { ScheduledTask, ScheduledTaskExecutionResult } from "./types.js";
+} from "./scheduled-task-session-ignore-service.js";
+import type { ScheduledTask, ScheduledTaskExecutionResult } from "../types/scheduled-task.js";
 
 export const SCHEDULED_TASK_AGENT = "build";
 const SCHEDULED_TASK_SESSION_TITLE = "Scheduled task run";

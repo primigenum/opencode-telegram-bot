@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { parseTaskSchedule } from "../../src/scheduled-task/schedule-parser.js";
+import { parseTaskSchedule } from "../../src/app/services/scheduled-task-schedule-parser-service.js";
 
 const mocked = vi.hoisted(() => ({
   sessionCreateMock: vi.fn(),
@@ -30,7 +30,7 @@ vi.mock("../../src/utils/logger.js", () => ({
   },
 }));
 
-vi.mock("../../src/scheduled-task/session-ignore.js", () => ({
+vi.mock("../../src/app/services/scheduled-task-session-ignore-service.js", () => ({
   cleanupScheduledTaskSessionIgnores: mocked.cleanupIgnoresMock,
   registerScheduledTaskSessionIgnore: mocked.registerIgnoreMock,
 }));

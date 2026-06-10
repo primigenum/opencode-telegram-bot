@@ -2,8 +2,8 @@ import { opencodeClient } from "../../opencode/client.js";
 import {
   foregroundSessionState,
   type ForegroundBusySession,
-} from "../../scheduled-task/foreground-state.js";
-import { scheduledTaskRuntime } from "../../scheduled-task/runtime.js";
+} from "../managers/foreground-session-state-manager.js";
+import { scheduledTaskRuntime } from "./scheduled-task-runtime-service.js";
 import { attachManager } from "../managers/attach-manager.js";
 import { markAttachedSessionBusy, markAttachedSessionIdle } from "./attach-service.js";
 import { assistantRunState } from "../managers/assistant-run-state-manager.js";

@@ -8,14 +8,14 @@ import {
   addScheduledTask,
   listScheduledTasks,
   removeScheduledTask,
-} from "../../src/scheduled-task/store.js";
+} from "../../src/app/stores/scheduled-task-store.js";
 import {
   cleanupScheduledTaskSessionIgnores,
   isScheduledTaskSessionIgnored,
   registerScheduledTaskSessionIgnore,
   removeScheduledTaskSessionIgnore,
-} from "../../src/scheduled-task/session-ignore.js";
-import type { ScheduledTask } from "../../src/scheduled-task/types.js";
+} from "../../src/app/services/scheduled-task-session-ignore-service.js";
+import type { ScheduledTask } from "../../src/app/types/scheduled-task.js";
 
 function createScheduledTask(overrides: Partial<ScheduledTask> = {}): ScheduledTask {
   return {

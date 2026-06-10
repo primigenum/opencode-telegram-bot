@@ -4,7 +4,7 @@ import { getCurrentSession } from "../../app/services/session-service.js";
 import { clearAllInteractionState } from "../../app/managers/interaction-manager.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
-import { foregroundSessionState } from "../../scheduled-task/foreground-state.js";
+import { foregroundSessionState } from "../../app/managers/foreground-session-state-manager.js";
 import { assistantRunState } from "../../app/managers/assistant-run-state-manager.js";
 import { markAttachedSessionIdle } from "../../app/services/attach-service.js";
 import { clearPromptResponseMode } from "../handlers/prompt.js";

@@ -28,14 +28,14 @@ vi.mock("../../../../src/app/managers/assistant-run-state-manager.js", () => ({
   },
 }));
 
-vi.mock("../../../../src/scheduled-task/runtime.js", () => ({
+vi.mock("../../../../src/app/services/scheduled-task-runtime-service.js", () => ({
   scheduledTaskRuntime: {
     flushDeferredDeliveries: mocked.flushDeferredDeliveriesMock,
   },
 }));
 
 import { attachManager } from "../../../../src/app/managers/attach-manager.js";
-import { foregroundSessionState } from "../../../../src/scheduled-task/foreground-state.js";
+import { foregroundSessionState } from "../../../../src/app/managers/foreground-session-state-manager.js";
 import {
   __resetBusyReconciliationForTests,
   reconcileBusyState,

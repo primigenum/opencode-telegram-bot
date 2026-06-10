@@ -1,22 +1,22 @@
-import { CommandContext, Context, InlineKeyboard } from "grammy";
+import type { Context } from "grammy";
 import { getDateLocale, t } from "../../i18n/index.js";
 import { interactionManager } from "../../app/managers/interaction-manager.js";
+import { taskCreationManager } from "../../app/managers/scheduled-task-creation-manager.js";
 import type { InteractionState } from "../../app/types/interaction.js";
-import { formatTaskListBadge } from "../../scheduled-task/display.js";
-import { scheduledTaskRuntime } from "../../scheduled-task/runtime.js";
-import {
-  getScheduledTask,
-  listScheduledTasks,
-  removeScheduledTask,
-} from "../../scheduled-task/store.js";
-import type { ScheduledTask } from "../../scheduled-task/types.js";
+import type { ScheduledTask, TaskCreationState } from "../../app/types/scheduled-task.js";
+import { getScheduledTask, removeScheduledTask } from "../../app/stores/scheduled-task-store.js";
+import { scheduledTaskRuntime } from "../../app/services/scheduled-task-runtime-service.js";
 import { logger } from "../../utils/logger.js";
-
-const TASKLIST_CALLBACK_PREFIX = "tasklist:";
-const TASKLIST_OPEN_PREFIX = `${TASKLIST_CALLBACK_PREFIX}open:`;
-const TASKLIST_DELETE_PREFIX = `${TASKLIST_CALLBACK_PREFIX}delete:`;
-const TASKLIST_CANCEL_CALLBACK = `${TASKLIST_CALLBACK_PREFIX}cancel`;
-const MAX_INLINE_BUTTON_LABEL_LENGTH = 64;
+import {
+  buildCancelKeyboard,
+  buildTaskDetailsKeyboard,
+  TASK_CANCEL_CALLBACK,
+  TASK_RETRY_SCHEDULE_CALLBACK,
+  TASKLIST_CALLBACK_PREFIX,
+  TASKLIST_CANCEL_CALLBACK,
+  TASKLIST_DELETE_PREFIX,
+  TASKLIST_OPEN_PREFIX,
+} from "../menus/scheduled-task-menu.js";
 
 interface TaskListListMetadata {
   flow: "tasklist";
@@ -41,6 +41,56 @@ function getCallbackMessageId(ctx: Context): number | null {
 
   const messageId = (message as { message_id?: number }).message_id;
   return typeof messageId === "number" ? messageId : null;
+}
+
+async function deleteMessageIfPresent(
+  ctx: Context,
+  messageId: number | null | undefined,
+): Promise<void> {
+  if (!ctx.chat || typeof messageId !== "number") {
+    return;
+  }
+
+  await ctx.api.deleteMessage(ctx.chat.id, messageId).catch(() => {});
+}
+
+function buildTaskInteractionMetadata(
+  stage: "awaiting_schedule" | "parsing_schedule" | "awaiting_prompt",
+  projectId: string,
+  projectWorktree: string,
+  previewMessageId?: number,
+): Record<string, unknown> {
+  return {
+    flow: "task",
+    stage,
+    projectId,
+    projectWorktree,
+    previewMessageId,
+  };
+}
+
+function isTaskInteraction(state: InteractionState | null): boolean {
+  return state?.kind === "task";
+}
+
+function clearTaskInteraction(reason: string): void {
+  const state = interactionManager.getSnapshot();
+  if (state?.kind === "task") {
+    interactionManager.clear(reason);
+  }
+}
+
+function clearTaskFlow(reason: string): void {
+  taskCreationManager.clear();
+  clearTaskInteraction(reason);
+}
+
+function isTaskCallbackActive(flowState: TaskCreationState, messageId: number): boolean {
+  return [
+    flowState.scheduleRequestMessageId,
+    flowState.previewMessageId,
+    flowState.promptRequestMessageId,
+  ].includes(messageId);
 }
 
 function parseTaskListMetadata(state: InteractionState | null): TaskListMetadata | null {
@@ -88,14 +138,6 @@ function clearTaskListInteraction(reason: string): void {
   }
 }
 
-function truncateText(text: string, maxLength: number): string {
-  if (text.length <= maxLength) {
-    return text;
-  }
-
-  return `${text.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
-}
-
 function formatDateTime(dateIso: string | null, timezone: string): string {
   if (!dateIso) {
     return "-";
@@ -110,46 +152,6 @@ function formatDateTime(dateIso: string | null, timezone: string): string {
   } catch {
     return dateIso;
   }
-}
-
-function formatTaskButtonPrefix(task: ScheduledTask): string {
-  return formatTaskListBadge(task);
-}
-
-function formatTaskButtonLabel(task: ScheduledTask): string {
-  const prefix = `[${formatTaskButtonPrefix(task)}]`;
-  const prompt = task.prompt.replace(/\s+/g, " ").trim();
-  return truncateText(`${prefix} ${prompt}`, MAX_INLINE_BUTTON_LABEL_LENGTH);
-}
-
-function buildTaskListKeyboard(tasks: ScheduledTask[]): InlineKeyboard {
-  const keyboard = new InlineKeyboard();
-
-  tasks.forEach((task) => {
-    keyboard.text(formatTaskButtonLabel(task), `${TASKLIST_OPEN_PREFIX}${task.id}`).row();
-  });
-
-  keyboard.text(t("tasklist.button.cancel"), TASKLIST_CANCEL_CALLBACK);
-  return keyboard;
-}
-
-function buildTaskDetailsKeyboard(taskId: string): InlineKeyboard {
-  return new InlineKeyboard()
-    .text(t("tasklist.button.delete"), `${TASKLIST_DELETE_PREFIX}${taskId}`)
-    .text(t("tasklist.button.cancel"), TASKLIST_CANCEL_CALLBACK);
-}
-
-function sortTasks(tasks: ScheduledTask[]): ScheduledTask[] {
-  return [...tasks].sort((left, right) => {
-    const leftNextRun = left.nextRunAt ? Date.parse(left.nextRunAt) : Number.POSITIVE_INFINITY;
-    const rightNextRun = right.nextRunAt ? Date.parse(right.nextRunAt) : Number.POSITIVE_INFINITY;
-
-    if (leftNextRun !== rightNextRun) {
-      return leftNextRun - rightNextRun;
-    }
-
-    return left.createdAt.localeCompare(right.createdAt);
-  });
 }
 
 function formatTaskDetails(task: ScheduledTask): string {
@@ -170,31 +172,68 @@ function formatTaskDetails(task: ScheduledTask): string {
   });
 }
 
-export async function taskListCommand(ctx: CommandContext<Context>): Promise<void> {
-  try {
-    const tasks = sortTasks(listScheduledTasks());
-    if (tasks.length === 0) {
-      await ctx.reply(t("tasklist.empty"));
-      return;
+export async function handleTaskCallback(ctx: Context): Promise<boolean> {
+  const data = ctx.callbackQuery?.data;
+  if (data !== TASK_RETRY_SCHEDULE_CALLBACK && data !== TASK_CANCEL_CALLBACK) {
+    return false;
+  }
+
+  const flowState = taskCreationManager.getState();
+  const interactionState = interactionManager.getSnapshot();
+  const callbackMessageId = getCallbackMessageId(ctx);
+
+  if (
+    !flowState ||
+    !isTaskInteraction(interactionState) ||
+    callbackMessageId === null ||
+    !isTaskCallbackActive(flowState, callbackMessageId)
+  ) {
+    if (!flowState && isTaskInteraction(interactionState)) {
+      clearTaskInteraction("task_retry_inactive_state");
     }
 
-    const message = await ctx.reply(t("tasklist.select"), {
-      reply_markup: buildTaskListKeyboard(tasks),
-    });
-
-    interactionManager.start({
-      kind: "custom",
-      expectedInput: "callback",
-      metadata: {
-        flow: "tasklist",
-        stage: "list",
-        messageId: message.message_id,
-      },
-    });
-  } catch (error) {
-    logger.error("[TaskList] Failed to open task list", error);
-    await ctx.reply(t("tasklist.load_error"));
+    await ctx.answerCallbackQuery({ text: t("task.inactive_callback"), show_alert: true });
+    return true;
   }
+
+  if (data === TASK_CANCEL_CALLBACK) {
+    await ctx.answerCallbackQuery({ text: t("task.cancel_callback") });
+    await deleteMessageIfPresent(ctx, flowState.scheduleRequestMessageId);
+    await deleteMessageIfPresent(ctx, flowState.previewMessageId);
+    await deleteMessageIfPresent(ctx, flowState.promptRequestMessageId);
+    clearTaskFlow("task_cancelled");
+    await ctx.reply(t("task.cancelled"));
+    return true;
+  }
+
+  if (
+    !taskCreationManager.isWaitingForPrompt() ||
+    callbackMessageId !== flowState.previewMessageId
+  ) {
+    await ctx.answerCallbackQuery({ text: t("task.inactive_callback"), show_alert: true });
+    return true;
+  }
+
+  taskCreationManager.resetSchedule();
+  interactionManager.transition({
+    kind: "task",
+    expectedInput: "text",
+    metadata: buildTaskInteractionMetadata(
+      "awaiting_schedule",
+      flowState.projectId,
+      flowState.projectWorktree,
+    ),
+  });
+
+  await ctx.answerCallbackQuery({ text: t("task.retry_schedule_callback") });
+  await deleteMessageIfPresent(ctx, flowState.promptRequestMessageId);
+  await deleteMessageIfPresent(ctx, flowState.previewMessageId);
+  const message = await ctx.reply(t("task.prompt.schedule"), {
+    reply_markup: buildCancelKeyboard(),
+  });
+  taskCreationManager.setScheduleRequestMessageId(message.message_id);
+
+  return true;
 }
 
 export async function handleTaskListCallback(ctx: Context): Promise<boolean> {

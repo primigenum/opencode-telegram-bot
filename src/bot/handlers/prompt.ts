@@ -18,7 +18,7 @@ import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { formatErrorDetails } from "../../utils/error-format.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
-import { foregroundSessionState } from "../../scheduled-task/foreground-state.js";
+import { foregroundSessionState } from "../../app/managers/foreground-session-state-manager.js";
 import { assistantRunState } from "../../app/managers/assistant-run-state-manager.js";
 import {
   attachToSession,

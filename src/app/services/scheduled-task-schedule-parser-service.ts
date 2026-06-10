@@ -1,10 +1,10 @@
-import { opencodeClient } from "../opencode/client.js";
-import { logger } from "../utils/logger.js";
+import { opencodeClient } from "../../opencode/client.js";
+import { logger } from "../../utils/logger.js";
 import {
   cleanupScheduledTaskSessionIgnores,
   registerScheduledTaskSessionIgnore,
-} from "./session-ignore.js";
-import type { ParsedTaskSchedule } from "./types.js";
+} from "./scheduled-task-session-ignore-service.js";
+import type { ParsedTaskSchedule } from "../types/scheduled-task.js";
 
 const SCHEDULE_PARSE_SESSION_TITLE = "Scheduled task schedule parser";
 

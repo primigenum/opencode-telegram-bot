@@ -1,7 +1,7 @@
-import { getScheduledTasks, setScheduledTasks } from "../settings/manager.js";
-import { logger } from "../utils/logger.js";
-import type { ScheduledTask } from "./types.js";
-import { cloneScheduledTask } from "./types.js";
+import { getScheduledTasks, setScheduledTasks } from "../../settings/manager.js";
+import { logger } from "../../utils/logger.js";
+import type { ScheduledTask } from "../types/scheduled-task.js";
+import { cloneScheduledTask } from "../types/scheduled-task.js";
 
 let scheduledTaskMutationQueue: Promise<unknown> = Promise.resolve();
 

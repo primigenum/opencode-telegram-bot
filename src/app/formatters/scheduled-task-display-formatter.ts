@@ -1,4 +1,4 @@
-import type { ScheduledTask } from "./types.js";
+import type { ScheduledTask } from "../types/scheduled-task.js";
 
 const BADGE_DATE_LOCALE = "en-US";
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Context } from "grammy";
 import { t } from "../../../src/i18n/index.js";
 import { handleProjectSelect } from "../../../src/bot/callbacks/project-callback-handler.js";
-import { foregroundSessionState } from "../../../src/scheduled-task/foreground-state.js";
+import { foregroundSessionState } from "../../../src/app/managers/foreground-session-state-manager.js";
 
 const mocked = vi.hoisted(() => ({
   getProjectsMock: vi.fn(),

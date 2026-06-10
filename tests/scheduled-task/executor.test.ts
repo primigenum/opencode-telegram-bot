@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ScheduledOnceTask } from "../../src/scheduled-task/types.js";
+import type { ScheduledOnceTask } from "../../src/app/types/scheduled-task.js";
 
 const mocked = vi.hoisted(() => ({
   createMock: vi.fn(),
@@ -55,7 +55,7 @@ vi.mock("../../src/utils/logger.js", () => ({
   },
 }));
 
-vi.mock("../../src/scheduled-task/session-ignore.js", () => ({
+vi.mock("../../src/app/services/scheduled-task-session-ignore-service.js", () => ({
   cleanupScheduledTaskSessionIgnores: mocked.cleanupIgnoresMock,
   registerScheduledTaskSessionIgnore: mocked.registerIgnoreMock,
 }));
@@ -183,7 +183,7 @@ describe("scheduled-task/executor", () => {
   });
 
   it("starts scheduled task with promptAsync and polls until the assistant reply completes", async () => {
-    const { executeScheduledTask } = await import("../../src/scheduled-task/executor.js");
+    const { executeScheduledTask } = await import("../../src/app/services/scheduled-task-executor-service.js");
 
     mocked.createMock.mockResolvedValueOnce({
       data: { id: "session-1", directory: "D:\\Projects\\Repo", title: "Scheduled task run" },
@@ -227,7 +227,7 @@ describe("scheduled-task/executor", () => {
   });
 
   it("re-reads messages after idle before returning the assistant result", async () => {
-    const { executeScheduledTask } = await import("../../src/scheduled-task/executor.js");
+    const { executeScheduledTask } = await import("../../src/app/services/scheduled-task-executor-service.js");
 
     mocked.createMock.mockResolvedValueOnce({
       data: { id: "session-1", directory: "D:\\Projects\\Repo", title: "Scheduled task run" },
@@ -257,7 +257,7 @@ describe("scheduled-task/executor", () => {
   });
 
   it("returns a helpful timeout message when promptAsync fails with timeout", async () => {
-    const { executeScheduledTask } = await import("../../src/scheduled-task/executor.js");
+    const { executeScheduledTask } = await import("../../src/app/services/scheduled-task-executor-service.js");
 
     mocked.createMock.mockResolvedValueOnce({
       data: { id: "session-1", directory: "D:\\Projects\\Repo", title: "Scheduled task run" },
@@ -278,7 +278,7 @@ describe("scheduled-task/executor", () => {
   });
 
   it("returns a helpful timeout message when assistant result contains a timeout error", async () => {
-    const { executeScheduledTask } = await import("../../src/scheduled-task/executor.js");
+    const { executeScheduledTask } = await import("../../src/app/services/scheduled-task-executor-service.js");
 
     mocked.createMock.mockResolvedValueOnce({
       data: { id: "session-1", directory: "D:\\Projects\\Repo", title: "Scheduled task run" },
@@ -303,7 +303,7 @@ describe("scheduled-task/executor", () => {
   });
 
   it("fails when execution stays busy beyond the bot polling deadline", async () => {
-    const { executeScheduledTask } = await import("../../src/scheduled-task/executor.js");
+    const { executeScheduledTask } = await import("../../src/app/services/scheduled-task-executor-service.js");
 
     mocked.createMock.mockResolvedValueOnce({
       data: { id: "session-1", directory: "D:\\Projects\\Repo", title: "Scheduled task run" },
@@ -332,7 +332,7 @@ describe("scheduled-task/executor", () => {
   });
 
   it("treats an empty completed assistant reply as an execution error", async () => {
-    const { executeScheduledTask } = await import("../../src/scheduled-task/executor.js");
+    const { executeScheduledTask } = await import("../../src/app/services/scheduled-task-executor-service.js");
 
     mocked.createMock.mockResolvedValueOnce({
       data: { id: "session-1", directory: "D:\\Projects\\Repo", title: "Scheduled task run" },
@@ -378,7 +378,7 @@ describe("scheduled-task/executor", () => {
   });
 
   it("re-reads an empty completed assistant reply before accepting late text", async () => {
-    const { executeScheduledTask } = await import("../../src/scheduled-task/executor.js");
+    const { executeScheduledTask } = await import("../../src/app/services/scheduled-task-executor-service.js");
 
     mocked.createMock.mockResolvedValueOnce({
       data: { id: "session-1", directory: "D:\\Projects\\Repo", title: "Scheduled task run" },
@@ -419,7 +419,7 @@ describe("scheduled-task/executor", () => {
   });
 
   it("waits for the final assistant response after completed tool-call turns", async () => {
-    const { executeScheduledTask } = await import("../../src/scheduled-task/executor.js");
+    const { executeScheduledTask } = await import("../../src/app/services/scheduled-task-executor-service.js");
 
     const toolCallTurn = createAssistantMessage("", {
       completed: true,
@@ -472,7 +472,7 @@ describe("scheduled-task/executor", () => {
   });
 
   it("ignores technical summary assistant messages when finding the scheduled task result", async () => {
-    const { executeScheduledTask } = await import("../../src/scheduled-task/executor.js");
+    const { executeScheduledTask } = await import("../../src/app/services/scheduled-task-executor-service.js");
 
     mocked.createMock.mockResolvedValueOnce({
       data: { id: "session-1", directory: "D:\\Projects\\Repo", title: "Scheduled task run" },
@@ -496,7 +496,7 @@ describe("scheduled-task/executor", () => {
   });
 
   it("fails, rejects, aborts, and cleans up when scheduled task asks a question", async () => {
-    const { executeScheduledTask } = await import("../../src/scheduled-task/executor.js");
+    const { executeScheduledTask } = await import("../../src/app/services/scheduled-task-executor-service.js");
 
     mocked.createMock.mockResolvedValueOnce({
       data: { id: "session-1", directory: "D:\\Projects\\Repo", title: "Scheduled task run" },
@@ -532,7 +532,7 @@ describe("scheduled-task/executor", () => {
   });
 
   it("fails, rejects, aborts, and cleans up when scheduled task asks permission", async () => {
-    const { executeScheduledTask } = await import("../../src/scheduled-task/executor.js");
+    const { executeScheduledTask } = await import("../../src/app/services/scheduled-task-executor-service.js");
 
     mocked.createMock.mockResolvedValueOnce({
       data: { id: "session-1", directory: "D:\\Projects\\Repo", title: "Scheduled task run" },
@@ -573,7 +573,7 @@ describe("scheduled-task/executor", () => {
   });
 
   it("ignores pending interactive requests for other sessions", async () => {
-    const { executeScheduledTask } = await import("../../src/scheduled-task/executor.js");
+    const { executeScheduledTask } = await import("../../src/app/services/scheduled-task-executor-service.js");
 
     mocked.createMock.mockResolvedValueOnce({
       data: { id: "session-1", directory: "D:\\Projects\\Repo", title: "Scheduled task run" },
@@ -620,7 +620,7 @@ describe("scheduled-task/executor", () => {
   });
 
   it("keeps the successful result even if temporary session cleanup fails", async () => {
-    const { executeScheduledTask } = await import("../../src/scheduled-task/executor.js");
+    const { executeScheduledTask } = await import("../../src/app/services/scheduled-task-executor-service.js");
 
     mocked.createMock.mockResolvedValueOnce({
       data: { id: "session-1", directory: "D:\\Projects\\Repo", title: "Scheduled task run" },

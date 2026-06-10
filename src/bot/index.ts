@@ -34,8 +34,12 @@ import { opencodeStartCommand } from "./commands/opencode-start.js";
 import { opencodeStopCommand } from "./commands/opencode-stop.js";
 import { renameCommand } from "./commands/rename-command.js";
 import { handleRenameCancel, handleRenameTextAnswer } from "./callbacks/rename-callback-handler.js";
-import { handleTaskCallback, handleTaskTextInput, taskCommand } from "./commands/task.js";
-import { handleTaskListCallback, taskListCommand } from "./commands/tasklist.js";
+import { handleTaskTextInput, taskCommand } from "./commands/task-command.js";
+import { taskListCommand } from "./commands/tasklist-command.js";
+import {
+  handleTaskCallback,
+  handleTaskListCallback,
+} from "./callbacks/scheduled-task-callback-handler.js";
 import {
   commandsCommand,
   handleCommandsCallback,
@@ -112,8 +116,8 @@ import {
 } from "./ui/telegram-text.js";
 import { formatAssistantRunFooter } from "../app/formatters/assistant-run-footer-formatter.js";
 import { clearLsPathIndex, clearOpenPathIndex } from "./menus/file-browser-menu.js";
-import { foregroundSessionState } from "../scheduled-task/foreground-state.js";
-import { scheduledTaskRuntime } from "../scheduled-task/runtime.js";
+import { foregroundSessionState } from "../app/managers/foreground-session-state-manager.js";
+import { scheduledTaskRuntime } from "../app/services/scheduled-task-runtime-service.js";
 import { assistantRunState } from "../app/managers/assistant-run-state-manager.js";
 import { ResponseStreamer } from "./streaming/response-streamer.js";
 import type { StreamingMessagePayload } from "./streaming/response-streamer.js";

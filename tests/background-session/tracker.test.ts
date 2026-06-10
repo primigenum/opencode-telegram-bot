@@ -6,7 +6,7 @@ const mocked = vi.hoisted(() => ({
   isScheduledTaskSessionIgnoredMock: vi.fn(() => false),
 }));
 
-vi.mock("../../src/scheduled-task/session-ignore.js", () => ({
+vi.mock("../../src/app/services/scheduled-task-session-ignore-service.js", () => ({
   isScheduledTaskSessionIgnored: mocked.isScheduledTaskSessionIgnoredMock,
 }));
 

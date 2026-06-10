@@ -1,7 +1,7 @@
 import type { ModelInfo } from "../app/types/model.js";
 import type { ProjectInfo } from "../app/types/project.js";
 import type { SessionDirectoryCacheInfo, SessionInfo } from "../app/types/session.js";
-import { cloneScheduledTask, type ScheduledTask } from "../scheduled-task/types.js";
+import { cloneScheduledTask, type ScheduledTask } from "../app/types/scheduled-task.js";
 import path from "node:path";
 import { getRuntimePaths } from "../runtime/paths.js";
 import { logger } from "../utils/logger.js";

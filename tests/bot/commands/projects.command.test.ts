@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Context } from "grammy";
 import { projectsCommand } from "../../../src/bot/commands/projects-command.js";
-import { foregroundSessionState } from "../../../src/scheduled-task/foreground-state.js";
+import { foregroundSessionState } from "../../../src/app/managers/foreground-session-state-manager.js";
 import { t } from "../../../src/i18n/index.js";
 
 const mocked = vi.hoisted(() => ({

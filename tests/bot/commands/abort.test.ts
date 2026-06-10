@@ -6,7 +6,7 @@ import { questionManager } from "../../../src/app/managers/question-manager.js";
 import { permissionManager } from "../../../src/app/managers/permission-manager.js";
 import { renameManager } from "../../../src/app/managers/rename-manager.js";
 import { interactionManager } from "../../../src/app/managers/interaction-manager.js";
-import { foregroundSessionState } from "../../../src/scheduled-task/foreground-state.js";
+import { foregroundSessionState } from "../../../src/app/managers/foreground-session-state-manager.js";
 import type { Question } from "../../../src/app/types/question.js";
 import type { PermissionRequest } from "../../../src/app/types/permission.js";
 import { t } from "../../../src/i18n/index.js";

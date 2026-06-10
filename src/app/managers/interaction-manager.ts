@@ -7,7 +7,7 @@ import type {
 import { permissionManager } from "./permission-manager.js";
 import { questionManager } from "./question-manager.js";
 import { renameManager } from "./rename-manager.js";
-import { taskCreationManager } from "../../scheduled-task/creation-manager.js";
+import { taskCreationManager } from "./scheduled-task-creation-manager.js";
 import { logger } from "../../utils/logger.js";
 
 export const DEFAULT_ALLOWED_INTERACTION_COMMANDS = ["/help", "/status", "/abort", "/detach"] as const;

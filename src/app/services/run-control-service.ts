@@ -1,5 +1,5 @@
 import { attachManager } from "../managers/attach-manager.js";
-import { foregroundSessionState } from "../../scheduled-task/foreground-state.js";
+import { foregroundSessionState } from "../managers/foreground-session-state-manager.js";
 import { logger } from "../../utils/logger.js";
 import { reconcileBusyStateNow } from "./busy-reconciliation-service.js";
 

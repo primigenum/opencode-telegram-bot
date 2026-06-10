@@ -456,7 +456,7 @@ src/bot/
   4. Обновить callback routing и зависимости с sessions/run-control.
   5. Запустить messages тесты, затем build.
 
-- [ ] **Этап 17. Scheduled tasks**
+- [x] **Этап 17. Scheduled tasks**
 
   1. Перенести `src/scheduled-task/creation-manager.ts` -> `app/managers/scheduled-task-creation-manager.ts`.
   2. Перенести `src/scheduled-task/store.ts` -> `app/stores/scheduled-task-store.ts`.

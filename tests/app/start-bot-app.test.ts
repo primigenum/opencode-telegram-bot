@@ -55,7 +55,7 @@ vi.mock("../../src/settings/manager.js", () => ({
   loadSettings: mocked.loadSettingsMock,
 }));
 
-vi.mock("../../src/scheduled-task/runtime.js", () => ({
+vi.mock("../../src/app/services/scheduled-task-runtime-service.js", () => ({
   scheduledTaskRuntime: {
     initialize: mocked.scheduledTaskInitializeMock,
     shutdown: mocked.scheduledTaskShutdownMock,

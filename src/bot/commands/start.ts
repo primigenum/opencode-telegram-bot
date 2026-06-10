@@ -7,7 +7,7 @@ import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
 import { clearSession } from "../../app/services/session-service.js";
 import { clearProject } from "../../settings/manager.js";
-import { foregroundSessionState } from "../../scheduled-task/foreground-state.js";
+import { foregroundSessionState } from "../../app/managers/foreground-session-state-manager.js";
 import { abortCurrentOperation } from "./abort-command.js";
 import { t } from "../../i18n/index.js";
 import { assistantRunState } from "../../app/managers/assistant-run-state-manager.js";

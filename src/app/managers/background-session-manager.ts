@@ -1,5 +1,5 @@
 import type { Event } from "@opencode-ai/sdk/v2";
-import { isScheduledTaskSessionIgnored } from "../../scheduled-task/session-ignore.js";
+import { isScheduledTaskSessionIgnored } from "../services/scheduled-task-session-ignore-service.js";
 import { logger } from "../../utils/logger.js";
 
 export type BackgroundSessionNotificationKind =

@@ -1,4 +1,4 @@
-import type { ModelInfo } from "../app/types/model.js";
+import type { ModelInfo } from "./model.js";
 
 export type ScheduledTaskKind = "cron" | "once";
 

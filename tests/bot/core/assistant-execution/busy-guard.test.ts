@@ -19,7 +19,7 @@ vi.mock("../../../../src/utils/logger.js", () => ({
 }));
 
 import { attachManager } from "../../../../src/app/managers/attach-manager.js";
-import { foregroundSessionState } from "../../../../src/scheduled-task/foreground-state.js";
+import { foregroundSessionState } from "../../../../src/app/managers/foreground-session-state-manager.js";
 import { reconcileForegroundBusyState } from "../../../../src/app/services/run-control-service.js";
 
 describe("app/services/run-control-service", () => {

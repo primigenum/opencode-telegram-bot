@@ -1,25 +1,23 @@
 import { randomUUID } from "node:crypto";
-import { CommandContext, Context, InlineKeyboard } from "grammy";
+import { CommandContext, Context } from "grammy";
 import { config } from "../../config.js";
 import { getDateLocale, t } from "../../i18n/index.js";
 import { interactionManager } from "../../app/managers/interaction-manager.js";
 import type { InteractionState } from "../../app/types/interaction.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
 import { getCurrentProject } from "../../settings/manager.js";
-import { taskCreationManager } from "../../scheduled-task/creation-manager.js";
-import { parseTaskSchedule } from "../../scheduled-task/schedule-parser.js";
-import { addScheduledTask, listScheduledTasks } from "../../scheduled-task/store.js";
-import { scheduledTaskRuntime } from "../../scheduled-task/runtime.js";
+import { taskCreationManager } from "../../app/managers/scheduled-task-creation-manager.js";
+import { parseTaskSchedule } from "../../app/services/scheduled-task-schedule-parser-service.js";
+import { addScheduledTask, listScheduledTasks } from "../../app/stores/scheduled-task-store.js";
+import { scheduledTaskRuntime } from "../../app/services/scheduled-task-runtime-service.js";
+import { buildCancelKeyboard, buildRetryScheduleKeyboard } from "../menus/scheduled-task-menu.js";
 import {
   createScheduledTaskModel,
   type ParsedTaskSchedule,
   type ScheduledTask,
-  type TaskCreationState,
-} from "../../scheduled-task/types.js";
+} from "../../app/types/scheduled-task.js";
 import { logger } from "../../utils/logger.js";
 
-const TASK_RETRY_SCHEDULE_CALLBACK = "task:retry-schedule";
-const TASK_CANCEL_CALLBACK = "task:cancel";
 const TASK_PROMPT_PREVIEW_LENGTH = 100;
 
 interface TaskInteractionMetadata {
@@ -28,26 +26,6 @@ interface TaskInteractionMetadata {
   projectId: string;
   projectWorktree: string;
   previewMessageId?: number;
-}
-
-function buildRetryScheduleKeyboard(): InlineKeyboard {
-  return new InlineKeyboard()
-    .text(t("task.button.retry_schedule"), TASK_RETRY_SCHEDULE_CALLBACK)
-    .text(t("task.button.cancel"), TASK_CANCEL_CALLBACK);
-}
-
-function buildCancelKeyboard(): InlineKeyboard {
-  return new InlineKeyboard().text(t("task.button.cancel"), TASK_CANCEL_CALLBACK);
-}
-
-function getCallbackMessageId(ctx: Context): number | null {
-  const message = ctx.callbackQuery?.message;
-  if (!message || !("message_id" in message)) {
-    return null;
-  }
-
-  const messageId = (message as { message_id?: number }).message_id;
-  return typeof messageId === "number" ? messageId : null;
 }
 
 function clearTaskInteraction(reason: string): void {
@@ -238,14 +216,6 @@ function isTaskInteraction(state: InteractionState | null): boolean {
   return state?.kind === "task";
 }
 
-function isTaskCallbackActive(flowState: TaskCreationState, messageId: number): boolean {
-  return [
-    flowState.scheduleRequestMessageId,
-    flowState.previewMessageId,
-    flowState.promptRequestMessageId,
-  ].includes(messageId);
-}
-
 async function deleteMessageIfPresent(
   ctx: Context,
   messageId: number | null | undefined,
@@ -326,70 +296,6 @@ export async function taskCommand(ctx: CommandContext<Context>): Promise<void> {
     reply_markup: buildCancelKeyboard(),
   });
   taskCreationManager.setScheduleRequestMessageId(message.message_id);
-}
-
-export async function handleTaskCallback(ctx: Context): Promise<boolean> {
-  const data = ctx.callbackQuery?.data;
-  if (data !== TASK_RETRY_SCHEDULE_CALLBACK && data !== TASK_CANCEL_CALLBACK) {
-    return false;
-  }
-
-  const flowState = taskCreationManager.getState();
-  const interactionState = interactionManager.getSnapshot();
-  const callbackMessageId = getCallbackMessageId(ctx);
-
-  if (
-    !flowState ||
-    !isTaskInteraction(interactionState) ||
-    callbackMessageId === null ||
-    !isTaskCallbackActive(flowState, callbackMessageId)
-  ) {
-    if (!flowState && isTaskInteraction(interactionState)) {
-      clearTaskInteraction("task_retry_inactive_state");
-    }
-
-    await ctx.answerCallbackQuery({ text: t("task.inactive_callback"), show_alert: true });
-    return true;
-  }
-
-  if (data === TASK_CANCEL_CALLBACK) {
-    await ctx.answerCallbackQuery({ text: t("task.cancel_callback") });
-    await deleteMessageIfPresent(ctx, flowState.scheduleRequestMessageId);
-    await deleteMessageIfPresent(ctx, flowState.previewMessageId);
-    await deleteMessageIfPresent(ctx, flowState.promptRequestMessageId);
-    clearTaskFlow("task_cancelled");
-    await ctx.reply(t("task.cancelled"));
-    return true;
-  }
-
-  if (
-    !taskCreationManager.isWaitingForPrompt() ||
-    callbackMessageId !== flowState.previewMessageId
-  ) {
-    await ctx.answerCallbackQuery({ text: t("task.inactive_callback"), show_alert: true });
-    return true;
-  }
-
-  taskCreationManager.resetSchedule();
-  interactionManager.transition({
-    kind: "task",
-    expectedInput: "text",
-    metadata: buildTaskInteractionMetadata(
-      "awaiting_schedule",
-      flowState.projectId,
-      flowState.projectWorktree,
-    ),
-  });
-
-  await ctx.answerCallbackQuery({ text: t("task.retry_schedule_callback") });
-  await deleteMessageIfPresent(ctx, flowState.promptRequestMessageId);
-  await deleteMessageIfPresent(ctx, flowState.previewMessageId);
-  const message = await ctx.reply(t("task.prompt.schedule"), {
-    reply_markup: buildCancelKeyboard(),
-  });
-  taskCreationManager.setScheduleRequestMessageId(message.message_id);
-
-  return true;
 }
 
 export async function handleTaskTextInput(ctx: Context): Promise<boolean> {
