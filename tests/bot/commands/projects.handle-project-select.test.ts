@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Context } from "grammy";
 import { t } from "../../../src/i18n/index.js";
-import { handleProjectSelect } from "../../../src/bot/commands/projects.js";
-import { foregroundSessionState } from "../../../src/scheduled-task/foreground-state.js";
+import { handleProjectSelect } from "../../../src/bot/callbacks/project-callback-handler.js";
+import { foregroundSessionState } from "../../../src/app/managers/foreground-session-state-manager.js";
 
 const mocked = vi.hoisted(() => ({
   getProjectsMock: vi.fn(),
@@ -10,17 +10,18 @@ const mocked = vi.hoisted(() => ({
   clearAllInteractionStateMock: vi.fn(),
 }));
 
-vi.mock("../../../src/project/manager.js", () => ({
+vi.mock("../../../src/app/services/project-service.js", () => ({
   getProjects: mocked.getProjectsMock,
 }));
 
-vi.mock("../../../src/bot/handlers/inline-menu.js", () => ({
+vi.mock("../../../src/bot/menus/inline-menu.js", () => ({
   appendInlineMenuCancelButton: vi.fn(),
   ensureActiveInlineMenu: mocked.ensureActiveInlineMenuMock,
   replyWithInlineMenu: vi.fn(),
 }));
 
-vi.mock("../../../src/interaction/cleanup.js", () => ({
+vi.mock("../../../src/app/managers/interaction-manager.js", () => ({
+  interactionManager: { clear: vi.fn() },
   clearAllInteractionState: mocked.clearAllInteractionStateMock,
 }));
 

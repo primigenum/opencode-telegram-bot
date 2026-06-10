@@ -1,6 +1,6 @@
 import type { Api, RawApi } from "grammy";
 import { logger } from "../../utils/logger.js";
-import type { TelegramRenderedPart } from "../../telegram/render/types.js";
+import type { TelegramRenderedPart } from "../render/types.js";
 
 type SendMessageApi = Pick<Api<RawApi>, "sendMessage">;
 type EditMessageApi = Pick<Api<RawApi>, "editMessageText">;

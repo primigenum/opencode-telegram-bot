@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Context } from "grammy";
-import { detachCommand } from "../../../src/bot/commands/detach.js";
+import { detachCommand } from "../../../src/bot/commands/detach-command.js";
 import { t } from "../../../src/i18n/index.js";
 
 const mocked = vi.hoisted(() => ({
@@ -21,24 +21,25 @@ const mocked = vi.hoisted(() => ({
   clearPromptResponseModeMock: vi.fn(),
 }));
 
-vi.mock("../../../src/settings/manager.js", () => ({
+vi.mock("../../../src/app/stores/settings-store.js", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
 }));
 
-vi.mock("../../../src/session/manager.js", () => ({
+vi.mock("../../../src/app/services/session-service.js", () => ({
   getCurrentSession: vi.fn(() => mocked.currentSession),
   clearSession: mocked.clearSessionMock,
 }));
 
-vi.mock("../../../src/attach/service.js", () => ({
+vi.mock("../../../src/app/services/attach-service.js", () => ({
   detachAttachedSession: mocked.detachAttachedSessionMock,
 }));
 
-vi.mock("../../../src/interaction/cleanup.js", () => ({
+vi.mock("../../../src/app/managers/interaction-manager.js", () => ({
+  interactionManager: { clear: vi.fn() },
   clearAllInteractionState: mocked.clearAllInteractionStateMock,
 }));
 
-vi.mock("../../../src/pinned/manager.js", () => ({
+vi.mock("../../../src/bot/pinned/pinned-message-manager.js", () => ({
   pinnedMessageManager: {
     isInitialized: mocked.pinnedIsInitializedMock,
     clear: mocked.pinnedClearMock,
@@ -47,7 +48,7 @@ vi.mock("../../../src/pinned/manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/keyboard/manager.js", () => ({
+vi.mock("../../../src/bot/keyboards/keyboard-manager.js", () => ({
   keyboardManager: {
     initialize: mocked.keyboardInitializeMock,
     updateContext: mocked.keyboardUpdateContextMock,
@@ -55,13 +56,13 @@ vi.mock("../../../src/keyboard/manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/scheduled-task/foreground-state.js", () => ({
+vi.mock("../../../src/app/managers/foreground-session-state-manager.js", () => ({
   foregroundSessionState: {
     markIdle: mocked.foregroundMarkIdleMock,
   },
 }));
 
-vi.mock("../../../src/bot/assistant-run-state.js", () => ({
+vi.mock("../../../src/app/managers/assistant-run-state-manager.js", () => ({
   assistantRunState: {
     clearRun: mocked.assistantClearRunMock,
   },

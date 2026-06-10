@@ -3,7 +3,7 @@ import type { Context, NextFunction } from "grammy";
 import {
   MediaGroupAttachmentHandler,
   type MediaGroupHandlerDeps,
-} from "../../../src/bot/handlers/media-group.js";
+} from "../../../src/bot/handlers/media-group-handler.js";
 import { t } from "../../../src/i18n/index.js";
 
 function createBaseContext(message: Record<string, unknown>): {

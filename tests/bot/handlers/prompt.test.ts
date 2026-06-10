@@ -31,28 +31,28 @@ vi.mock("../../../src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("../../../src/session/manager.js", () => ({
+vi.mock("../../../src/app/services/session-service.js", () => ({
   getCurrentSession: vi.fn(() => mocked.currentSession),
   setCurrentSession: vi.fn(),
   clearSession: vi.fn(),
 }));
 
-vi.mock("../../../src/session/cache-manager.js", () => ({
+vi.mock("../../../src/app/services/session-cache-service.js", () => ({
   ingestSessionInfoForCache: vi.fn(),
   __resetSessionDirectoryCacheForTests: vi.fn(),
 }));
 
-vi.mock("../../../src/settings/manager.js", () => ({
+vi.mock("../../../src/app/stores/settings-store.js", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
   isTtsEnabled: vi.fn(() => false),
 }));
 
-vi.mock("../../../src/agent/manager.js", () => ({
+vi.mock("../../../src/app/services/agent-selection-service.js", () => ({
   getStoredAgent: vi.fn(() => "build"),
   resolveProjectAgent: vi.fn(async (agentName?: string) => agentName ?? "build"),
 }));
 
-vi.mock("../../../src/model/manager.js", () => ({
+vi.mock("../../../src/app/services/model-selection-service.js", () => ({
   getStoredModel: vi.fn(() => ({
     providerID: "openai",
     modelID: "gpt-5",
@@ -60,7 +60,7 @@ vi.mock("../../../src/model/manager.js", () => ({
   })),
 }));
 
-vi.mock("../../../src/pinned/manager.js", () => ({
+vi.mock("../../../src/bot/pinned/pinned-message-manager.js", () => ({
   pinnedMessageManager: {
     isInitialized: vi.fn(() => true),
     initialize: vi.fn(),
@@ -71,7 +71,7 @@ vi.mock("../../../src/pinned/manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/keyboard/manager.js", () => ({
+vi.mock("../../../src/bot/keyboards/keyboard-manager.js", () => ({
   keyboardManager: {
     initialize: vi.fn(),
     clearContext: vi.fn(),
@@ -79,7 +79,7 @@ vi.mock("../../../src/keyboard/manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/summary/aggregator.js", () => ({
+vi.mock("../../../src/app/managers/summary-aggregation-manager.js", () => ({
   summaryAggregator: {
     setSession: mocked.setSessionSummaryMock,
     setBotAndChatId: mocked.setBotAndChatIdMock,
@@ -87,14 +87,11 @@ vi.mock("../../../src/summary/aggregator.js", () => ({
   },
 }));
 
-vi.mock("../../../src/interaction/manager.js", () => ({
+vi.mock("../../../src/app/managers/interaction-manager.js", () => ({
   interactionManager: {
     clear: vi.fn(),
     getSnapshot: vi.fn(() => null),
   },
-}));
-
-vi.mock("../../../src/interaction/cleanup.js", () => ({
   clearAllInteractionState: vi.fn(),
 }));
 
@@ -108,7 +105,7 @@ vi.mock("../../../src/utils/error-format.js", () => ({
   formatErrorDetails: vi.fn(() => "formatted error"),
 }));
 
-vi.mock("../../../src/scheduled-task/foreground-state.js", () => ({
+vi.mock("../../../src/app/managers/foreground-session-state-manager.js", () => ({
   foregroundSessionState: {
     markBusy: vi.fn(),
     markIdle: vi.fn(),
@@ -116,7 +113,7 @@ vi.mock("../../../src/scheduled-task/foreground-state.js", () => ({
   },
 }));
 
-vi.mock("../../../src/bot/assistant-run-state.js", () => ({
+vi.mock("../../../src/app/managers/assistant-run-state-manager.js", () => ({
   assistantRunState: {
     startRun: vi.fn(),
     clearRun: vi.fn(),
@@ -124,14 +121,14 @@ vi.mock("../../../src/bot/assistant-run-state.js", () => ({
   },
 }));
 
-vi.mock("../../../src/attach/service.js", () => ({
+vi.mock("../../../src/app/services/attach-service.js", () => ({
   attachToSession: mocked.attachToSessionMock,
   detachAttachedSession: vi.fn(),
   markAttachedSessionBusy: vi.fn().mockResolvedValue(undefined),
   markAttachedSessionIdle: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("../../../src/external-input/suppression.js", () => ({
+vi.mock("../../../src/app/managers/external-input-suppression-manager.js", () => ({
   externalUserInputSuppressionManager: {
     register: mocked.suppressionRegisterMock,
   },

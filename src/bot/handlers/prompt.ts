@@ -1,32 +1,32 @@
 import { Bot, Context } from "grammy";
 import type { FilePartInput, TextPartInput } from "@opencode-ai/sdk/v2";
 import { opencodeClient } from "../../opencode/client.js";
-import { clearSession, getCurrentSession, setCurrentSession } from "../../session/manager.js";
-import { ingestSessionInfoForCache } from "../../session/cache-manager.js";
-import { getCurrentProject, isTtsEnabled } from "../../settings/manager.js";
-import { getStoredAgent, resolveProjectAgent } from "../../agent/manager.js";
-import { getStoredModel } from "../../model/manager.js";
-import { formatVariantForButton } from "../../variant/manager.js";
-import { createMainKeyboard } from "../utils/keyboard.js";
-import { keyboardManager } from "../../keyboard/manager.js";
-import { pinnedMessageManager } from "../../pinned/manager.js";
-import { summaryAggregator } from "../../summary/aggregator.js";
+import { clearSession, getCurrentSession, setCurrentSession } from "../../app/services/session-service.js";
+import { ingestSessionInfoForCache } from "../../app/services/session-cache-service.js";
+import { getCurrentProject, isTtsEnabled } from "../../app/stores/settings-store.js";
+import { getStoredAgent, resolveProjectAgent } from "../../app/services/agent-selection-service.js";
+import { getStoredModel } from "../../app/services/model-selection-service.js";
+import { formatVariantForButton } from "../../app/services/variant-selection-service.js";
+import { createMainKeyboard } from "../keyboards/main-reply-keyboard.js";
+import { keyboardManager } from "../keyboards/keyboard-manager.js";
+import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
+import { summaryAggregator } from "../../app/managers/summary-aggregation-manager.js";
 import { stopEventListening } from "../../opencode/events.js";
-import { interactionManager } from "../../interaction/manager.js";
-import { clearAllInteractionState } from "../../interaction/cleanup.js";
+import { interactionManager } from "../../app/managers/interaction-manager.js";
+import { clearAllInteractionState } from "../../app/managers/interaction-manager.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { formatErrorDetails } from "../../utils/error-format.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
-import { foregroundSessionState } from "../../scheduled-task/foreground-state.js";
-import { assistantRunState } from "../assistant-run-state.js";
+import { foregroundSessionState } from "../../app/managers/foreground-session-state-manager.js";
+import { assistantRunState } from "../../app/managers/assistant-run-state-manager.js";
 import {
   attachToSession,
   detachAttachedSession,
   markAttachedSessionBusy,
   markAttachedSessionIdle,
-} from "../../attach/service.js";
-import { externalUserInputSuppressionManager } from "../../external-input/suppression.js";
+} from "../../app/services/attach-service.js";
+import { externalUserInputSuppressionManager } from "../../app/managers/external-input-suppression-manager.js";
 
 /** Module-level references for async callbacks that don't have ctx. */
 let botInstance: Bot<Context> | null = null;

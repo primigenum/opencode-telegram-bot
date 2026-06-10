@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EventEmitter } from "node:events";
 import type { Context } from "grammy";
-import type { VoiceMessageDeps } from "../../../src/bot/handlers/voice.js";
+import type { VoiceMessageDeps } from "../../../src/bot/handlers/voice-handler.js";
 import { t } from "../../../src/i18n/index.js";
 
 vi.mock("../../../src/utils/logger.js", () => ({
@@ -15,7 +15,7 @@ vi.mock("../../../src/utils/logger.js", () => ({
 
 async function loadVoiceModule() {
   vi.resetModules();
-  return import("../../../src/bot/handlers/voice.js");
+  return import("../../../src/bot/handlers/voice-handler.js");
 }
 
 function createVoiceContext(): {
@@ -118,7 +118,7 @@ function mockHttpsDownload(): ReturnType<typeof vi.fn> {
   return httpsGetMock;
 }
 
-describe("bot/handlers/voice", () => {
+describe("bot/handlers/voice-handler", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.doUnmock("node:https");

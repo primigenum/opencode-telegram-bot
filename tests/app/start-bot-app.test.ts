@@ -51,18 +51,18 @@ vi.mock("../../src/opencode/ready-refresh.js", () => ({
   registerOpenCodeReadyRefreshHandler: mocked.registerOpenCodeReadyRefreshHandlerMock,
 }));
 
-vi.mock("../../src/settings/manager.js", () => ({
+vi.mock("../../src/app/stores/settings-store.js", () => ({
   loadSettings: mocked.loadSettingsMock,
 }));
 
-vi.mock("../../src/scheduled-task/runtime.js", () => ({
+vi.mock("../../src/app/services/scheduled-task-runtime-service.js", () => ({
   scheduledTaskRuntime: {
     initialize: mocked.scheduledTaskInitializeMock,
     shutdown: mocked.scheduledTaskShutdownMock,
   },
 }));
 
-vi.mock("../../src/model/manager.js", () => ({
+vi.mock("../../src/app/services/model-selection-service.js", () => ({
   reconcileStoredModelSelection: mocked.reconcileStoredModelSelectionMock,
 }));
 
@@ -74,11 +74,11 @@ vi.mock("../../src/runtime/paths.js", () => ({
   getRuntimePaths: () => ({ envFilePath: ".env" }),
 }));
 
-vi.mock("../../src/service/manager.js", () => ({
+vi.mock("../../src/runtime/service/manager.js", () => ({
   clearServiceStateFile: mocked.clearServiceStateFileMock,
 }));
 
-vi.mock("../../src/service/runtime.js", () => ({
+vi.mock("../../src/runtime/service/env.js", () => ({
   getServiceStateFilePathFromEnv: mocked.getServiceStateFilePathFromEnvMock,
   isServiceChildProcess: mocked.isServiceChildProcessMock,
 }));
@@ -94,7 +94,7 @@ vi.mock("../../src/utils/logger.js", () => ({
   },
 }));
 
-import { startBotApp } from "../../src/app/start-bot-app.js";
+import { startBotApp } from "../../src/app/bootstrap/start-bot-app.js";
 
 function createBot() {
   return {

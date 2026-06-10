@@ -16,12 +16,12 @@ vi.mock("../../src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("../../src/session/cache-manager.js", () => ({
+vi.mock("../../src/app/services/session-cache-service.js", () => ({
   __resetSessionDirectoryCacheForTests: vi.fn(),
   warmupSessionDirectoryCache: mocked.warmupSessionDirectoryCacheMock,
 }));
 
-vi.mock("../../src/model/manager.js", () => ({
+vi.mock("../../src/app/services/model-selection-service.js", () => ({
   reconcileStoredModelSelection: mocked.reconcileStoredModelSelectionMock,
 }));
 

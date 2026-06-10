@@ -37,7 +37,7 @@ vi.mock("../../../src/opencode/process.js", () => ({
   startLocalOpencodeServer: mocked.startLocalOpencodeServerMock,
 }));
 
-vi.mock("../../../src/bot/utils/telegram-text.js", () => ({
+vi.mock("../../../src/bot/render/telegram-text.js", () => ({
   editBotText: mocked.editBotTextMock,
 }));
 
@@ -56,7 +56,7 @@ vi.mock("../../../src/utils/logger.js", () => ({
   },
 }));
 
-import { opencodeStartCommand } from "../../../src/bot/commands/opencode-start.js";
+import { opencodeStartCommand } from "../../../src/bot/commands/opencode-start-command.js";
 
 function createContext(): Context {
   return {
@@ -74,7 +74,7 @@ function createChildProcess(pid: number): ChildProcess {
   } as unknown as ChildProcess;
 }
 
-describe("bot/commands/opencode-start", () => {
+describe("bot/commands/opencode-start-command", () => {
   beforeEach(() => {
     mocked.healthMock.mockReset();
     mocked.resolveLocalOpencodeTargetMock.mockReset();

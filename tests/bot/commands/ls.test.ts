@@ -24,22 +24,25 @@ vi.mock("node:fs", () => ({
   },
 }));
 
-vi.mock("../../../src/bot/utils/busy-guard.js", () => ({
+vi.mock("../../../src/app/services/run-control-service.js", () => ({
   isForegroundBusy: mocked.isForegroundBusyMock,
+}));
+
+vi.mock("../../../src/bot/render/busy-blocked-renderer.js", () => ({
   replyBusyBlocked: mocked.replyBusyBlockedMock,
 }));
 
-vi.mock("../../../src/settings/manager.js", () => ({
+vi.mock("../../../src/app/stores/settings-store.js", () => ({
   getCurrentProject: mocked.getCurrentProjectMock,
 }));
 
-vi.mock("../../../src/bot/handlers/inline-menu.js", () => ({
+vi.mock("../../../src/bot/menus/inline-menu.js", () => ({
   appendInlineMenuCancelButton: vi.fn((kb: unknown) => kb),
   ensureActiveInlineMenu: mocked.ensureActiveInlineMenuMock,
   clearActiveInlineMenu: mocked.clearActiveInlineMenuMock,
 }));
 
-vi.mock("../../../src/interaction/manager.js", () => ({
+vi.mock("../../../src/app/managers/interaction-manager.js", () => ({
   interactionManager: {
     start: mocked.interactionStartMock,
     getSnapshot: vi.fn(() => null),
@@ -47,7 +50,7 @@ vi.mock("../../../src/interaction/manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/bot/utils/send-downloaded-file.js", () => ({
+vi.mock("../../../src/bot/render/send-downloaded-file.js", () => ({
   sendDownloadedFile: mocked.sendDownloadedFileMock,
 }));
 
@@ -60,7 +63,12 @@ vi.mock("../../../src/utils/logger.js", () => ({
   },
 }));
 
-import { clearLsPathIndex, clearSessionDirectories, handleLsCallback, lsCommand } from "../../../src/bot/commands/ls.js";
+import { lsCommand } from "../../../src/bot/commands/ls-command.js";
+import {
+  clearSessionDirectories,
+  handleLsCallback,
+} from "../../../src/bot/callbacks/file-browser-callback-handler.js";
+import { clearLsPathIndex } from "../../../src/bot/menus/file-browser-menu.js";
 
 function createCommandContext(): Context {
   return {

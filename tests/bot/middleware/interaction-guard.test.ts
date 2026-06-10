@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Context, NextFunction } from "grammy";
 import { interactionGuardMiddleware } from "../../../src/bot/middleware/interaction-guard.js";
-import { interactionManager } from "../../../src/interaction/manager.js";
-import { foregroundSessionState } from "../../../src/scheduled-task/foreground-state.js";
+import { interactionManager } from "../../../src/app/managers/interaction-manager.js";
+import { foregroundSessionState } from "../../../src/app/managers/foreground-session-state-manager.js";
 import { t } from "../../../src/i18n/index.js";
 
 const mocked = vi.hoisted(() => ({
   reconcileForegroundBusyStateMock: vi.fn(),
 }));
 
-vi.mock("../../../src/bot/utils/busy-guard.js", () => ({
+vi.mock("../../../src/app/services/run-control-service.js", () => ({
   reconcileForegroundBusyState: mocked.reconcileForegroundBusyStateMock,
 }));
 

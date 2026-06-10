@@ -2,11 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Context } from "grammy";
 import {
   calculateMessagesPaginationRange,
-  handleMessagesCallback,
-  messagesCommand,
   parseMessagePageCallback,
-} from "../../../src/bot/commands/messages.js";
-import { interactionManager } from "../../../src/interaction/manager.js";
+} from "../../../src/bot/menus/message-history-menu.js";
+import { messagesCommand } from "../../../src/bot/commands/messages-command.js";
+import { handleMessagesCallback } from "../../../src/bot/callbacks/message-history-callback-handler.js";
+import { interactionManager } from "../../../src/app/managers/interaction-manager.js";
 import { t } from "../../../src/i18n/index.js";
 
 const mocked = vi.hoisted(() => ({
@@ -28,20 +28,20 @@ const mocked = vi.hoisted(() => ({
   ingestSessionInfoForCacheMock: vi.fn(),
 }));
 
-vi.mock("../../../src/settings/manager.js", () => ({
+vi.mock("../../../src/app/stores/settings-store.js", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
 }));
 
-vi.mock("../../../src/session/manager.js", () => ({
+vi.mock("../../../src/app/services/session-service.js", () => ({
   getCurrentSession: vi.fn(() => mocked.currentSession),
   setCurrentSession: mocked.setCurrentSessionMock,
 }));
 
-vi.mock("../../../src/attach/service.js", () => ({
+vi.mock("../../../src/app/services/attach-service.js", () => ({
   attachToSession: mocked.attachToSessionMock,
 }));
 
-vi.mock("../../../src/session/cache-manager.js", () => ({
+vi.mock("../../../src/app/services/session-cache-service.js", () => ({
   ingestSessionInfoForCache: mocked.ingestSessionInfoForCacheMock,
   __resetSessionDirectoryCacheForTests: vi.fn(),
 }));
