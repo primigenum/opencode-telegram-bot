@@ -1,19 +1,22 @@
-import { CommandContext, Context } from "grammy";
+import { CommandContext, Context, InlineKeyboard } from "grammy";
 import { isTtsConfigured } from "../../app/services/tts-service.js";
-import { isTtsEnabled, setTtsEnabled } from "../../app/stores/settings-store.js";
+import { getTtsMode } from "../../app/stores/settings-store.js";
 import { t } from "../../i18n/index.js";
 
-export async function ttsCommand(ctx: CommandContext<Context>): Promise<void> {
-  const enabled = !isTtsEnabled();
+export const TTS_CALLBACK_PREFIX = "tts:";
 
-  if (enabled && !isTtsConfigured()) {
+export async function ttsCommand(ctx: CommandContext<Context>): Promise<void> {
+  if (!isTtsConfigured()) {
     await ctx.reply(t("tts.not_configured"));
     return;
   }
 
-  setTtsEnabled(enabled);
+  const current = getTtsMode();
 
-  const message = enabled ? t("tts.enabled") : t("tts.disabled");
+  const keyboard = new InlineKeyboard()
+    .text(`${current === 'off' ? '✅ ' : ''}🔇 ${t("status.tts.off")}`, `${TTS_CALLBACK_PREFIX}off`)
+    .text(`${current === 'all' ? '✅ ' : ''}🔊 ${t("status.tts.all")}`, `${TTS_CALLBACK_PREFIX}all`)
+    .text(`${current === 'auto' ? '✅ ' : ''}🎤 ${t("status.tts.auto")}`, `${TTS_CALLBACK_PREFIX}auto`);
 
-  await ctx.reply(message);
+  await ctx.reply(t("tts.prompt"), { reply_markup: keyboard });
 }

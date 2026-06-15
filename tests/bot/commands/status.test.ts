@@ -6,7 +6,7 @@ const mocked = vi.hoisted(() => ({
   healthMock: vi.fn(),
   getCurrentSessionMock: vi.fn(),
   getCurrentProjectMock: vi.fn(),
-  isTtsEnabledMock: vi.fn(),
+  getTtsModeMock: vi.fn(),
   fetchCurrentAgentMock: vi.fn(),
   fetchCurrentModelMock: vi.fn(),
   getGitWorktreeContextMock: vi.fn(),
@@ -35,7 +35,7 @@ vi.mock("../../../src/app/services/session-service.js", () => ({
 
 vi.mock("../../../src/app/stores/settings-store.js", () => ({
   getCurrentProject: mocked.getCurrentProjectMock,
-  isTtsEnabled: mocked.isTtsEnabledMock,
+  getTtsMode: mocked.getTtsModeMock,
 }));
 
 vi.mock("../../../src/app/services/agent-selection-service.js", () => ({
@@ -77,7 +77,7 @@ describe("bot/commands/status-command", () => {
     mocked.healthMock.mockReset();
     mocked.getCurrentSessionMock.mockReset();
     mocked.getCurrentProjectMock.mockReset();
-    mocked.isTtsEnabledMock.mockReset();
+    mocked.getTtsModeMock.mockReset();
     mocked.fetchCurrentAgentMock.mockReset();
     mocked.fetchCurrentModelMock.mockReset();
     mocked.getGitWorktreeContextMock.mockReset();
@@ -94,7 +94,7 @@ describe("bot/commands/status-command", () => {
     mocked.healthMock.mockResolvedValue({ data: { healthy: true, version: "1.0.0" }, error: null });
     mocked.getCurrentSessionMock.mockReturnValue({ id: "s1", title: "S", directory: "/repo" });
     mocked.getCurrentProjectMock.mockReturnValue({ id: "p1", worktree: "/repo", name: "Repo" });
-    mocked.isTtsEnabledMock.mockReturnValue(true);
+    mocked.getTtsModeMock.mockReturnValue("all");
     mocked.fetchCurrentAgentMock.mockResolvedValue("build");
     mocked.fetchCurrentModelMock.mockReturnValue({ providerID: "openai", modelID: "gpt-5" });
     mocked.getGitWorktreeContextMock.mockResolvedValue(null);
@@ -117,8 +117,8 @@ describe("bot/commands/status-command", () => {
     await statusCommand(ctx as never);
 
     const message = mocked.sendBotTextMock.mock.calls[0]?.[0]?.text as string;
-    expect(message).toContain("TTS replies");
-    expect(message).toContain("On");
+    expect(message).toContain("Audio replies");
+    expect(message).toContain("All");
     expect(message).not.toContain("Started by bot");
   });
 

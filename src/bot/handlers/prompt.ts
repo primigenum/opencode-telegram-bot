@@ -3,7 +3,7 @@ import type { FilePartInput, TextPartInput } from "@opencode-ai/sdk/v2";
 import { opencodeClient } from "../../opencode/client.js";
 import { clearSession, getCurrentSession, setCurrentSession } from "../../app/services/session-service.js";
 import { ingestSessionInfoForCache } from "../../app/services/session-cache-service.js";
-import { getCurrentProject, isTtsEnabled } from "../../app/stores/settings-store.js";
+import { getCurrentProject, getTtsMode } from "../../app/stores/settings-store.js";
 import { getStoredAgent, resolveProjectAgent } from "../../app/services/agent-selection-service.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
 import { formatVariantForButton } from "../../app/services/variant-selection-service.js";
@@ -127,7 +127,7 @@ export async function processUserPrompt(
   options: ProcessPromptOptions = {},
 ): Promise<boolean> {
   const { bot, ensureEventSubscription } = deps;
-  const responseMode = options.responseMode ?? (isTtsEnabled() ? "text_and_tts" : "text_only");
+  const responseMode = options.responseMode ?? (getTtsMode() === 'all' ? "text_and_tts" : "text_only");
 
   const currentProject = getCurrentProject();
   if (!currentProject) {

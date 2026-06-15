@@ -7,7 +7,7 @@ export const ru: I18nDictionary = {
   "cmd.description.detach": "Отсоединиться от текущей сессии",
   "cmd.description.sessions": "Список сессий",
   "cmd.description.messages": "Сообщения текущей сессии",
-  "cmd.description.tts": "Переключить аудиоответы",
+  "cmd.description.tts": "Choose audio reply mode",
   "cmd.description.projects": "Список проектов",
   "cmd.description.worktree": "Переключить git worktree",
   "cmd.description.task": "Создать задачу по расписанию",
@@ -111,9 +111,10 @@ export const ru: I18nDictionary = {
   "status.line.uptime_sec": "Uptime: {seconds} сек",
   "status.line.mode": "Агент: {mode}",
   "status.line.model": "Модель: {model}",
-  "status.line.tts": "TTS-ответы: {tts}",
-  "status.tts.on": "Вкл",
+  "status.line.tts": "Аудиоответы: {tts}",
   "status.tts.off": "Выкл",
+  "status.tts.all": "Все",
+  "status.tts.auto": "Авто",
   "status.agent_not_set": "не установлен",
   "status.project_selected": "Проект: {project}",
   "status.worktree_selected": "Worktree: {worktree}",
@@ -125,9 +126,11 @@ export const ru: I18nDictionary = {
   "status.server_unavailable":
     "🔴 OpenCode Server недоступен\n\nИспользуйте /opencode_start для запуска сервера.",
 
-  "tts.enabled": "🔊 Аудиоответы включены глобально.",
+  "tts.prompt": "Select audio reply mode:",
+  "tts.off": "🔇 Аудиоответы выключены.",
+  "tts.all": "🔊 Аудиоответы включены для всех сообщений.",
+  "tts.auto": "🎤 Аудиоответы включены только для голосовых сообщений.",
   "tts.not_configured": "⚠️ Аудиоответы недоступны. Сначала укажите `TTS_API_URL` и `TTS_API_KEY`.",
-  "tts.disabled": "🔇 Аудиоответы выключены глобально.",
   "tts.failed": "⚠️ Не удалось создать аудиоответ.",
 
   "projects.empty":

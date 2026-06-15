@@ -5,7 +5,7 @@ export const en = {
   "cmd.description.detach": "Detach from current session",
   "cmd.description.sessions": "List sessions",
   "cmd.description.messages": "Browse session messages",
-  "cmd.description.tts": "Toggle audio replies",
+  "cmd.description.tts": "Choose audio reply mode",
   "cmd.description.projects": "List projects",
   "cmd.description.worktree": "Switch git worktrees",
   "cmd.description.task": "Create a scheduled task",
@@ -111,9 +111,10 @@ export const en = {
   "status.line.uptime_sec": "Uptime: {seconds} sec",
   "status.line.mode": "Agent: {mode}",
   "status.line.model": "Model: {model}",
-  "status.line.tts": "TTS replies: {tts}",
-  "status.tts.on": "On",
+  "status.line.tts": "Audio replies: {tts}",
   "status.tts.off": "Off",
+  "status.tts.all": "All",
+  "status.tts.auto": "Auto",
   "status.agent_not_set": "not set",
   "status.project_selected": "Project: {project}",
   "status.worktree_selected": "Worktree: {worktree}",
@@ -125,10 +126,12 @@ export const en = {
   "status.server_unavailable":
     "🔴 OpenCode Server is unavailable\n\nUse /opencode_start to start the server.",
 
-  "tts.enabled": "🔊 Audio replies enabled globally.",
+  "tts.prompt": "Select audio reply mode:",
+  "tts.off": "🔇 Audio replies disabled.",
+  "tts.all": "🔊 Audio replies enabled for all messages.",
+  "tts.auto": "🎤 Audio replies enabled for voice/audio messages only.",
   "tts.not_configured":
     "⚠️ Audio replies are unavailable. Set `TTS_API_URL` and `TTS_API_KEY` first.",
-  "tts.disabled": "🔇 Audio replies disabled globally.",
   "tts.failed": "⚠️ Failed to generate audio reply.",
 
   "projects.empty":

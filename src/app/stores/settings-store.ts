@@ -85,12 +85,14 @@ export function clearSession(): void {
   void writeSettingsFile(currentSettings);
 }
 
-export function isTtsEnabled(): boolean {
-  return currentSettings.ttsEnabled === true;
+export type TtsMode = 'off' | 'all' | 'auto';
+
+export function getTtsMode(): TtsMode {
+  return currentSettings.ttsMode ?? 'off';
 }
 
-export function setTtsEnabled(enabled: boolean): void {
-  currentSettings.ttsEnabled = enabled;
+export function setTtsMode(mode: TtsMode): void {
+  currentSettings.ttsMode = mode;
   void writeSettingsFile(currentSettings);
 }
 
@@ -190,6 +192,14 @@ export async function loadSettings(): Promise<void> {
 
   if ("serverProcess" in loadedSettings) {
     delete loadedSettings.serverProcess;
+    requiresRewrite = true;
+  }
+
+  // Migrate old ttsEnabled boolean to new ttsMode
+  if ("ttsEnabled" in loadedSettings) {
+    const oldEnabled = (loadedSettings as Record<string, unknown>).ttsEnabled;
+    loadedSettings.ttsMode = oldEnabled === true ? 'all' : 'off';
+    delete (loadedSettings as Record<string, unknown>).ttsEnabled;
     requiresRewrite = true;
   }
 

@@ -6,6 +6,7 @@ import type { FilePartInput } from "@opencode-ai/sdk/v2";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import { config } from "../../config.js";
+import { getTtsMode } from "../../app/stores/settings-store.js";
 import { isSttConfigured, transcribeAudio, type SttResult } from "../../app/services/stt-service.js";
 import { processUserPrompt, type ProcessPromptDeps } from "./prompt.js";
 import { logger } from "../../utils/logger.js";
@@ -241,7 +242,9 @@ export async function handleVoiceMessage(ctx: Context, deps: VoiceMessageDeps): 
     }
 
     // Process the recognized text as a prompt
-    await processPrompt(ctx, textForLLM, deps);
+    const currentTtsMode = getTtsMode();
+    const responseMode = (currentTtsMode === 'all' || currentTtsMode === 'auto') ? "text_and_tts" as const : "text_only" as const;
+    await processPrompt(ctx, textForLLM, deps, [], { responseMode });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "unknown error";
     logger.error("[Voice] Error processing voice message:", err);

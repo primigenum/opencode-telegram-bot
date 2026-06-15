@@ -14,7 +14,7 @@ export interface Settings {
   currentAgent?: string;
   currentModel?: ModelInfo;
   pinnedMessageId?: number;
-  ttsEnabled?: boolean;
+  ttsMode?: 'off' | 'all' | 'auto';
   sessionDirectoryCache?: SessionDirectoryCacheInfo;
   scheduledTasks?: ScheduledTask[];
   scheduledTaskSessionIgnores?: ScheduledTaskSessionIgnoreInfo[];

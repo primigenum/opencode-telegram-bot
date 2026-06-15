@@ -7,7 +7,7 @@ export const fr: I18nDictionary = {
   "cmd.description.detach": "Se détacher de la session actuelle",
   "cmd.description.sessions": "Lister les sessions",
   "cmd.description.messages": "Parcourir les messages de session",
-  "cmd.description.tts": "Basculer les réponses audio",
+  "cmd.description.tts": "Choose audio reply mode",
   "cmd.description.projects": "Lister les projets",
   "cmd.description.worktree": "Changer de worktree git",
   "cmd.description.task": "Créer une tâche planifiée",
@@ -120,9 +120,10 @@ export const fr: I18nDictionary = {
   "status.line.uptime_sec": "Temps de fonctionnement : {seconds} sec",
   "status.line.mode": "Agent : {mode}",
   "status.line.model": "Modèle : {model}",
-  "status.line.tts": "Réponses TTS : {tts}",
-  "status.tts.on": "Activées",
+  "status.line.tts": "Réponses audio : {tts}",
   "status.tts.off": "Désactivées",
+  "status.tts.all": "Tout",
+  "status.tts.auto": "Auto",
   "status.agent_not_set": "non défini",
   "status.project_selected": "Projet : {project}",
   "status.worktree_selected": "Worktree : {worktree}",
@@ -134,10 +135,12 @@ export const fr: I18nDictionary = {
   "status.server_unavailable":
     "🔴 Le serveur OpenCode est indisponible\n\nUtilisez /opencode_start pour démarrer le serveur.",
 
-  "tts.enabled": "🔊 Réponses audio activées globalement.",
+  "tts.prompt": "Select audio reply mode:",
+  "tts.off": "🔇 Réponses audio désactivées.",
+  "tts.all": "🔊 Réponses audio activées pour tous les messages.",
+  "tts.auto": "🎤 Réponses audio activées pour les messages vocaux uniquement.",
   "tts.not_configured":
     "⚠️ Les réponses audio ne sont pas disponibles. Définissez d'abord `TTS_API_URL` et `TTS_API_KEY`.",
-  "tts.disabled": "🔇 Réponses audio désactivées globalement.",
   "tts.failed": "⚠️ Impossible de générer la réponse audio.",
 
   "projects.empty":
