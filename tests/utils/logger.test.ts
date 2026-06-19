@@ -56,7 +56,7 @@ describe("utils/logger", () => {
     expect(getLogFilePath()).toBe(expectedPath);
 
     const content = await fs.readFile(expectedPath, "utf-8");
-    expect(content).toContain("[INFO] sources log { scope: 'test' }");
+    expect(content).toContain('[INFO] sources log { scope: "test" }');
     expect(consoleLogMock).toHaveBeenCalledOnce();
 
     __resetLoggerForTests();

@@ -3,7 +3,7 @@ import { config } from "../../config.js";
 import { opencodeClient } from "../../opencode/client.js";
 import { logger } from "../../utils/logger.js";
 import type { ModelInfo, FavoriteModel, ModelSelectionLists } from "../types/model.js";
-import path from "node:path";
+import path from "bun:path";
 
 interface OpenCodeModelState {
   favorite?: Array<{ providerID?: string; modelID?: string }>;

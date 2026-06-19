@@ -1,4 +1,4 @@
-import path from "node:path";
+import path from "bun:path";
 import type { ModelInfo } from "../types/model.js";
 import type { ProjectInfo } from "../types/project.js";
 import type { SessionDirectoryCacheInfo, SessionInfo } from "../types/session.js";

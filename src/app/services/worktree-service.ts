@@ -1,11 +1,8 @@
-import { execFile } from "node:child_process";
-import { readFile, stat } from "node:fs/promises";
-import path from "node:path";
+import path from "bun:path";
 import type { GitWorktreeContext, GitWorktreeEntry } from "../types/worktree.js";
 
 const GIT_HEADS_PREFIX = "refs/heads/";
 const GIT_WORKTREES_MARKER = `${path.sep}.git${path.sep}worktrees${path.sep}`;
-const GIT_WORKTREE_LIST_MAX_BUFFER = 1024 * 1024;
 
 interface ParsedGitWorktreeEntry {
   path: string;
@@ -69,33 +66,24 @@ function parseGitWorktreeList(stdout: string): ParsedGitWorktreeEntry[] {
 }
 
 async function runGitWorktreeList(worktree: string): Promise<ParsedGitWorktreeEntry[]> {
-  const stdout = await new Promise<string>((resolve, reject) => {
-    execFile(
-      "git",
-      ["worktree", "list", "--porcelain"],
-      {
-        cwd: worktree,
-        windowsHide: true,
-        maxBuffer: GIT_WORKTREE_LIST_MAX_BUFFER,
-      },
-      (error, output) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-
-        resolve(output);
-      },
-    );
+  const proc = Bun.spawn(["git", "worktree", "list", "--porcelain"], {
+    cwd: worktree,
+    stdout: "pipe",
+    stderr: "pipe",
   });
-
+  const exitCode = await proc.exited;
+  if (exitCode !== 0) {
+    const stderr = await proc.stderr.text();
+    throw new Error(`git worktree list failed: ${stderr}`);
+  }
+  const stdout = await proc.stdout.text();
   return parseGitWorktreeList(stdout);
 }
 
 async function readHeadBranch(gitDir: string): Promise<string | null> {
   try {
     const headPath = path.join(gitDir, "HEAD");
-    const headContent = (await readFile(headPath, "utf-8")).trim();
+    const headContent = (await Bun.file(headPath).text()).trim();
     const match = headContent.match(/^ref:\s+(.+)$/);
     return match ? normalizeBranchName(match[1]) : null;
   } catch {
@@ -121,7 +109,7 @@ export async function resolveGitDir(worktree: string): Promise<string | null> {
   const gitPath = path.join(worktree, ".git");
 
   try {
-    const gitStat = await stat(gitPath);
+    const gitStat = await Bun.file(gitPath).stat();
 
     if (gitStat.isDirectory()) {
       return gitPath;
@@ -131,7 +119,7 @@ export async function resolveGitDir(worktree: string): Promise<string | null> {
       return null;
     }
 
-    const gitPointer = (await readFile(gitPath, "utf-8")).trim();
+    const gitPointer = (await Bun.file(gitPath).text()).trim();
     const match = gitPointer.match(/^gitdir:\s*(.+)$/i);
     if (!match) {
       return null;

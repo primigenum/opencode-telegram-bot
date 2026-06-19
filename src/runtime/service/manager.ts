@@ -1,8 +1,4 @@
-import fs from "node:fs";
-import fsPromises from "node:fs/promises";
-import path from "node:path";
-import { exec, spawn } from "node:child_process";
-import { promisify } from "node:util";
+import path from "bun:path";
 import { getRuntimePaths } from "../paths.js";
 import { buildServiceChildEnv } from "./env.js";
 import type {
@@ -12,10 +8,19 @@ import type {
   ServiceOperationResult,
 } from "./types.js";
 
-const execAsync = promisify(exec);
 const SERVICE_STATE_FILE_NAME = "bot-service.json";
 const PROCESS_EXIT_POLL_MS = 100;
 const DEFAULT_STOP_TIMEOUT_MS = 5000;
+
+async function mkdirRecursiveAsync(dirPath: string): Promise<void> {
+  const proc = Bun.spawn(["mkdir", "-p", dirPath], { stdout: "ignore", stderr: "ignore" });
+  await proc.exited;
+}
+
+async function atomicRename(from: string, to: string): Promise<void> {
+  const proc = Bun.spawn(["mv", from, to], { stdout: "ignore", stderr: "ignore" });
+  await proc.exited;
+}
 
 function sanitizeTimestampForFile(timestamp: string): string {
   return timestamp.replace(/:/g, "-").replace("T", "_");
@@ -45,18 +50,18 @@ function isValidServiceState(value: unknown): value is BotServiceState {
 }
 
 async function writeFileAtomically(filePath: string, content: string): Promise<void> {
-  await fsPromises.mkdir(path.dirname(filePath), { recursive: true });
+  await mkdirRecursiveAsync(path.dirname(filePath));
 
   const tempFilePath = `${filePath}.${process.pid}.tmp`;
-  await fsPromises.writeFile(tempFilePath, content, "utf-8");
-  await fsPromises.rename(tempFilePath, filePath);
+  await Bun.write(tempFilePath, content);
+  await atomicRename(tempFilePath, filePath);
 }
 
 async function readServiceStateFile(
   filePath: string,
 ): Promise<{ service: BotServiceState | null; cleanupReason: ServiceCleanupReason }> {
   try {
-    const content = await fsPromises.readFile(filePath, "utf-8");
+    const content = await Bun.file(filePath).text();
     const parsed = JSON.parse(content) as unknown;
 
     if (!isValidServiceState(parsed)) {
@@ -66,8 +71,11 @@ async function readServiceStateFile(
 
     return { service: parsed, cleanupReason: null };
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      return { service: null, cleanupReason: null };
+    if (error instanceof Error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === "ENOENT") {
+        return { service: null, cleanupReason: null };
+      }
     }
 
     if (error instanceof SyntaxError) {
@@ -112,9 +120,17 @@ function getServiceEntryScriptPath(): string {
   return path.resolve(scriptPath);
 }
 
+async function runShellCommand(command: string): Promise<void> {
+  const proc = Bun.spawn(["sh", "-c", command], {
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  await proc.exited;
+}
+
 async function stopWindowsProcess(pid: number, timeoutMs: number): Promise<void> {
   try {
-    await execAsync(`taskkill /PID ${pid} /T`);
+    await runShellCommand(`taskkill /PID ${pid} /T`);
   } catch {
     // Continue with forced stop if the process is still alive.
   }
@@ -123,7 +139,7 @@ async function stopWindowsProcess(pid: number, timeoutMs: number): Promise<void>
     return;
   }
 
-  await execAsync(`taskkill /F /PID ${pid} /T`);
+  await runShellCommand(`taskkill /F /PID ${pid} /T`);
   await waitForProcessExit(pid, timeoutMs);
 }
 
@@ -146,10 +162,13 @@ export async function clearServiceStateFile(
   filePath: string = getServiceStateFilePath(),
 ): Promise<void> {
   try {
-    await fsPromises.unlink(filePath);
+    await Bun.file(filePath).delete();
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-      throw error;
+    if (error instanceof Error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "ENOENT") {
+        throw error;
+      }
     }
   }
 }
@@ -195,13 +214,14 @@ export async function startBotDaemon(mode?: string): Promise<ServiceOperationRes
 
   const runtimePaths = getRuntimePaths();
   await Promise.all([
-    fsPromises.mkdir(runtimePaths.runDirPath, { recursive: true }),
-    fsPromises.mkdir(runtimePaths.logsDirPath, { recursive: true }),
+    mkdirRecursiveAsync(runtimePaths.runDirPath),
+    mkdirRecursiveAsync(runtimePaths.logsDirPath),
   ]);
 
   const stateFilePath = getServiceStateFilePath();
   const logFilePath = createServiceLogFilePath(runtimePaths.logsDirPath);
-  const logFileDescriptor = fs.openSync(logFilePath, "a");
+  const logFileWriter = Bun.file(logFilePath).writer();
+  const logFileDescriptor = logFileWriter as unknown as number;
 
   try {
     const childArgs = [getServiceEntryScriptPath(), "start"];
@@ -209,10 +229,9 @@ export async function startBotDaemon(mode?: string): Promise<ServiceOperationRes
       childArgs.push("--mode", mode);
     }
 
-    const childProcess = spawn(process.execPath, childArgs, {
+    const childProcess = Bun.spawn([process.execPath, ...childArgs], {
       detached: true,
       stdio: ["ignore", logFileDescriptor, logFileDescriptor],
-      windowsHide: true,
       env: buildServiceChildEnv(process.env, stateFilePath),
     });
 
@@ -245,7 +264,7 @@ export async function startBotDaemon(mode?: string): Promise<ServiceOperationRes
       error: error instanceof Error ? error.message : String(error),
     };
   } finally {
-    fs.closeSync(logFileDescriptor);
+    await logFileWriter.end();
   }
 }
 
