@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "#vitest";
 import { convertToTelegramMarkdownV2 } from "../../../src/bot/render/markdown-to-telegram-v2.js";
 
 describe("summary/markdown-to-telegram-v2", () => {

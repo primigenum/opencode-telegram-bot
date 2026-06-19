@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "#vitest";
 import type { Context, NextFunction } from "grammy";
 import {
   ensureCommandsInitialized,

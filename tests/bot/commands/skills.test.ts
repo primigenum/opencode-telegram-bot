@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Bot, Context } from "grammy";
 import { skillsCommand } from "../../../src/bot/commands/skills-catalog-command.js";
 import { handleSkillsCallback } from "../../../src/bot/callbacks/skills-catalog-callback-handler.js";

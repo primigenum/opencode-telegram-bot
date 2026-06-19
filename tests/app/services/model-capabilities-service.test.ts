@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "#vitest";
 import { supportsInput, supportsAttachment } from "../../../src/app/services/model-capabilities-service.js";
 import type { Model } from "@opencode-ai/sdk/v2";
 

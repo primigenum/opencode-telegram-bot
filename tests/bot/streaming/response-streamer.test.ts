@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "#vitest";
 import { ResponseStreamer } from "../../../src/bot/streaming/response-streamer.js";
 
 function plainPart(text: string) {

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "#vitest";
 import { ToolMessageBatcher } from "../../../src/app/formatters/tool-message-batcher.js";
 
 function createFileData(name: string) {

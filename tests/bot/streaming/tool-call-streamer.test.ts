@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "#vitest";
 import { ToolCallStreamer } from "../../../src/bot/streaming/tool-call-streamer.js";
 
 describe("bot/streaming/tool-call-streamer", () => {

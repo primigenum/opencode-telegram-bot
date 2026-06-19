@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "#vitest";
 import { formatModelForButton, formatModelForDisplay } from "../../../src/app/types/model.js";
 
 describe("model/types", () => {

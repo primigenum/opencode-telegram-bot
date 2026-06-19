@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "#vitest";
 
 describe("bot/streaming/finalize-assistant-response logging", () => {
   it("logs final assistant raw text exactly once per finalize call", async () => {

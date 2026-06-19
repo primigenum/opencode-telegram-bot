@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
 import { mcpsCommand } from "../../../src/bot/commands/mcp-catalog-command.js";
 import { handleMcpsCallback } from "../../../src/bot/callbacks/mcp-catalog-callback-handler.js";

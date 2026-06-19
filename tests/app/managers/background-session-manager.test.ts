@@ -1,5 +1,5 @@
 import type { Event } from "@opencode-ai/sdk/v2";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import { BackgroundSessionTracker } from "../../../src/app/managers/background-session-manager.js";
 
 const mocked = vi.hoisted(() => ({

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "#vitest";
 import type { MessageEntity } from "grammy/types";
 import { validateTelegramEntities } from "../../../src/bot/render/validator.js";
 

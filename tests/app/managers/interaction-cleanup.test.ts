@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "#vitest";
 import { clearAllInteractionState } from "../../../src/app/managers/interaction-manager.js";
 import { interactionManager } from "../../../src/app/managers/interaction-manager.js";
 import { questionManager } from "../../../src/app/managers/question-manager.js";

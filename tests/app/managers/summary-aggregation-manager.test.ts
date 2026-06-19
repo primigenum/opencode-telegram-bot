@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Event } from "@opencode-ai/sdk/v2";
 import { summaryAggregator } from "../../../src/app/managers/summary-aggregation-manager.js";
 

@@ -12,8 +12,9 @@ Functional requirements, features, and development status are in [PRODUCT.md](./
 ## Technology stack
 
 - **Language:** TypeScript 5.x
-- **Runtime:** Node.js 20+
-- **Package manager:** npm
+- **Runtime:** Bun >= 1.3.0
+- **Package manager:** Bun (`bun install`)
+- **Test runner:** `bun test` (vitest API shimmed through `mock.module("vitest", ...)` in `tests/setup-preload.ts`)
 - **Configuration:** environment variables (`.env`)
 - **Logging:** custom logger with levels (`debug`, `info`, `warn`, `error`)
 
@@ -23,16 +24,18 @@ Functional requirements, features, and development status are in [PRODUCT.md](./
 - `@grammyjs/menu` - inline keyboards and menus
 - `@opencode-ai/sdk` - official OpenCode Server SDK
 - `dotenv` - environment variable loading
+- `bun:sqlite` - native SQLite (replaces `better-sqlite3` for the session cache fallback)
 
 ### Test dependencies
 
-- Vitest
-- Mocks/stubs via `vi.mock()`
+- `bun:test` (`describe`, `test`, `expect`, `mock`, `spyOn`, `setSystemTime`, `jest`)
+- A vitest-compatible `vi` namespace exported from `tests/helpers/vitest-shim.ts` so existing test files can keep `import { vi } from "vitest"`
 
 ### Code quality
 
-- ESLint + Prettier
+- ESLint + Prettier (run via `bunx`, no node)
 - TypeScript strict mode
+- `bun run check` runs lint + build + tests
 
 ## Architecture
 
@@ -235,7 +238,14 @@ Important:
 - Tests live in `tests/` (organized by module)
 - Use descriptive test names
 - Follow Arrange-Act-Assert
-- Use `vi.mock()` for external dependencies
+- Use `vi.mock()` for external dependencies (works through the shim — at runtime it routes to `bun:test`'s `mock.module()`)
+
+### Test runner notes
+
+- `bun test` discovers `tests/**/*.test.ts` by default.
+- `bunfig.toml` loads `tests/setup-preload.ts` before any test, which calls `mock.module("vitest", ...)` so every existing `import { vi } from "vitest"` resolves to the shim.
+- `tests/setup.ts` still runs the per-test env defaults + singleton reset (it is imported manually from each test file or, better, from a top-level `import "./setup.js"` added in the future).
+- `vi.useFakeTimers()` + `vi.setSystemTime(...)` work as expected: bun mocks the system clock so log file names use the controlled date.
 
 ## OpenCode SDK quick reference
 
@@ -271,6 +281,6 @@ Full docs: https://opencode.ai/docs/sdk
 2. Inspect existing code before adding or changing components.
 3. Align major architecture changes (including new dependencies) with the user first.
 4. Add or update tests for new functionality.
-5. After code changes, run quality checks: `npm run build`, `npm run lint`, and `npm test`.
-6. Update checkboxes in `PRODUCT.md` when relevant tasks are completed.
+5. After code changes, run quality checks: `bun run check` (runs lint + build + tests).
+6. Update checkboxes in [PRODUCT.md](./PRODUCT.md) when relevant tasks are completed.
 7. Keep code clean, consistent, and maintainable.

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
 import { abortCommand, abortCurrentOperation } from "../../../src/bot/commands/abort-command.js";
 import { clearAllInteractionState } from "../../../src/app/managers/interaction-manager.js";

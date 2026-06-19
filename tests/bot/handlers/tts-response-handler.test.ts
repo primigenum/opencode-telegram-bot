@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "#vitest";
 import { InputFile } from "grammy";
 import { sendTtsResponseForSession } from "../../../src/bot/handlers/tts-response-handler.js";
 import { t } from "../../../src/i18n/index.js";

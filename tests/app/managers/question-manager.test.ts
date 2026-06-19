@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "#vitest";
 import { questionManager } from "../../../src/app/managers/question-manager.js";
 import type { Question } from "../../../src/app/types/question.js";
 

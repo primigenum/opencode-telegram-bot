@@ -1,7 +1,7 @@
 import os from "node:os";
 import path from "node:path";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "#vitest";
 import { setRuntimeMode } from "../../../src/runtime/mode.js";
 import { __resetSettingsForTests, loadSettings } from "../../../src/app/stores/settings-store.js";
 import {

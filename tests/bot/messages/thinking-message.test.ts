@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "#vitest";
 import { deliverThinkingMessage } from "../../../src/bot/messages/thinking-message.js";
 import { t } from "../../../src/i18n/index.js";
 

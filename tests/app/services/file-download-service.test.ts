@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Api } from "grammy";
 import { Agent as HttpsAgent } from "https";
 import {

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Event } from "@opencode-ai/sdk/v2";
 
 const { globalEventMock, subscribeMock } = vi.hoisted(() => {

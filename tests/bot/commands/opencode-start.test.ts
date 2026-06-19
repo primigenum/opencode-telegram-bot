@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
 import type { ChildProcess } from "node:child_process";
 import type { Context } from "grammy";
 import { t } from "../../../src/i18n/index.js";

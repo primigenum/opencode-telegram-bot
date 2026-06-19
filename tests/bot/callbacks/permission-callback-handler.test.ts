@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context, InlineKeyboard } from "grammy";
 import type { PermissionRequest } from "../../../src/app/types/permission.js";
 import { permissionManager } from "../../../src/app/managers/permission-manager.js";

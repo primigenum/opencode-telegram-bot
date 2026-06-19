@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "#vitest";
 import { chunkTelegramRenderedBlocks } from "../../../src/bot/render/chunker.js";
 import type { TelegramRenderedBlock } from "../../../src/bot/render/types.js";
 

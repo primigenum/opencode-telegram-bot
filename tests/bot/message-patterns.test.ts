@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "#vitest";
 import { createMainKeyboard } from "../../src/bot/keyboards/main-reply-keyboard.js";
 import {
   AGENT_MODE_BUTTON_TEXT_PATTERN,

@@ -1,4 +1,4 @@
-import { beforeEach, afterEach, vi } from "vitest";
+import { afterEach, beforeEach, vi } from "#vitest";
 import { ensureTestEnvironment } from "./helpers/test-environment.js";
 import { resetSingletonState } from "./helpers/reset-singleton-state.js";
 

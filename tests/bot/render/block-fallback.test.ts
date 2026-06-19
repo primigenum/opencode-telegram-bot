@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "#vitest";
 import * as blockRenderer from "../../../src/bot/render/block-renderer.js";
 import { renderTelegramBlockWithFallback } from "../../../src/bot/render/block-fallback.js";
 import type { TelegramBlock } from "../../../src/bot/render/types.js";

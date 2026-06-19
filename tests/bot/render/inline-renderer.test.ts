@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "#vitest";
 import { parseTelegramBlocks } from "../../../src/bot/render/block-parser.js";
 import {
   renderInlineNodes,

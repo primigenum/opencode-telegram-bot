@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
 import type { ScheduledOnceTask } from "../../../src/app/types/scheduled-task.js";
 
 const mocked = vi.hoisted(() => ({

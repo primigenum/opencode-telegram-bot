@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "#vitest";
 import { getRuntimeMode, resolveRuntimeMode, setRuntimeMode } from "../../src/runtime/mode.js";
 
 describe("runtime/mode", () => {

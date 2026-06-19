@@ -1,5 +1,5 @@
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
 import { setRuntimeMode } from "../../src/runtime/mode.js";
 import { getRuntimePaths } from "../../src/runtime/paths.js";
 

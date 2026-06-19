@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "#vitest";
 import { foregroundSessionState } from "../../../src/app/managers/foreground-session-state-manager.js";
 
 describe("app/managers/foreground-session-state-manager", () => {

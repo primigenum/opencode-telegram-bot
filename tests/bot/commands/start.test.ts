@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
 import { startCommand } from "../../../src/bot/commands/start-command.js";
 import { t } from "../../../src/i18n/index.js";

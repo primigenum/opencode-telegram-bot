@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
 import { ttsCommand } from "../../../src/bot/commands/tts-command.js";
 import { handleTtsCallback } from "../../../src/bot/callbacks/tts-callback-handler.js";

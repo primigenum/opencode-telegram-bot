@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
 import { taskListCommand } from "../../../src/bot/commands/tasklist-command.js";
 import { handleTaskListCallback } from "../../../src/bot/callbacks/scheduled-task-callback-handler.js";

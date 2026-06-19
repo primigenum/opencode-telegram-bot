@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "#vitest";
 import { formatErrorDetails } from "../../src/utils/error-format.js";
 
 describe("utils/error-format", () => {

@@ -1,5 +1,5 @@
 import { Agent as HttpsAgent } from "https";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "#vitest";
 import { createTelegramBotOptions } from "../../src/bot/telegram-client-options.js";
 
 function makeTelegramConfig(overrides: Partial<Parameters<typeof createTelegramBotOptions>[0]> = {}) {

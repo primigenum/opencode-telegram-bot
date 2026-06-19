@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
 import { projectsCommand } from "../../../src/bot/commands/projects-command.js";
 import { foregroundSessionState } from "../../../src/app/managers/foreground-session-state-manager.js";

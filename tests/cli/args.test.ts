@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "#vitest";
 import { parseCliArgs } from "../../src/cli/args.js";
 
 describe("cli/args", () => {

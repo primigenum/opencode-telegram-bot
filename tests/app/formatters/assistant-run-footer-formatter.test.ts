@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "#vitest";
 import { formatAssistantRunFooter } from "../../../src/app/formatters/assistant-run-footer-formatter.js";
 
 describe("app/formatters/assistant-run-footer-formatter", () => {

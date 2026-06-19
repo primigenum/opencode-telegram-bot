@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
 import { helpCommand } from "../../../src/bot/commands/help-command.js";
 import { getLocalizedBotCommands } from "../../../src/bot/commands/definitions.js";

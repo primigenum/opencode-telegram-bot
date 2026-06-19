@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "#vitest";
 import { renderSubagentCards } from "../../../src/app/formatters/subagent-formatter.js";
 import { resetRuntimeLocale, setRuntimeLocale } from "../../../src/i18n/index.js";
 

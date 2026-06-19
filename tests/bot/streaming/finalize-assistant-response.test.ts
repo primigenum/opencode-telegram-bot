@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "#vitest";
 import { finalizeAssistantResponse } from "../../../src/bot/streaming/finalize-assistant-response.js";
 
 describe("bot/streaming/finalize-assistant-response", () => {

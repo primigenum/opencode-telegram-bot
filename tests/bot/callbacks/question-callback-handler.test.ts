@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
 import { questionManager } from "../../../src/app/managers/question-manager.js";
 import { interactionManager } from "../../../src/app/managers/interaction-manager.js";

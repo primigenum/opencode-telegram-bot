@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "#vitest";
 
 function toPlainParts(
   blocks: Array<{ text: string; fallbackText: string; source: "entities" | "plain" }>,
