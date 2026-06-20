@@ -17,20 +17,7 @@ concurrency:
 jobs:
   quality:
     name: Lint, Build, Test
-    # Self-hosted runner, like nexum's `check` / `test-frontend` /
-    # `test-e2e` jobs. The repo-level `server` runner (registered
-    # to this repo) is currently offline, so we intentionally do
-    # NOT pin to `[self-hosted, server]` — the plain `self-hosted`
-    # label matches the org-level runners that nexum uses
-    # (which are online). If a specific runner is required later
-    # (e.g. for a residential-IP curl against a bot-protected
-    # Cloudflare edge), add a custom label like nexum's
-    # `[self-hosted, residential]` does in `verify-deploy.yml`.
-    runs-on: self-hosted
-    # 30 min cap: ~4 min of setup (bun install from scratch on
-    # self-hosted) + up to ~14 min of test execution (118 files at
-    # ~7s each, with the per-file log capture). Bump the runner's
-    # own job-timeout if the SIGTERM at 5 min shows up in CI.
+    runs-on: [self-hosted, server]
     timeout-minutes: 30
 
     steps:
