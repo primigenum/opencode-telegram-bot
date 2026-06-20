@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
+import { loadSut } from "#helpers/sut-loader.js";
 
 const mocked = vi.hoisted(() => ({
   clearAllInteractionState: vi.fn(),
@@ -29,79 +30,91 @@ const mocked = vi.hoisted(() => ({
   clearOpenPathIndex: vi.fn(),
 }));
 
-vi.mock("#src/app/managers/interaction-manager.js", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("#src/app/managers/interaction-manager.js")>()),
+vi.mock("#src/app/managers/interaction-manager.ts", () => ({
+  interactionManager: { clear: vi.fn() },
   clearAllInteractionState: mocked.clearAllInteractionState,
+  DEFAULT_ALLOWED_INTERACTION_COMMANDS: ["/abort", "/detach", "/status", "/help"],
 }));
-vi.mock("#src/i18n/index.js", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("#src/i18n/index.js")>()),
+vi.mock("#src/i18n/index.ts", () => ({
   t: (key: string) => key,
+  SUPPORTED_LOCALES: ["en", "es"],
+  getDateLocale: vi.fn(),
+  getLocale: vi.fn(() => "en"),
+  getLocaleOptions: vi.fn(),
+  isSupportedLocale: vi.fn(() => true),
+  normalizeLocale: vi.fn((l: string) => l),
+  resetRuntimeLocale: vi.fn(),
+  resolveSupportedLocale: vi.fn(() => "en"),
+  setRuntimeLocale: vi.fn(),
 }));
-vi.mock("#src/utils/logger.js", () => ({
-  logger: { debug: vi.fn(), error: vi.fn() },
+vi.mock("#src/utils/logger.ts", () => ({
+  logger: { debug: vi.fn(), error: vi.fn(), info: vi.fn(), warn: vi.fn() },
 }));
-vi.mock("#src/bot/callbacks/agent-selection-callback-handler.js", () => ({
+vi.mock("#src/bot/callbacks/agent-selection-callback-handler.ts", () => ({
   handleAgentSelect: mocked.handleAgentSelect,
 }));
-vi.mock("#src/bot/callbacks/command-catalog-callback-handler.js", () => ({
+vi.mock("#src/bot/callbacks/command-catalog-callback-handler.ts", () => ({
   handleCommandsCallback: mocked.handleCommandsCallback,
 }));
-vi.mock("#src/bot/callbacks/context-control-callback-handler.js", () => ({
+vi.mock("#src/bot/callbacks/context-control-callback-handler.ts", () => ({
   handleCompactConfirm: mocked.handleCompactConfirm,
 }));
-vi.mock("#src/bot/callbacks/file-browser-callback-handler.js", () => ({
+vi.mock("#src/bot/callbacks/file-browser-callback-handler.ts", () => ({
   handleLsCallback: mocked.handleLsCallback,
   handleOpenCallback: mocked.handleOpenCallback,
 }));
-vi.mock("#src/bot/callbacks/inline-menu-cancel-callback-handler.js", () => ({
+vi.mock("#src/bot/callbacks/inline-menu-cancel-callback-handler.ts", () => ({
   handleInlineMenuCancel: mocked.handleInlineMenuCancel,
 }));
-vi.mock("#src/bot/callbacks/mcp-catalog-callback-handler.js", () => ({
+vi.mock("#src/bot/callbacks/mcp-catalog-callback-handler.ts", () => ({
   handleMcpsCallback: mocked.handleMcpsCallback,
 }));
-vi.mock("#src/bot/callbacks/message-history-callback-handler.js", () => ({
+vi.mock("#src/bot/callbacks/message-history-callback-handler.ts", () => ({
   handleMessagesCallback: mocked.handleMessagesCallback,
 }));
-vi.mock("#src/bot/callbacks/model-selection-callback-handler.js", () => ({
+vi.mock("#src/bot/callbacks/model-selection-callback-handler.ts", () => ({
   handleModelSearchCallback: mocked.handleModelSearchCallback,
   handleModelSearchResults: mocked.handleModelSearchResults,
   handleModelSelect: mocked.handleModelSelect,
 }));
-vi.mock("#src/bot/callbacks/permission-callback-handler.js", () => ({
+vi.mock("#src/bot/callbacks/permission-callback-handler.ts", () => ({
   handlePermissionCallback: mocked.handlePermissionCallback,
 }));
-vi.mock("#src/bot/callbacks/project-callback-handler.js", () => ({
+vi.mock("#src/bot/callbacks/project-callback-handler.ts", () => ({
   handleProjectSelect: mocked.handleProjectSelect,
 }));
-vi.mock("#src/bot/callbacks/question-callback-handler.js", () => ({
+vi.mock("#src/bot/callbacks/question-callback-handler.ts", () => ({
   handleQuestionCallback: mocked.handleQuestionCallback,
 }));
-vi.mock("#src/bot/callbacks/rename-callback-handler.js", () => ({
+vi.mock("#src/bot/callbacks/rename-callback-handler.ts", () => ({
   handleRenameCancel: mocked.handleRenameCancel,
 }));
-vi.mock("#src/bot/callbacks/session-callback-handler.js", () => ({
+vi.mock("#src/bot/callbacks/session-callback-handler.ts", () => ({
   handleBackgroundSessionOpen: mocked.handleBackgroundSessionOpen,
   handleSessionSelect: mocked.handleSessionSelect,
 }));
-vi.mock("#src/bot/callbacks/skills-catalog-callback-handler.js", () => ({
+vi.mock("#src/bot/callbacks/skills-catalog-callback-handler.ts", () => ({
   handleSkillsCallback: mocked.handleSkillsCallback,
 }));
-vi.mock("#src/bot/callbacks/scheduled-task-callback-handler.js", () => ({
+vi.mock("#src/bot/callbacks/scheduled-task-callback-handler.ts", () => ({
   handleTaskCallback: mocked.handleTaskCallback,
   handleTaskListCallback: mocked.handleTaskListCallback,
 }));
-vi.mock("#src/bot/callbacks/variant-selection-callback-handler.js", () => ({
+vi.mock("#src/bot/callbacks/variant-selection-callback-handler.ts", () => ({
   handleVariantSelect: mocked.handleVariantSelect,
 }));
-vi.mock("#src/bot/callbacks/worktree-callback-handler.js", () => ({
+vi.mock("#src/bot/callbacks/worktree-callback-handler.ts", () => ({
   handleWorktreeCallback: mocked.handleWorktreeCallback,
 }));
-vi.mock("#src/bot/menus/file-browser-menu.js", () => ({
+vi.mock("#src/bot/menus/file-browser-menu.ts", () => ({
   clearLsPathIndex: mocked.clearLsPathIndex,
   clearOpenPathIndex: mocked.clearOpenPathIndex,
 }));
 
-import { registerCallbackRouter } from "#src/bot/callbacks/callback-router.js";
+const sut = await loadSut<typeof import("#src/bot/callbacks/callback-router.js")>(
+  "#src/bot/callbacks/callback-router.ts",
+  import.meta.url,
+);
 
 const allHandlers = [
   mocked.handleAgentSelect,
@@ -159,7 +172,7 @@ describe("bot/callbacks/callback-router", () => {
 
 function registerAndGetCallback() {
   const bot = { on: vi.fn() };
-  registerCallbackRouter(bot as never, {
+  sut.registerCallbackRouter(bot as never, {
     ensureEventSubscription: vi.fn(),
     setTelegramContext: vi.fn(),
   });

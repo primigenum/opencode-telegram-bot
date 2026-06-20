@@ -154,11 +154,20 @@ function resolveModuleSpecifier(path: string): string {
 export function mock(path: string, factory: unknown): void {
   if (typeof factory === "function") {
     const fn = factory as (...args: unknown[]) => unknown;
-    // Detect the vitest importOriginal pattern: factory is async and takes
-    // an importOriginal callback as its only argument.
     if (fn.length >= 1) {
-      const importOriginal = <T = unknown>(): Promise<T> =>
-        import(resolveModuleSpecifier(path)) as Promise<T>;
+      // importOriginal must resolve the REAL module, bypassing the mock.
+      // bun's mock.module intercepts dynamic imports of the same path,
+      // so we resolve the absolute file path (not the alias) and import
+      // that directly. Bun won't match the abs path against mock.module
+      // because the mock was registered with the alias/relative path.
+      const importOriginal = <T = unknown>(): Promise<T> => {
+        const specifier = resolveModuleSpecifier(path);
+        const absPath = specifier.startsWith("#")
+          ? new URL(specifier.slice(1), `file://${process.cwd()}/`).pathname
+          : specifier;
+        if (process.env.DEBUG_TEST) console.log(`[importOriginal] ${specifier} -> ${absPath}`);
+        return import(absPath) as Promise<T>;
+      };
       const adapted: () => unknown = () => (factory as (io: typeof importOriginal) => unknown)(importOriginal);
       bunTest.mock.module(resolveModuleSpecifier(path), adapted as () => Record<string, unknown>);
       return;
