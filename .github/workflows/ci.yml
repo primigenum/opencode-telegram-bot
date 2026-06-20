@@ -17,12 +17,16 @@ concurrency:
 jobs:
   quality:
     name: Lint, Build, Test
-    # Shared self-hosted runner (same machine that serves nexum's CI).
-    # External forks cannot reach self-hosted runners; this is fine
-    # for an internal/private fork. If we ever open it up to outside
-    # contributors, switch to a matrix that falls through to
-    # ubuntu-latest.
-    runs-on: [self-hosted, server]
+    # Self-hosted runner, like nexum's `check` / `test-frontend` /
+    # `test-e2e` jobs. The repo-level `server` runner (registered
+    # to this repo) is currently offline, so we intentionally do
+    # NOT pin to `[self-hosted, server]` — the plain `self-hosted`
+    # label matches the org-level runners that nexum uses
+    # (which are online). If a specific runner is required later
+    # (e.g. for a residential-IP curl against a bot-protected
+    # Cloudflare edge), add a custom label like nexum's
+    # `[self-hosted, residential]` does in `verify-deploy.yml`.
+    runs-on: self-hosted
     # 30 min cap: ~4 min of setup (bun install from scratch on
     # self-hosted) + up to ~14 min of test execution (118 files at
     # ~7s each, with the per-file log capture). Bump the runner's
