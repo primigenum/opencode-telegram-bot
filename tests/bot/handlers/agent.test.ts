@@ -1,6 +1,7 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "#vitest";
 import { fileURLToPath } from "bun";
 import { registerMock } from "../../helpers/mock-plugin.js";
+import { loadSut } from "../../helpers/sut-loader.js";
 
 const mocked = {
   getAvailableAgentsMock: vi.fn(),
@@ -16,11 +17,10 @@ registerMock(
   }),
 );
 
-let buildAgentSelectionMenu: typeof import("../../../src/bot/menus/agent-selection-menu.js").buildAgentSelectionMenu;
-
-beforeAll(async () => {
-  ({ buildAgentSelectionMenu } = await import("../../../src/bot/menus/agent-selection-menu.ts"));
-});
+const sut = loadSut<typeof import("../../../src/bot/menus/agent-selection-menu.js")>(
+  "../../../src/bot/menus/agent-selection-menu.ts",
+  import.meta.url,
+);
 
 describe("bot agent selection", () => {
   beforeEach(() => {
@@ -33,7 +33,7 @@ describe("bot agent selection", () => {
       { name: "build", mode: "primary" },
     ]);
 
-    const keyboard = await buildAgentSelectionMenu("reviewer");
+    const keyboard = await sut.buildAgentSelectionMenu("reviewer");
 
     expect(keyboard.inline_keyboard[0]?.[0]?.text).toBe("✅ 🤖 Reviewer");
     expect(keyboard.inline_keyboard[1]?.[0]?.text).toBe("🛠️ Build");
