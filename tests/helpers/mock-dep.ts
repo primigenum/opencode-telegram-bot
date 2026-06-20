@@ -29,18 +29,12 @@ export function mockDep(
   for (const ext of [".ts", ".tsx", ".js", ".jsx"]) {
     try {
       const candidate = stripped + ext;
-      const resolvedCandidate = candidate.startsWith("/")
-        ? `${baseUrl}${candidate.slice(1)}`
-        : candidate;
-      const absPath = fileURLToPath(new URL(resolvedCandidate, baseUrl));
-      const absStripped = absPath.replace(/\.(ts|tsx|js|jsx)$/, "");
-      registerMock(absStripped, factory);
+      // Strip the leading slash so the URL resolves relative to baseUrl
+      // (which already includes the trailing slash). Otherwise `new URL`
+      // treats the candidate as an absolute filesystem path.
+      const relativeCandidate = candidate.startsWith("/") ? candidate.slice(1) : candidate;
+      const absPath = fileURLToPath(new URL(relativeCandidate, baseUrl));
       registerMock(absPath, factory);
-      // Also register every other extension so the mock applies regardless
-      // of which extension bun resolves the static import to.
-      for (const altExt of [".ts", ".tsx", ".js", ".jsx"]) {
-        if (altExt !== ext) registerMock(absPath.replace(/\.(ts|tsx|js|jsx)$/, "") + altExt, factory);
-      }
       return;
     } catch {
       // continue
