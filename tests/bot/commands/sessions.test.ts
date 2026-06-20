@@ -37,7 +37,7 @@ const mocked = vi.hoisted(() => ({
   ensureEventSubscriptionMock: vi.fn(),
 }));
 
-vi.mock("#src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.ts", () => ({
   opencodeClient: {
     session: {
       list: mocked.sessionListMock,
@@ -47,30 +47,32 @@ vi.mock("#src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("#src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.ts", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
 }));
 
-vi.mock("#src/app/services/session-service.js", () => ({
+vi.mock("#src/app/services/session-service.ts", () => ({
   setCurrentSession: mocked.setCurrentSessionMock,
 }));
 
-vi.mock("#src/app/managers/summary-aggregation-manager.js", () => ({
+vi.mock("#src/app/managers/summary-aggregation-manager.ts", () => ({
   summaryAggregator: {
     clear: mocked.clearSummaryMock,
   },
 }));
 
-vi.mock("#src/app/managers/interaction-manager.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("#src/app/managers/interaction-manager.js")>();
+vi.mock("#src/app/managers/interaction-manager.ts", () => ({
+  interactionManager: {
+    start: vi.fn(),
+    getSnapshot: vi.fn(),
+    clear: vi.fn(),
+    transition: vi.fn(),
+  },
+  clearAllInteractionState: mocked.clearInteractionMock,
+  DEFAULT_ALLOWED_INTERACTION_COMMANDS: ["/abort", "/detach", "/status", "/help"],
+}));
 
-  return {
-    ...actual,
-    clearAllInteractionState: mocked.clearInteractionMock,
-  };
-});
-
-vi.mock("#src/bot/keyboards/keyboard-manager.js", () => ({
+vi.mock("#src/bot/keyboards/keyboard-manager.ts", () => ({
   keyboardManager: {
     initialize: mocked.keyboardInitializeMock,
     getKeyboard: mocked.keyboardGetKeyboardMock,
@@ -80,11 +82,11 @@ vi.mock("#src/bot/keyboards/keyboard-manager.js", () => ({
   },
 }));
 
-vi.mock("#src/app/services/agent-selection-service.js", () => ({
+vi.mock("#src/app/services/agent-selection-service.ts", () => ({
   resolveProjectAgent: mocked.resolveProjectAgentMock,
 }));
 
-vi.mock("#src/bot/pinned/pinned-message-manager.js", () => ({
+vi.mock("#src/bot/pinned/pinned-message-manager.ts", () => ({
   pinnedMessageManager: {
     isInitialized: mocked.pinnedIsInitializedMock,
     initialize: mocked.pinnedInitializeMock,
@@ -94,11 +96,11 @@ vi.mock("#src/bot/pinned/pinned-message-manager.js", () => ({
   },
 }));
 
-vi.mock("#src/app/services/attach-service.js", () => ({
+vi.mock("#src/app/services/attach-service.ts", () => ({
   attachToSession: mocked.attachToSessionMock,
 }));
 
-vi.mock("#src/utils/safe-background-task.js", () => ({
+vi.mock("#src/utils/safe-background-task.ts", () => ({
   safeBackgroundTask: vi.fn(),
 }));
 
