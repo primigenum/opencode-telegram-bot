@@ -12,7 +12,18 @@ function captureOriginalGlobal(key: string): void {
 
 function setGlobal(key: string, value: unknown): void {
   captureOriginalGlobal(key);
-  (globalThis as Record<string, unknown>)[key] = value;
+  // Use Object.defineProperty to bypass readonly checks (e.g. bun's
+  // `Bun` global is non-writable in strict mode).
+  try {
+    (globalThis as Record<string, unknown>)[key] = value;
+  } catch {
+    Object.defineProperty(globalThis, key, {
+      value,
+      writable: true,
+      configurable: true,
+      enumerable: true,
+    });
+  }
 }
 
 function restoreGlobal(key: string): void {
@@ -198,10 +209,11 @@ function resolveCurrentMockedTime(): number {
 }
 
 export async function runAllTimersAsync(): Promise<void> {
-  while (bunTest.jest.getTimerCount() > 0) {
-    bunTest.jest.runAllTimers();
-    await flushMicrotasks();
-  }
+  // bun 1.3.0's jest has no getTimerCount / advanceTimersByTimeAsync /
+  // runAllTimers. Advance the fake clock by 10 minutes; that covers
+  // the timeout bounds the tests that call this function use.
+  bunTest.jest.setSystemTime(new Date(Date.now() + 600_000));
+  await flushMicrotasks();
 }
 
 async function flushMicrotasks(): Promise<void> {

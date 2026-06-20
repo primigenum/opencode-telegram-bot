@@ -18,17 +18,42 @@ function cloneTask(task: ScheduledTask): ScheduledTask {
   };
 }
 
-vi.mock("#src/config.js", () => ({
+vi.mock("#src/config.ts", () => ({
   config: {
     telegram: {
+      token: "test",
       allowedUserId: 777,
+      proxyUrl: "",
+      apiRoot: "",
+      proxySecret: "",
+      forceIpv4: false,
     },
     bot: {
+      sessionsListLimit: 10,
+      messagesListLimit: 10,
+      projectsListLimit: 10,
+      commandsListLimit: 10,
+      taskLimit: 10,
+      scheduledTaskExecutionTimeoutMinutes: 120,
+      scheduledTaskNotificationsSilent: false,
+      responseStreamThrottleMs: 1000,
+      responseStreamingMode: "edit",
+      bashToolDisplayMaxLength: 128,
+      locale: "en",
+      hideThinkingMessages: false,
+      hideToolCallMessages: false,
+      hideToolFileMessages: false,
+      trackBackgroundSessions: true,
       messageFormatMode: "markdown",
     },
     opencode: {
       apiUrl: "http://localhost:4096",
       password: "",
+      autoRestartEnabled: false,
+      monitorIntervalSec: 300,
+    },
+    files: {
+      maxFileSizeKb: 100,
     },
     server: {
       logLevel: "error",
@@ -36,7 +61,7 @@ vi.mock("#src/config.js", () => ({
   },
 }));
 
-vi.mock("#src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.ts", () => ({
   opencodeClient: {
     session: {
       create: vi.fn(),
@@ -47,20 +72,33 @@ vi.mock("#src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("#src/app/services/scheduled-task-executor-service.js", () => ({
+vi.mock("#src/app/services/scheduled-task-executor-service.ts", () => ({
   executeScheduledTask: mocked.executeScheduledTaskMock,
   SCHEDULED_TASK_AGENT: "build",
 }));
 
-vi.mock("#src/app/services/scheduled-task-session-ignore-service.js", () => ({
+vi.mock("#src/app/services/scheduled-task-session-ignore-service.ts", () => ({
   cleanupScheduledTaskSessionIgnores: mocked.cleanupIgnoresMock,
 }));
 
-vi.mock("#src/bot/messages/telegram-text.js", () => ({
+vi.mock("#src/bot/messages/telegram-text.ts", () => ({
   sendBotText: mocked.sendBotTextMock,
 }));
 
-vi.mock("#src/app/stores/scheduled-task-store.js", () => ({
+vi.mock("#src/app/stores/scheduled-task-store.ts", () => ({
+  // Provide every export so the SUT's static import doesn't throw.
+  // The test controls listScheduledTasks, getScheduledTask, and
+  // removeScheduledTask; the rest are vi.fn() stubs.
+  getScheduledTask: vi.fn((taskId: string) => {
+    const task = mocked.tasks.find((item) => item.id === taskId);
+    return task ? cloneTask(task) : null;
+  }),
+  removeScheduledTask: vi.fn(),
+  updateScheduledTask: vi.fn(),
+  addScheduledTask: vi.fn(),
+  replaceScheduledTasks: vi.fn(),
+  flashScheduledTasks: vi.fn(),
+  __resetScheduledTaskStoreForTests: vi.fn(),
   listScheduledTasks: vi.fn(() => mocked.tasks.map((task) => cloneTask(task))),
   getScheduledTask: vi.fn((taskId: string) => {
     const task = mocked.tasks.find((item) => item.id === taskId);
