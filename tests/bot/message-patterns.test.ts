@@ -1,10 +1,10 @@
 import { describe, expect, it } from "#vitest";
-import { createMainKeyboard } from "../../src/bot/keyboards/main-reply-keyboard.js";
+import { createMainKeyboard } from "#src/bot/keyboards/main-reply-keyboard.js";
 import {
   AGENT_MODE_BUTTON_TEXT_PATTERN,
   MODEL_BUTTON_TEXT_PATTERN,
   VARIANT_BUTTON_TEXT_PATTERN,
-} from "../../src/bot/message-patterns.js";
+} from "#src/bot/message-patterns.js";
 
 function getButtonText(button: string | { text: string }): string {
   return typeof button === "string" ? button : button.text;

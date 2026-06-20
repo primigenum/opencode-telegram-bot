@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
 import type { ChildProcess } from "node:child_process";
-import { loadSut } from "../helpers/sut-loader.js";
+import { loadSut } from "#helpers/sut-loader.js";
 
 const mocked = vi.hoisted(() => ({
   healthMock: vi.fn(),
@@ -21,11 +21,11 @@ const mocked = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../../src/config.ts", () => ({
+vi.mock("#src/config.ts", () => ({
   config: mocked.config,
 }));
 
-vi.mock("../../src/opencode/client.ts", () => ({
+vi.mock("#src/opencode/client.ts", () => ({
   opencodeClient: {
     global: {
       health: mocked.healthMock,
@@ -33,19 +33,19 @@ vi.mock("../../src/opencode/client.ts", () => ({
   },
 }));
 
-vi.mock("../../src/opencode/process.ts", () => ({
+vi.mock("#src/opencode/process.ts", () => ({
   resolveLocalOpencodeTarget: mocked.resolveLocalOpencodeTargetMock,
   startLocalOpencodeServer: mocked.startLocalOpencodeServerMock,
 }));
 
-vi.mock("../../src/opencode/ready-lifecycle.ts", () => ({
+vi.mock("#src/opencode/ready-lifecycle.ts", () => ({
   opencodeReadyLifecycle: {
     notifyReady: mocked.notifyReadyMock,
     notifyUnavailable: mocked.notifyUnavailableMock,
   },
 }));
 
-vi.mock("../../src/utils/logger.ts", () => ({
+vi.mock("#src/utils/logger.ts", () => ({
   logger: {
     debug: mocked.loggerDebugMock,
     info: mocked.loggerInfoMock,
@@ -54,8 +54,8 @@ vi.mock("../../src/utils/logger.ts", () => ({
   },
 }));
 
-const sut = loadSut<typeof import("../../src/opencode/auto-restart.js")>(
-  "../../src/opencode/auto-restart.ts",
+const sut = await loadSut<typeof import("#src/opencode/auto-restart.js")>(
+  "#src/opencode/auto-restart.ts",
   import.meta.url,
 );
 

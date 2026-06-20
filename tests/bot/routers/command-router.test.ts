@@ -3,9 +3,9 @@ import type { Context, NextFunction } from "grammy";
 import {
   ensureCommandsInitialized,
   registerCommandRouter,
-} from "../../../src/bot/routers/command-router.js";
-import { BOT_COMMANDS } from "../../../src/bot/commands/definitions.js";
-import { config } from "../../../src/config.js";
+} from "#src/bot/routers/command-router.js";
+import { BOT_COMMANDS } from "#src/bot/commands/definitions.js";
+import { config } from "#src/config.js";
 
 describe("bot/routers/command-router", () => {
   it("registers bot slash command handlers", () => {

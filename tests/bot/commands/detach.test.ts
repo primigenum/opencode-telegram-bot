@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { loadSut } from "../../helpers/sut-loader.js";
+import { loadSut } from "#helpers/sut-loader.js";
 
 const mocked = {
   currentProject: { id: "project-1", worktree: "D:/repo" } as { id: string; worktree: string } | null,
@@ -20,7 +20,7 @@ const mocked = {
   clearPromptResponseModeMock: vi.fn(),
 };
 
-vi.mock("../../../src/app/stores/settings-store.ts", () => {
+vi.mock("#src/app/stores/settings-store.ts", () => {
   const fns = [
     "getCurrentProject",
     "setCurrentProject",
@@ -56,11 +56,11 @@ vi.mock("../../../src/app/stores/settings-store.ts", () => {
   return obj;
 });
 
-vi.mock("../../../src/app/services/attach-service.ts", () => ({
+vi.mock("#src/app/services/attach-service.ts", () => ({
   detachAttachedSession: mocked.detachAttachedSessionMock,
 }));
 
-vi.mock("../../../src/app/managers/interaction-manager.ts", () => ({
+vi.mock("#src/app/managers/interaction-manager.ts", () => ({
   interactionManager: { clear: vi.fn() },
   clearAllInteractionState: mocked.clearAllInteractionStateMock,
   questionManager: { clear: vi.fn(), startQuestions: vi.fn(), isActive: vi.fn(() => false) },
@@ -69,7 +69,7 @@ vi.mock("../../../src/app/managers/interaction-manager.ts", () => ({
   getSnapshot: vi.fn(),
 }));
 
-vi.mock("../../../src/bot/pinned/pinned-message-manager.ts", () => ({
+vi.mock("#src/bot/pinned/pinned-message-manager.ts", () => ({
   pinnedMessageManager: {
     isInitialized: mocked.pinnedIsInitializedMock,
     clear: mocked.pinnedClearMock,
@@ -78,7 +78,7 @@ vi.mock("../../../src/bot/pinned/pinned-message-manager.ts", () => ({
   },
 }));
 
-vi.mock("../../../src/bot/keyboards/keyboard-manager.ts", () => ({
+vi.mock("#src/bot/keyboards/keyboard-manager.ts", () => ({
   keyboardManager: {
     initialize: mocked.keyboardInitializeMock,
     updateContext: mocked.keyboardUpdateContextMock,
@@ -86,7 +86,7 @@ vi.mock("../../../src/bot/keyboards/keyboard-manager.ts", () => ({
   },
 }));
 
-vi.mock("../../../src/app/managers/foreground-session-state-manager.ts", () => ({
+vi.mock("#src/app/managers/foreground-session-state-manager.ts", () => ({
   foregroundSessionState: {
     markIdle: mocked.foregroundMarkIdleMock,
     isBusy: vi.fn(() => false),
@@ -95,22 +95,22 @@ vi.mock("../../../src/app/managers/foreground-session-state-manager.ts", () => (
   },
 }));
 
-vi.mock("../../../src/app/managers/assistant-run-state-manager.ts", () => ({
+vi.mock("#src/app/managers/assistant-run-state-manager.ts", () => ({
   assistantRunState: {
     clearRun: mocked.assistantClearRunMock,
   },
 }));
 
-vi.mock("../../../src/bot/handlers/prompt.ts", () => ({
+vi.mock("#src/bot/handlers/prompt.ts", () => ({
   clearPromptResponseMode: mocked.clearPromptResponseModeMock,
 }));
 
-const sut = loadSut<typeof import("../../../src/bot/commands/detach-command.js")>(
-  "../../../src/bot/commands/detach-command.ts",
+const sut = loadSut<typeof import("#src/bot/commands/detach-command.js")>(
+  "#src/bot/commands/detach-command.ts",
   import.meta.url,
 );
 
-import { t } from "../../../src/i18n/index.js";
+import { t } from "#src/i18n/index.js";
 
 function createContext(): Context {
   return {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "#vitest";
-import { extractCommandName, isKnownCommand } from "../../../src/bot/routers/command-utils.js";
+import { extractCommandName, isKnownCommand } from "#src/bot/routers/command-utils.js";
 
 describe("bot/routers/command-utils", () => {
   it("extracts command name from slash command", () => {

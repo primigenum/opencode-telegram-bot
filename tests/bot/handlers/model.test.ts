@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import { InlineKeyboard } from "grammy";
-import { mockDep } from "../../helpers/mock-dep.js";
-import { loadSut } from "../../helpers/sut-loader.js";
+import { mockDep } from "#helpers/mock-dep.js";
+import { loadSut } from "#helpers/sut-loader.js";
 
 const mocked = {
   getModelSelectionListsMock: vi.fn(),
@@ -14,7 +14,7 @@ const mocked = {
 };
 
 mockDep(
-  "../../../src/app/services/model-selection-service.ts",
+  "#src/app/services/model-selection-service.ts",
   () => ({
     getModelSelectionLists: mocked.getModelSelectionListsMock,
     searchModels: mocked.searchModelsMock,
@@ -25,7 +25,7 @@ mockDep(
 );
 
 mockDep(
-  "../../../src/app/managers/interaction-manager.ts",
+  "#src/app/managers/interaction-manager.ts",
   () => ({
     interactionManager: {
       getSnapshot: mocked.interactionManagerGetSnapshotMock,
@@ -38,7 +38,7 @@ mockDep(
 );
 
 mockDep(
-  "../../../src/bot/menus/inline-menu.ts",
+  "#src/bot/menus/inline-menu.ts",
   () => ({
     ensureActiveInlineMenu: mocked.ensureActiveInlineMenuMock,
     clearActiveInlineMenu: vi.fn(),
@@ -47,15 +47,15 @@ mockDep(
   import.meta.url,
 );
 
-const menuSut = loadSut<typeof import("../../../src/bot/menus/model-selection-menu.js")>(
-  "../../../src/bot/menus/model-selection-menu.ts",
+const menuSut = loadSut<typeof import("#src/bot/menus/model-selection-menu.js")>(
+  "#src/bot/menus/model-selection-menu.ts",
   import.meta.url,
 );
 
 const callbackSut = loadSut<
-  typeof import("../../../src/bot/callbacks/model-selection-callback-handler.js")
+  typeof import("#src/bot/callbacks/model-selection-callback-handler.js")
 >(
-  "../../../src/bot/callbacks/model-selection-callback-handler.ts",
+  "#src/bot/callbacks/model-selection-callback-handler.ts",
   import.meta.url,
 );
 

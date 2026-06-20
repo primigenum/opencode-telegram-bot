@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
 import type { ChildProcess } from "node:child_process";
 import type { Context } from "grammy";
-import { t } from "../../../src/i18n/index.js";
+import { t } from "#src/i18n/index.js";
 
 const mocked = vi.hoisted(() => ({
   healthMock: vi.fn(),
@@ -20,11 +20,11 @@ const mocked = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../../../src/config.js", () => ({
+vi.mock("#src/config.js", () => ({
   config: mocked.config,
 }));
 
-vi.mock("../../../src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.js", () => ({
   opencodeClient: {
     global: {
       health: mocked.healthMock,
@@ -32,22 +32,22 @@ vi.mock("../../../src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("../../../src/opencode/process.js", () => ({
+vi.mock("#src/opencode/process.js", () => ({
   resolveLocalOpencodeTarget: mocked.resolveLocalOpencodeTargetMock,
   startLocalOpencodeServer: mocked.startLocalOpencodeServerMock,
 }));
 
-vi.mock("../../../src/bot/messages/telegram-text.js", () => ({
+vi.mock("#src/bot/messages/telegram-text.js", () => ({
   editBotText: mocked.editBotTextMock,
 }));
 
-vi.mock("../../../src/opencode/ready-lifecycle.js", () => ({
+vi.mock("#src/opencode/ready-lifecycle.js", () => ({
   opencodeReadyLifecycle: {
     notifyReady: mocked.notifyReadyMock,
   },
 }));
 
-vi.mock("../../../src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.js", () => ({
   logger: {
     debug: mocked.loggerDebugMock,
     info: mocked.loggerInfoMock,
@@ -56,7 +56,7 @@ vi.mock("../../../src/utils/logger.js", () => ({
   },
 }));
 
-import { opencodeStartCommand } from "../../../src/bot/commands/opencode-start-command.js";
+import { opencodeStartCommand } from "#src/bot/commands/opencode-start-command.js";
 
 function createContext(): Context {
   return {

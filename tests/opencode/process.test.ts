@@ -4,7 +4,7 @@ import {
   createOpencodeServeSpawnCommand,
   findUnixListeningPidInSs,
   findWindowsListeningPidInNetstat,
-} from "../../src/opencode/process.js";
+} from "#src/opencode/process.js";
 
 describe("opencode/process", () => {
   it("matches the exact local port on Windows netstat output", async () => {

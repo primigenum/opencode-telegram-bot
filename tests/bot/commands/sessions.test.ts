@@ -3,13 +3,13 @@ import type { Bot, Context } from "grammy";
 import {
   handleBackgroundSessionOpen,
   handleSessionSelect,
-} from "../../../src/bot/callbacks/session-callback-handler.js";
-import { sessionsCommand } from "../../../src/bot/commands/sessions-command.js";
-import { buildBackgroundSessionOpenKeyboard } from "../../../src/bot/menus/session-selection-menu.js";
-import { interactionManager } from "../../../src/app/managers/interaction-manager.js";
-import { foregroundSessionState } from "../../../src/app/managers/foreground-session-state-manager.js";
-import { t } from "../../../src/i18n/index.js";
-import { safeBackgroundTask } from "../../../src/utils/safe-background-task.js";
+} from "#src/bot/callbacks/session-callback-handler.js";
+import { sessionsCommand } from "#src/bot/commands/sessions-command.js";
+import { buildBackgroundSessionOpenKeyboard } from "#src/bot/menus/session-selection-menu.js";
+import { interactionManager } from "#src/app/managers/interaction-manager.js";
+import { foregroundSessionState } from "#src/app/managers/foreground-session-state-manager.js";
+import { t } from "#src/i18n/index.js";
+import { safeBackgroundTask } from "#src/utils/safe-background-task.js";
 
 const mocked = vi.hoisted(() => ({
   currentProject: {
@@ -37,7 +37,7 @@ const mocked = vi.hoisted(() => ({
   ensureEventSubscriptionMock: vi.fn(),
 }));
 
-vi.mock("../../../src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.js", () => ({
   opencodeClient: {
     session: {
       list: mocked.sessionListMock,
@@ -47,22 +47,22 @@ vi.mock("../../../src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.js", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
 }));
 
-vi.mock("../../../src/app/services/session-service.js", () => ({
+vi.mock("#src/app/services/session-service.js", () => ({
   setCurrentSession: mocked.setCurrentSessionMock,
 }));
 
-vi.mock("../../../src/app/managers/summary-aggregation-manager.js", () => ({
+vi.mock("#src/app/managers/summary-aggregation-manager.js", () => ({
   summaryAggregator: {
     clear: mocked.clearSummaryMock,
   },
 }));
 
-vi.mock("../../../src/app/managers/interaction-manager.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../src/app/managers/interaction-manager.js")>();
+vi.mock("#src/app/managers/interaction-manager.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("#src/app/managers/interaction-manager.js")>();
 
   return {
     ...actual,
@@ -70,7 +70,7 @@ vi.mock("../../../src/app/managers/interaction-manager.js", async (importOrigina
   };
 });
 
-vi.mock("../../../src/bot/keyboards/keyboard-manager.js", () => ({
+vi.mock("#src/bot/keyboards/keyboard-manager.js", () => ({
   keyboardManager: {
     initialize: mocked.keyboardInitializeMock,
     getKeyboard: mocked.keyboardGetKeyboardMock,
@@ -80,11 +80,11 @@ vi.mock("../../../src/bot/keyboards/keyboard-manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/app/services/agent-selection-service.js", () => ({
+vi.mock("#src/app/services/agent-selection-service.js", () => ({
   resolveProjectAgent: mocked.resolveProjectAgentMock,
 }));
 
-vi.mock("../../../src/bot/pinned/pinned-message-manager.js", () => ({
+vi.mock("#src/bot/pinned/pinned-message-manager.js", () => ({
   pinnedMessageManager: {
     isInitialized: mocked.pinnedIsInitializedMock,
     initialize: mocked.pinnedInitializeMock,
@@ -94,11 +94,11 @@ vi.mock("../../../src/bot/pinned/pinned-message-manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/app/services/attach-service.js", () => ({
+vi.mock("#src/app/services/attach-service.js", () => ({
   attachToSession: mocked.attachToSessionMock,
 }));
 
-vi.mock("../../../src/utils/safe-background-task.js", () => ({
+vi.mock("#src/utils/safe-background-task.js", () => ({
   safeBackgroundTask: vi.fn(),
 }));
 

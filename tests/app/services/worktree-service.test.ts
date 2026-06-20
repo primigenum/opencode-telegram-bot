@@ -16,7 +16,7 @@ vi.mock("node:fs/promises", () => ({
   readFile: mocked.readFileMock,
 }));
 
-import { getGitWorktreeContext, resolveGitDir } from "../../../src/app/services/worktree-service.js";
+import { getGitWorktreeContext, resolveGitDir } from "#src/app/services/worktree-service.js";
 
 describe("app/services/worktree-service", () => {
   beforeEach(() => {

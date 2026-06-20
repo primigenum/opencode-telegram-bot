@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import { Context, InlineKeyboard } from "grammy";
-import { interactionManager } from "../../../src/app/managers/interaction-manager.js";
+import { interactionManager } from "#src/app/managers/interaction-manager.js";
 import {
   appendInlineMenuCancelButton,
   ensureActiveInlineMenu,
   replyWithInlineMenu,
-} from "../../../src/bot/menus/inline-menu.js";
-import { handleInlineMenuCancel } from "../../../src/bot/callbacks/inline-menu-cancel-callback-handler.js";
-import { t } from "../../../src/i18n/index.js";
+} from "#src/bot/menus/inline-menu.js";
+import { handleInlineMenuCancel } from "#src/bot/callbacks/inline-menu-cancel-callback-handler.js";
+import { t } from "#src/i18n/index.js";
 
 function createReplyContext(messageId: number = 1): Context {
   return {

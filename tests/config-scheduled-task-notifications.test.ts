@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
-import { createConfig } from "../src/config.js";
+import { createConfig } from "#src/config.js";
 
 describe("config scheduled task notifications", () => {
   beforeEach(() => {

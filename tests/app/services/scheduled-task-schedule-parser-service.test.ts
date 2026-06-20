@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
-import { parseTaskSchedule } from "../../../src/app/services/scheduled-task-schedule-parser-service.js";
+import { parseTaskSchedule } from "#src/app/services/scheduled-task-schedule-parser-service.js";
 
 const mocked = vi.hoisted(() => ({
   sessionCreateMock: vi.fn(),
@@ -11,7 +11,7 @@ const mocked = vi.hoisted(() => ({
   loggerWarnMock: vi.fn(),
 }));
 
-vi.mock("../../../src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.js", () => ({
   opencodeClient: {
     session: {
       create: mocked.sessionCreateMock,
@@ -21,7 +21,7 @@ vi.mock("../../../src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("../../../src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.js", () => ({
   logger: {
     error: mocked.loggerErrorMock,
     warn: mocked.loggerWarnMock,
@@ -30,7 +30,7 @@ vi.mock("../../../src/utils/logger.js", () => ({
   },
 }));
 
-vi.mock("../../../src/app/services/scheduled-task-session-ignore-service.js", () => ({
+vi.mock("#src/app/services/scheduled-task-session-ignore-service.js", () => ({
   cleanupScheduledTaskSessionIgnores: mocked.cleanupIgnoresMock,
   registerScheduledTaskSessionIgnore: mocked.registerIgnoreMock,
 }));

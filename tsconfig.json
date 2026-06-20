@@ -13,7 +13,10 @@
     "resolveJsonModule": true,
     "types": ["bun", "node"],
     "paths": {
-      "vitest": ["./tests/helpers/vitest-shim.ts"]
+      "vitest": ["./tests/helpers/vitest-shim.ts"],
+      "#src/*": ["./src/*"],
+      "#tests/*": ["./tests/*"],
+      "#helpers/*": ["./tests/helpers/*"]
     }
   },
   "include": ["src/**/*", "tests/**/*", "scripts/**/*"],

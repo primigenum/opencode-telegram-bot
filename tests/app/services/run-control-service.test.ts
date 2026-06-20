@@ -5,11 +5,11 @@ const mocked = vi.hoisted(() => ({
   loggerWarnMock: vi.fn(),
 }));
 
-vi.mock("../../../src/app/services/busy-reconciliation-service.js", () => ({
+vi.mock("#src/app/services/busy-reconciliation-service.js", () => ({
   reconcileBusyStateNow: mocked.reconcileBusyStateNowMock,
 }));
 
-vi.mock("../../../src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.js", () => ({
   logger: {
     debug: vi.fn(),
     info: vi.fn(),
@@ -18,9 +18,9 @@ vi.mock("../../../src/utils/logger.js", () => ({
   },
 }));
 
-import { attachManager } from "../../../src/app/managers/attach-manager.js";
-import { foregroundSessionState } from "../../../src/app/managers/foreground-session-state-manager.js";
-import { reconcileForegroundBusyState } from "../../../src/app/services/run-control-service.js";
+import { attachManager } from "#src/app/managers/attach-manager.js";
+import { foregroundSessionState } from "#src/app/managers/foreground-session-state-manager.js";
+import { reconcileForegroundBusyState } from "#src/app/services/run-control-service.js";
 
 describe("app/services/run-control-service", () => {
   beforeEach(() => {

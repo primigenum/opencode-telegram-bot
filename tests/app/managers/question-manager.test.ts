@@ -1,6 +1,6 @@
 import { describe, expect, it } from "#vitest";
-import { questionManager } from "../../../src/app/managers/question-manager.js";
-import type { Question } from "../../../src/app/types/question.js";
+import { questionManager } from "#src/app/managers/question-manager.js";
+import type { Question } from "#src/app/types/question.js";
 
 const SINGLE_QUESTION: Question = {
   question: "Pick one option",

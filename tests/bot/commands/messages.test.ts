@@ -3,11 +3,11 @@ import type { Context } from "grammy";
 import {
   calculateMessagesPaginationRange,
   parseMessagePageCallback,
-} from "../../../src/bot/menus/message-history-menu.js";
-import { messagesCommand } from "../../../src/bot/commands/messages-command.js";
-import { handleMessagesCallback } from "../../../src/bot/callbacks/message-history-callback-handler.js";
-import { interactionManager } from "../../../src/app/managers/interaction-manager.js";
-import { t } from "../../../src/i18n/index.js";
+} from "#src/bot/menus/message-history-menu.js";
+import { messagesCommand } from "#src/bot/commands/messages-command.js";
+import { handleMessagesCallback } from "#src/bot/callbacks/message-history-callback-handler.js";
+import { interactionManager } from "#src/app/managers/interaction-manager.js";
+import { t } from "#src/i18n/index.js";
 
 const mocked = vi.hoisted(() => ({
   currentProject: {
@@ -28,25 +28,25 @@ const mocked = vi.hoisted(() => ({
   ingestSessionInfoForCacheMock: vi.fn(),
 }));
 
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.js", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
 }));
 
-vi.mock("../../../src/app/services/session-service.js", () => ({
+vi.mock("#src/app/services/session-service.js", () => ({
   getCurrentSession: vi.fn(() => mocked.currentSession),
   setCurrentSession: mocked.setCurrentSessionMock,
 }));
 
-vi.mock("../../../src/app/services/attach-service.js", () => ({
+vi.mock("#src/app/services/attach-service.js", () => ({
   attachToSession: mocked.attachToSessionMock,
 }));
 
-vi.mock("../../../src/app/services/session-cache-service.js", () => ({
+vi.mock("#src/app/services/session-cache-service.js", () => ({
   ingestSessionInfoForCache: mocked.ingestSessionInfoForCacheMock,
   __resetSessionDirectoryCacheForTests: vi.fn(),
 }));
 
-vi.mock("../../../src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.js", () => ({
   opencodeClient: {
     session: {
       messages: mocked.sessionMessagesMock,

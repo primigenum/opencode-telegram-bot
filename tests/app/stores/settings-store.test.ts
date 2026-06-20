@@ -2,12 +2,12 @@ import os from "node:os";
 import path from "node:path";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { afterEach, beforeEach, describe, expect, it } from "#vitest";
-import { setRuntimeMode } from "../../../src/runtime/mode.js";
+import { setRuntimeMode } from "#src/runtime/mode.js";
 import {
   __resetSettingsForTests,
   getTtsMode,
   loadSettings,
-} from "../../../src/app/stores/settings-store.js";
+} from "#src/app/stores/settings-store.js";
 
 describe("app/stores/settings-store", () => {
   let tempHome: string;

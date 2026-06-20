@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
-import { buildTelegramConfig, createConfig } from "../src/config.js";
+import { buildTelegramConfig, createConfig } from "#src/config.js";
 
 describe("config boolean env parsing", () => {
   beforeEach(() => {

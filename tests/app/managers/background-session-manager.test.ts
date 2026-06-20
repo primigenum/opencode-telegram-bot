@@ -1,22 +1,22 @@
 import type { Event } from "@opencode-ai/sdk/v2";
 import { beforeEach, describe, expect, it, vi } from "#vitest";
-import { mockDep } from "../../helpers/mock-dep.js";
-import { loadSut } from "../../helpers/sut-loader.js";
+import { mockDep } from "#helpers/mock-dep.js";
+import { loadSut } from "#helpers/sut-loader.js";
 
 const mocked = {
   isScheduledTaskSessionIgnoredMock: vi.fn(() => false),
 };
 
 mockDep(
-  "../../../src/app/services/scheduled-task-session-ignore-service.ts",
+  "#src/app/services/scheduled-task-session-ignore-service.ts",
   () => ({
     isScheduledTaskSessionIgnored: mocked.isScheduledTaskSessionIgnoredMock,
   }),
   import.meta.url,
 );
 
-const sut = loadSut<typeof import("../../../src/app/managers/background-session-manager.js")>(
-  "../../../src/app/managers/background-session-manager.ts",
+const sut = loadSut<typeof import("#src/app/managers/background-session-manager.js")>(
+  "#src/app/managers/background-session-manager.ts",
   import.meta.url,
 );
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "#vitest";
-import { formatTaskListBadge } from "../../../src/app/formatters/scheduled-task-display-formatter.js";
-import type { ScheduledTask } from "../../../src/app/types/scheduled-task.js";
+import { formatTaskListBadge } from "#src/app/formatters/scheduled-task-display-formatter.js";
+import type { ScheduledTask } from "#src/app/types/scheduled-task.js";
 
 function createCronTask(cron: string): ScheduledTask {
   return {

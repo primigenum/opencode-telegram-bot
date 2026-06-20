@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "#vitest";
 import os from "node:os";
 import path from "node:path";
 
-vi.mock("../../../src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.js", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
@@ -12,7 +12,7 @@ import {
   isWithinAllowedRoot,
   isAllowedRoot,
   __resetBrowserRootsForTests,
-} from "../../../src/app/services/file-browser-service.js";
+} from "#src/app/services/file-browser-service.js";
 
 describe("browser-roots", () => {
   const originalPlatform = process.platform;

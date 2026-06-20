@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 
-vi.mock("../../../src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.js", () => ({
   logger: {
     debug: vi.fn(),
     info: vi.fn(),
@@ -17,7 +17,7 @@ const mockStt = vi.hoisted(() => ({
   language: "",
 }));
 
-vi.mock("../../../src/config.js", () => ({
+vi.mock("#src/config.js", () => ({
   config: {
     stt: mockStt,
     // Provide minimal stubs for properties that other modules read at import time
@@ -42,7 +42,7 @@ vi.mock("../../../src/config.js", () => ({
   },
 }));
 
-import { isSttConfigured, transcribeAudio } from "../../../src/app/services/stt-service.js";
+import { isSttConfigured, transcribeAudio } from "#src/app/services/stt-service.js";
 
 describe("isSttConfigured", () => {
   beforeEach(() => {

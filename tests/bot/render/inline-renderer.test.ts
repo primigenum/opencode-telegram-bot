@@ -1,10 +1,10 @@
 import { describe, expect, it } from "#vitest";
-import { parseTelegramBlocks } from "../../../src/bot/render/block-parser.js";
+import { parseTelegramBlocks } from "#src/bot/render/block-parser.js";
 import {
   renderInlineNodes,
   renderInlineNodesValidated,
-} from "../../../src/bot/render/inline-renderer.js";
-import type { InlineNode } from "../../../src/bot/render/types.js";
+} from "#src/bot/render/inline-renderer.js";
+import type { InlineNode } from "#src/bot/render/types.js";
 
 describe("bot/render/inline-renderer", () => {
   it("renders supported inline nodes into text and entities", () => {

@@ -5,7 +5,7 @@ describe("bot/streaming/finalize-assistant-response logging", () => {
     vi.resetModules();
 
     const debug = vi.fn();
-    vi.doMock("../../../src/utils/logger.js", () => ({
+    vi.doMock("#src/utils/logger.js", () => ({
       logger: {
         debug,
         info: vi.fn(),
@@ -15,7 +15,7 @@ describe("bot/streaming/finalize-assistant-response logging", () => {
     }));
 
     const { finalizeAssistantResponse } =
-      await import("../../../src/bot/streaming/finalize-assistant-response.js");
+      await import("#src/bot/streaming/finalize-assistant-response.js");
 
     await finalizeAssistantResponse({
       sessionId: "s1",

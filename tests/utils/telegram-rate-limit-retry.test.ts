@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "#vitest";
 import {
   getTelegramRetryAfterMs,
   withTelegramRateLimitRetry,
-} from "../../src/utils/telegram-rate-limit-retry.js";
+} from "#src/utils/telegram-rate-limit-retry.js";
 
 describe("utils/telegram-rate-limit-retry", () => {
   afterEach(() => {

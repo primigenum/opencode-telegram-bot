@@ -8,7 +8,7 @@ const { projectListMock, cachedSessionProjectsMock } = vi.hoisted(() => ({
   cachedSessionProjectsMock: vi.fn(),
 }));
 
-vi.mock("../../../src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.js", () => ({
   opencodeClient: {
     project: {
       list: projectListMock,
@@ -16,12 +16,12 @@ vi.mock("../../../src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("../../../src/app/services/session-cache-service.js", () => ({
+vi.mock("#src/app/services/session-cache-service.js", () => ({
   getCachedSessionProjects: cachedSessionProjectsMock,
   __resetSessionDirectoryCacheForTests: vi.fn(),
 }));
 
-import { getProjects, getProjectByWorktree } from "../../../src/app/services/project-service.js";
+import { getProjects, getProjectByWorktree } from "#src/app/services/project-service.js";
 
 describe("project/manager", () => {
   let tempRoot = "";

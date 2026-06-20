@@ -6,7 +6,7 @@ import {
   formatFileSize,
   isFileSizeAllowed,
   isTextMimeType,
-} from "../../../src/app/services/file-download-service.js";
+} from "#src/app/services/file-download-service.js";
 
 const nodeFetchMock = vi.hoisted(() => vi.fn());
 
@@ -148,7 +148,7 @@ describe("downloadTelegramFile reverse-proxy wiring", () => {
 
   async function loadDownloadModule() {
     vi.resetModules();
-    return import("../../../src/app/services/file-download-service.js");
+    return import("#src/app/services/file-download-service.js");
   }
 
   it("uses api.telegram.org as the file URL base when TELEGRAM_API_ROOT is unset", async () => {

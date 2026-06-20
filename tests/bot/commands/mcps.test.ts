@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { mcpsCommand } from "../../../src/bot/commands/mcp-catalog-command.js";
-import { handleMcpsCallback } from "../../../src/bot/callbacks/mcp-catalog-callback-handler.js";
-import { interactionManager } from "../../../src/app/managers/interaction-manager.js";
-import { t } from "../../../src/i18n/index.js";
+import { mcpsCommand } from "#src/bot/commands/mcp-catalog-command.js";
+import { handleMcpsCallback } from "#src/bot/callbacks/mcp-catalog-callback-handler.js";
+import { interactionManager } from "#src/app/managers/interaction-manager.js";
+import { t } from "#src/i18n/index.js";
 
 const mocked = vi.hoisted(() => ({
   currentProject: {
@@ -15,11 +15,11 @@ const mocked = vi.hoisted(() => ({
   mcpDisconnectMock: vi.fn(),
 }));
 
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.js", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
 }));
 
-vi.mock("../../../src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.js", () => ({
   opencodeClient: {
     mcp: {
       status: mocked.mcpStatusMock,

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "#vitest";
 import type { Context } from "grammy";
-import { t } from "../../../src/i18n/index.js";
+import { t } from "#src/i18n/index.js";
 
 const mocked = vi.hoisted(() => ({
   scanDirectoryMock: vi.fn(),
@@ -32,7 +32,7 @@ const mocked = vi.hoisted(() => ({
   interactionStartMock: vi.fn(),
 }));
 
-vi.mock("../../../src/app/services/file-browser-service.js", () => ({
+vi.mock("#src/app/services/file-browser-service.js", () => ({
   pathToDisplayPath: mocked.pathToDisplayPathMock,
   scanDirectory: mocked.scanDirectoryMock,
   buildEntryLabel: mocked.buildEntryLabelMock,
@@ -44,12 +44,12 @@ vi.mock("../../../src/app/services/file-browser-service.js", () => ({
   isAllowedRoot: mocked.isAllowedRootMock,
 }));
 
-vi.mock("../../../src/bot/menus/inline-menu.js", () => ({
+vi.mock("#src/bot/menus/inline-menu.js", () => ({
   appendInlineMenuCancelButton: vi.fn((kb: unknown) => kb),
   ensureActiveInlineMenu: mocked.ensureActiveInlineMenuMock,
 }));
 
-vi.mock("../../../src/app/managers/interaction-manager.js", () => ({
+vi.mock("#src/app/managers/interaction-manager.js", () => ({
   interactionManager: {
     start: mocked.interactionStartMock,
     getSnapshot: vi.fn(() => null),
@@ -57,35 +57,35 @@ vi.mock("../../../src/app/managers/interaction-manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/app/services/run-control-service.js", () => ({
+vi.mock("#src/app/services/run-control-service.js", () => ({
   isForegroundBusy: mocked.isForegroundBusyMock,
 }));
 
-vi.mock("../../../src/bot/messages/busy-blocked-renderer.js", () => ({
+vi.mock("#src/bot/messages/busy-blocked-renderer.js", () => ({
   replyBusyBlocked: mocked.replyBusyBlockedMock,
 }));
 
-vi.mock("../../../src/app/services/session-cache-service.js", () => ({
+vi.mock("#src/app/services/session-cache-service.js", () => ({
   upsertSessionDirectory: mocked.upsertSessionDirectoryMock,
   __resetSessionDirectoryCacheForTests: vi.fn(),
   syncSessionDirectoryCache: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("../../../src/app/services/project-service.js", () => ({
+vi.mock("#src/app/services/project-service.js", () => ({
   getProjectByWorktree: mocked.getProjectByWorktreeMock,
 }));
 
-vi.mock("../../../src/app/services/project-switch-service.js", () => ({
+vi.mock("#src/app/services/project-switch-service.js", () => ({
   switchToProject: mocked.switchToProjectMock,
 }));
 
-vi.mock("../../../src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.js", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-import { openCommand } from "../../../src/bot/commands/open-command.js";
-import { handleOpenCallback } from "../../../src/bot/callbacks/file-browser-callback-handler.js";
-import { clearOpenPathIndex } from "../../../src/bot/menus/file-browser-menu.js";
+import { openCommand } from "#src/bot/commands/open-command.js";
+import { handleOpenCallback } from "#src/bot/callbacks/file-browser-callback-handler.js";
+import { clearOpenPathIndex } from "#src/bot/menus/file-browser-menu.js";
 
 // --- Context factories ---
 

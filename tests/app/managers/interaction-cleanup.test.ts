@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it } from "#vitest";
-import { clearAllInteractionState } from "../../../src/app/managers/interaction-manager.js";
-import { interactionManager } from "../../../src/app/managers/interaction-manager.js";
-import { questionManager } from "../../../src/app/managers/question-manager.js";
-import { permissionManager } from "../../../src/app/managers/permission-manager.js";
-import { renameManager } from "../../../src/app/managers/rename-manager.js";
-import type { Question } from "../../../src/app/types/question.js";
-import type { PermissionRequest } from "../../../src/app/types/permission.js";
+import { clearAllInteractionState } from "#src/app/managers/interaction-manager.js";
+import { interactionManager } from "#src/app/managers/interaction-manager.js";
+import { questionManager } from "#src/app/managers/question-manager.js";
+import { permissionManager } from "#src/app/managers/permission-manager.js";
+import { renameManager } from "#src/app/managers/rename-manager.js";
+import type { Question } from "#src/app/types/question.js";
+import type { PermissionRequest } from "#src/app/types/permission.js";
 
 const TEST_QUESTION: Question = {
   header: "Q1",

@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Event } from "@opencode-ai/sdk/v2";
-import * as actualSettingsStore from "../../../src/app/stores/settings-store.js";
-import { mockDep } from "../../helpers/mock-dep.js";
-import { loadSut } from "../../helpers/sut-loader.js";
+import * as actualSettingsStore from "#src/app/stores/settings-store.js";
+import { mockDep } from "#helpers/mock-dep.js";
+import { loadSut } from "#helpers/sut-loader.js";
 
 const mocked = {
   getCurrentProjectMock: vi.fn(),
 };
 
 mockDep(
-  "../../../src/app/stores/settings-store.ts",
+  "#src/app/stores/settings-store.ts",
   () => ({
     ...actualSettingsStore,
     getCurrentProject: mocked.getCurrentProjectMock,
@@ -17,8 +17,8 @@ mockDep(
   import.meta.url,
 );
 
-const sut = loadSut<typeof import("../../../src/app/managers/summary-aggregation-manager.js")>(
-  "../../../src/app/managers/summary-aggregation-manager.ts",
+const sut = loadSut<typeof import("#src/app/managers/summary-aggregation-manager.js")>(
+  "#src/app/managers/summary-aggregation-manager.ts",
   import.meta.url,
 );
 

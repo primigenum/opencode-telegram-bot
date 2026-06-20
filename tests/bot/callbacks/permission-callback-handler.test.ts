@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context, InlineKeyboard } from "grammy";
-import type { PermissionRequest } from "../../../src/app/types/permission.js";
-import { permissionManager } from "../../../src/app/managers/permission-manager.js";
-import { interactionManager } from "../../../src/app/managers/interaction-manager.js";
-import { showPermissionRequest } from "../../../src/bot/menus/permission-menu.js";
-import { handlePermissionCallback } from "../../../src/bot/callbacks/permission-callback-handler.js";
-import { t } from "../../../src/i18n/index.js";
+import type { PermissionRequest } from "#src/app/types/permission.js";
+import { permissionManager } from "#src/app/managers/permission-manager.js";
+import { interactionManager } from "#src/app/managers/interaction-manager.js";
+import { showPermissionRequest } from "#src/bot/menus/permission-menu.js";
+import { handlePermissionCallback } from "#src/bot/callbacks/permission-callback-handler.js";
+import { t } from "#src/i18n/index.js";
 
 const mocked = vi.hoisted(() => ({
   permissionReplyMock: vi.fn(),
@@ -16,7 +16,7 @@ const mocked = vi.hoisted(() => ({
   currentSession: null as { id: string; title: string; directory: string } | null,
 }));
 
-vi.mock("../../../src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.js", () => ({
   opencodeClient: {
     permission: {
       reply: mocked.permissionReplyMock,
@@ -24,15 +24,15 @@ vi.mock("../../../src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.js", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
 }));
 
-vi.mock("../../../src/app/services/session-service.js", () => ({
+vi.mock("#src/app/services/session-service.js", () => ({
   getCurrentSession: vi.fn(() => mocked.currentSession),
 }));
 
-vi.mock("../../../src/utils/safe-background-task.js", () => ({
+vi.mock("#src/utils/safe-background-task.js", () => ({
   safeBackgroundTask: ({
     task,
     onSuccess,

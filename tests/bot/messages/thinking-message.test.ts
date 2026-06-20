@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "#vitest";
-import { deliverThinkingMessage } from "../../../src/bot/messages/thinking-message.js";
-import { t } from "../../../src/i18n/index.js";
+import { deliverThinkingMessage } from "#src/bot/messages/thinking-message.js";
+import { t } from "#src/i18n/index.js";
 
 describe("bot/messages/thinking-message", () => {
   it("sends thinking immediately when visible", () => {

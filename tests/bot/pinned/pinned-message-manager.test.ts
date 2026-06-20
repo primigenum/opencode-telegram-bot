@@ -15,25 +15,25 @@ const mocked = vi.hoisted(() => ({
   getGitWorktreeContext: vi.fn(),
 }));
 
-vi.mock("../../../src/opencode/client.js", () => ({ opencodeClient: mocked.opencodeClient }));
-vi.mock("../../../src/app/services/worktree-service.js", () => ({
+vi.mock("#src/opencode/client.js", () => ({ opencodeClient: mocked.opencodeClient }));
+vi.mock("#src/app/services/worktree-service.js", () => ({
   getGitWorktreeContext: mocked.getGitWorktreeContext,
 }));
-vi.mock("../../../src/app/services/session-service.js", () => ({
+vi.mock("#src/app/services/session-service.js", () => ({
   getCurrentSession: mocked.getCurrentSession,
 }));
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.js", () => ({
   getCurrentProject: mocked.getCurrentProject,
   getPinnedMessageId: mocked.getPinnedMessageId,
   setPinnedMessageId: mocked.setPinnedMessageId,
   clearPinnedMessageId: mocked.clearPinnedMessageId,
 }));
-vi.mock("../../../src/app/services/model-selection-service.js", () => ({ getStoredModel: mocked.getStoredModel }));
-vi.mock("../../../src/app/services/model-context-limit-service.js", () => ({
+vi.mock("#src/app/services/model-selection-service.js", () => ({ getStoredModel: mocked.getStoredModel }));
+vi.mock("#src/app/services/model-context-limit-service.js", () => ({
   getModelContextLimit: mocked.getModelContextLimit,
 }));
-vi.mock("../../../src/i18n/index.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../src/i18n/index.js")>();
+vi.mock("#src/i18n/index.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("#src/i18n/index.js")>();
   return {
     ...actual,
     t: (key: string, params?: Record<string, string | number>) => {
@@ -49,7 +49,7 @@ vi.mock("../../../src/i18n/index.js", async (importOriginal) => {
     },
   };
 });
-vi.mock("../../../src/bot/pinned/pinned-message-format.js", () => ({
+vi.mock("#src/bot/pinned/pinned-message-format.js", () => ({
   DEFAULT_CONTEXT_LIMIT: 204800,
   formatContextLine: (used: number, limit: number) => `${used}/${limit}`,
   formatCostLine: (cost: number) => `$${cost.toFixed(2)}`,
@@ -57,7 +57,7 @@ vi.mock("../../../src/bot/pinned/pinned-message-format.js", () => ({
 }));
 
 // Must import AFTER vi.mock calls
-const { pinnedMessageManager } = await import("../../../src/bot/pinned/pinned-message-manager.js");
+const { pinnedMessageManager } = await import("#src/bot/pinned/pinned-message-manager.js");
 
 describe("pinned/manager", () => {
   let fakeApi: {

@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "#vitest";
 import { InputFile } from "grammy";
-import { mockDep } from "../../helpers/mock-dep.js";
-import { loadSut } from "../../helpers/sut-loader.js";
+import { mockDep } from "#helpers/mock-dep.js";
+import { loadSut } from "#helpers/sut-loader.js";
 
 mockDep(
-  "../../../src/utils/logger.ts",
+  "#src/utils/logger.ts",
   () => ({
     logger: {
       debug: vi.fn(),
@@ -16,12 +16,12 @@ mockDep(
   import.meta.url,
 );
 
-const sut = loadSut<typeof import("../../../src/bot/handlers/tts-response-handler.js")>(
-  "../../../src/bot/handlers/tts-response-handler.ts",
+const sut = loadSut<typeof import("#src/bot/handlers/tts-response-handler.js")>(
+  "#src/bot/handlers/tts-response-handler.ts",
   import.meta.url,
 );
 
-import { t } from "../../../src/i18n/index.js";
+import { t } from "#src/i18n/index.js";
 
 describe("bot/handlers/tts-response-handler", () => {
   it("sends audio when the session response mode requires TTS", async () => {

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "#vitest";
 import {
   DEFAULT_ALLOWED_INTERACTION_COMMANDS,
   interactionManager,
-} from "../../../src/app/managers/interaction-manager.js";
+} from "#src/app/managers/interaction-manager.js";
 
 describe("interactionManager", () => {
   beforeEach(() => {

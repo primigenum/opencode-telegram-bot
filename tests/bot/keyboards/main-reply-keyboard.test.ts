@@ -3,7 +3,7 @@ import {
   createAgentKeyboard,
   createMainKeyboard,
   removeKeyboard,
-} from "../../../src/bot/keyboards/main-reply-keyboard.js";
+} from "#src/bot/keyboards/main-reply-keyboard.js";
 
 function getButtonText(button: string | { text: string }): string {
   return typeof button === "string" ? button : button.text;

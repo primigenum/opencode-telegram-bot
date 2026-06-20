@@ -1,18 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import { EventEmitter } from "node:events";
 import type { Context } from "grammy";
-import type { VoiceMessageDeps } from "../../../src/bot/handlers/voice-handler.js";
-import { t } from "../../../src/i18n/index.js";
+import type { VoiceMessageDeps } from "#src/bot/handlers/voice-handler.js";
+import { t } from "#src/i18n/index.js";
 
 const mocked = vi.hoisted(() => ({
   getTtsModeMock: vi.fn(),
 }));
 
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.js", () => ({
   getTtsMode: mocked.getTtsModeMock,
 }));
 
-vi.mock("../../../src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.js", () => ({
   logger: {
     debug: vi.fn(),
     info: vi.fn(),
@@ -23,7 +23,7 @@ vi.mock("../../../src/utils/logger.js", () => ({
 
 async function loadVoiceModule() {
   vi.resetModules();
-  return import("../../../src/bot/handlers/voice-handler.js");
+  return import("#src/bot/handlers/voice-handler.js");
 }
 
 function createVoiceContext(): {
@@ -188,7 +188,7 @@ describe("bot/handlers/voice-handler", () => {
     );
 
     const { handleVoiceMessage } = await loadVoiceModule();
-    const { logger } = await import("../../../src/utils/logger.js");
+    const { logger } = await import("#src/utils/logger.js");
     const { ctx } = createVoiceContext();
     const { deps, processPromptMock } = createVoiceDeps();
     const note =
@@ -223,7 +223,7 @@ describe("bot/handlers/voice-handler", () => {
       vi.stubEnv("STT_NOTE_PROMPT", notePrompt);
 
       const { handleVoiceMessage } = await loadVoiceModule();
-      const { logger } = await import("../../../src/utils/logger.js");
+      const { logger } = await import("#src/utils/logger.js");
       const { ctx } = createVoiceContext();
       const { deps, processPromptMock } = createVoiceDeps();
 

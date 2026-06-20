@@ -37,7 +37,7 @@ async function loadAssistantRendering(mode: "raw" | "markdown") {
       toPlainParts(blocks),
   );
 
-  vi.doMock("../../../src/config.js", () => ({
+  vi.doMock("#src/config.js", () => ({
     config: {
       telegram: {
         token: "test-token",
@@ -66,7 +66,7 @@ async function loadAssistantRendering(mode: "raw" | "markdown") {
       tts: { apiUrl: "", apiKey: "", model: "", voice: "" },
     },
   }));
-  vi.doMock("../../../src/utils/logger.js", () => ({
+  vi.doMock("#src/utils/logger.js", () => ({
     logger: {
       debug,
       warn,
@@ -74,15 +74,15 @@ async function loadAssistantRendering(mode: "raw" | "markdown") {
       error: vi.fn(),
     },
   }));
-  vi.doMock("../../../src/bot/render/pipeline.js", () => ({
+  vi.doMock("#src/bot/render/pipeline.js", () => ({
     renderTelegramBlocks,
     renderTelegramParts,
   }));
-  vi.doMock("../../../src/bot/render/chunker.js", () => ({
+  vi.doMock("#src/bot/render/chunker.js", () => ({
     chunkTelegramRenderedBlocks,
   }));
 
-  const module = await import("../../../src/bot/messages/assistant-rendering.js");
+  const module = await import("#src/bot/messages/assistant-rendering.js");
   return {
     module,
     debug,

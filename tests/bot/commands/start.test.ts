@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { mockDep } from "../../helpers/mock-dep.js";
-import { loadSut } from "../../helpers/sut-loader.js";
+import { mockDep } from "#helpers/mock-dep.js";
+import { loadSut } from "#helpers/sut-loader.js";
 
 const mocked = {
   abortCurrentOperationMock: vi.fn(),
@@ -29,7 +29,7 @@ const mocked = {
 };
 
 mockDep(
-  "../../../src/bot/commands/abort-command.ts",
+  "#src/bot/commands/abort-command.ts",
   () => ({
     abortCurrentOperation: mocked.abortCurrentOperationMock,
   }),
@@ -37,7 +37,7 @@ mockDep(
 );
 
 mockDep(
-  "../../../src/app/services/session-service.ts",
+  "#src/app/services/session-service.ts",
   () => ({
     clearSession: mocked.clearSessionMock,
   }),
@@ -45,7 +45,7 @@ mockDep(
 );
 
 mockDep(
-  "../../../src/app/stores/settings-store.ts",
+  "#src/app/stores/settings-store.ts",
   () => ({
     clearProject: mocked.clearProjectMock,
   }),
@@ -53,7 +53,7 @@ mockDep(
 );
 
 mockDep(
-  "../../../src/bot/keyboards/main-reply-keyboard.ts",
+  "#src/bot/keyboards/main-reply-keyboard.ts",
   () => ({
     createMainKeyboard: mocked.createMainKeyboardMock,
   }),
@@ -61,7 +61,7 @@ mockDep(
 );
 
 mockDep(
-  "../../../src/app/services/agent-selection-service.ts",
+  "#src/app/services/agent-selection-service.ts",
   () => ({
     getStoredAgent: mocked.getStoredAgentMock,
   }),
@@ -69,7 +69,7 @@ mockDep(
 );
 
 mockDep(
-  "../../../src/app/services/model-selection-service.ts",
+  "#src/app/services/model-selection-service.ts",
   () => ({
     getStoredModel: mocked.getStoredModelMock,
   }),
@@ -77,7 +77,7 @@ mockDep(
 );
 
 mockDep(
-  "../../../src/app/services/variant-selection-service.ts",
+  "#src/app/services/variant-selection-service.ts",
   () => ({
     formatVariantForButton: mocked.formatVariantForButtonMock,
   }),
@@ -85,7 +85,7 @@ mockDep(
 );
 
 mockDep(
-  "../../../src/bot/pinned/pinned-message-manager.ts",
+  "#src/bot/pinned/pinned-message-manager.ts",
   () => ({
     pinnedMessageManager: {
       isInitialized: mocked.pinnedIsInitializedMock,
@@ -100,7 +100,7 @@ mockDep(
 );
 
 mockDep(
-  "../../../src/bot/keyboards/keyboard-manager.ts",
+  "#src/bot/keyboards/keyboard-manager.ts",
   () => ({
     keyboardManager: {
       initialize: mocked.keyboardInitializeMock,
@@ -113,12 +113,12 @@ mockDep(
   import.meta.url,
 );
 
-const sut = loadSut<typeof import("../../../src/bot/commands/start-command.js")>(
-  "../../../src/bot/commands/start-command.ts",
+const sut = loadSut<typeof import("#src/bot/commands/start-command.js")>(
+  "#src/bot/commands/start-command.ts",
   import.meta.url,
 );
 
-import { t } from "../../../src/i18n/index.js";
+import { t } from "#src/i18n/index.js";
 
 function createStartContext(): Context {
   return {

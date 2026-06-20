@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Bot, Context } from "grammy";
-import type { ScheduledTask } from "../../../src/app/types/scheduled-task.js";
+import type { ScheduledTask } from "#src/app/types/scheduled-task.js";
 
 const mocked = vi.hoisted(() => ({
   tasks: [] as ScheduledTask[],
@@ -18,7 +18,7 @@ function cloneTask(task: ScheduledTask): ScheduledTask {
   };
 }
 
-vi.mock("../../../src/config.js", () => ({
+vi.mock("#src/config.js", () => ({
   config: {
     telegram: {
       allowedUserId: 777,
@@ -36,7 +36,7 @@ vi.mock("../../../src/config.js", () => ({
   },
 }));
 
-vi.mock("../../../src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.js", () => ({
   opencodeClient: {
     session: {
       create: vi.fn(),
@@ -47,20 +47,20 @@ vi.mock("../../../src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("../../../src/app/services/scheduled-task-executor-service.js", () => ({
+vi.mock("#src/app/services/scheduled-task-executor-service.js", () => ({
   executeScheduledTask: mocked.executeScheduledTaskMock,
   SCHEDULED_TASK_AGENT: "build",
 }));
 
-vi.mock("../../../src/app/services/scheduled-task-session-ignore-service.js", () => ({
+vi.mock("#src/app/services/scheduled-task-session-ignore-service.js", () => ({
   cleanupScheduledTaskSessionIgnores: mocked.cleanupIgnoresMock,
 }));
 
-vi.mock("../../../src/bot/messages/telegram-text.js", () => ({
+vi.mock("#src/bot/messages/telegram-text.js", () => ({
   sendBotText: mocked.sendBotTextMock,
 }));
 
-vi.mock("../../../src/app/stores/scheduled-task-store.js", () => ({
+vi.mock("#src/app/stores/scheduled-task-store.js", () => ({
   listScheduledTasks: vi.fn(() => mocked.tasks.map((task) => cloneTask(task))),
   getScheduledTask: vi.fn((taskId: string) => {
     const task = mocked.tasks.find((item) => item.id === taskId);
@@ -147,15 +147,15 @@ function createTask(partial: Partial<ScheduledTask> = {}): ScheduledTask {
 
 async function createDeliverySender() {
   const { createScheduledTaskDeliverySender } = await import(
-    "../../../src/bot/messages/scheduled-task-delivery.js"
+    "#src/bot/messages/scheduled-task-delivery.js"
   );
 
   return createScheduledTaskDeliverySender({ sendMessage: vi.fn() } as never, 777);
 }
 
 describe("app/services/scheduled-task-runtime-service", () => {
-  let ScheduledTaskRuntimeClass: typeof import("../../../src/app/services/scheduled-task-runtime-service.js").ScheduledTaskRuntime;
-  let foregroundSessionState: typeof import("../../../src/app/managers/foreground-session-state-manager.js").foregroundSessionState;
+  let ScheduledTaskRuntimeClass: typeof import("#src/app/services/scheduled-task-runtime-service.js").ScheduledTaskRuntime;
+  let foregroundSessionState: typeof import("#src/app/managers/foreground-session-state-manager.js").foregroundSessionState;
 
   beforeEach(() => {
     mocked.tasks = [];
@@ -169,8 +169,8 @@ describe("app/services/scheduled-task-runtime-service", () => {
 
   it("queues scheduled task result while foreground session is busy and flushes later", async () => {
     ({ ScheduledTaskRuntime: ScheduledTaskRuntimeClass } =
-      await import("../../../src/app/services/scheduled-task-runtime-service.js"));
-    ({ foregroundSessionState } = await import("../../../src/app/managers/foreground-session-state-manager.js"));
+      await import("#src/app/services/scheduled-task-runtime-service.js"));
+    ({ foregroundSessionState } = await import("#src/app/managers/foreground-session-state-manager.js"));
     foregroundSessionState.__resetForTests();
 
     const runtime = new ScheduledTaskRuntimeClass();
@@ -225,8 +225,8 @@ describe("app/services/scheduled-task-runtime-service", () => {
 
   it("keeps recurring task after execution error and schedules next run", async () => {
     ({ ScheduledTaskRuntime: ScheduledTaskRuntimeClass } =
-      await import("../../../src/app/services/scheduled-task-runtime-service.js"));
-    ({ foregroundSessionState } = await import("../../../src/app/managers/foreground-session-state-manager.js"));
+      await import("#src/app/services/scheduled-task-runtime-service.js"));
+    ({ foregroundSessionState } = await import("#src/app/managers/foreground-session-state-manager.js"));
     foregroundSessionState.__resetForTests();
 
     const runtime = new ScheduledTaskRuntimeClass();
@@ -269,8 +269,8 @@ describe("app/services/scheduled-task-runtime-service", () => {
 
   it("sends the timeout error text returned by executor", async () => {
     ({ ScheduledTaskRuntime: ScheduledTaskRuntimeClass } =
-      await import("../../../src/app/services/scheduled-task-runtime-service.js"));
-    ({ foregroundSessionState } = await import("../../../src/app/managers/foreground-session-state-manager.js"));
+      await import("#src/app/services/scheduled-task-runtime-service.js"));
+    ({ foregroundSessionState } = await import("#src/app/managers/foreground-session-state-manager.js"));
     foregroundSessionState.__resetForTests();
 
     const runtime = new ScheduledTaskRuntimeClass();
@@ -305,8 +305,8 @@ describe("app/services/scheduled-task-runtime-service", () => {
 
   it("does not start the same scheduled task twice while it is already running", async () => {
     ({ ScheduledTaskRuntime: ScheduledTaskRuntimeClass } =
-      await import("../../../src/app/services/scheduled-task-runtime-service.js"));
-    ({ foregroundSessionState } = await import("../../../src/app/managers/foreground-session-state-manager.js"));
+      await import("#src/app/services/scheduled-task-runtime-service.js"));
+    ({ foregroundSessionState } = await import("#src/app/managers/foreground-session-state-manager.js"));
     foregroundSessionState.__resetForTests();
 
     const runtime = new ScheduledTaskRuntimeClass();

@@ -4,7 +4,7 @@ import {
   getAgentButtonLabel,
   getAgentDisplayName,
   getAgentEmoji,
-} from "../../../src/app/types/agent.js";
+} from "#src/app/types/agent.js";
 
 describe("app/types/agent", () => {
   it("returns mapped emoji for known agents", () => {

@@ -1,14 +1,14 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "#vitest";
 import { fileURLToPath } from "bun";
-import { registerMock } from "../../helpers/mock-plugin.js";
-import { loadSut } from "../../helpers/sut-loader.js";
+import { registerMock } from "#helpers/mock-plugin.js";
+import { loadSut } from "#helpers/sut-loader.js";
 
 const mocked = {
   getAvailableAgentsMock: vi.fn(),
 };
 
 registerMock(
-  fileURLToPath(import.meta.resolve("../../../src/app/services/agent-selection-service")),
+  fileURLToPath(import.meta.resolve("#src/app/services/agent-selection-service")),
   () => ({
     fetchCurrentAgent: vi.fn(),
     getAvailableAgents: mocked.getAvailableAgentsMock,
@@ -17,8 +17,8 @@ registerMock(
   }),
 );
 
-const sut = loadSut<typeof import("../../../src/bot/menus/agent-selection-menu.js")>(
-  "../../../src/bot/menus/agent-selection-menu.ts",
+const sut = loadSut<typeof import("#src/bot/menus/agent-selection-menu.js")>(
+  "#src/bot/menus/agent-selection-menu.ts",
   import.meta.url,
 );
 

@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { projectsCommand } from "../../../src/bot/commands/projects-command.js";
-import { foregroundSessionState } from "../../../src/app/managers/foreground-session-state-manager.js";
-import { t } from "../../../src/i18n/index.js";
+import { projectsCommand } from "#src/bot/commands/projects-command.js";
+import { foregroundSessionState } from "#src/app/managers/foreground-session-state-manager.js";
+import { t } from "#src/i18n/index.js";
 
 const mocked = vi.hoisted(() => ({
   currentProject: null as { id: string; worktree: string; name?: string } | null,
@@ -12,33 +12,33 @@ const mocked = vi.hoisted(() => ({
   replyWithInlineMenuMock: vi.fn(),
 }));
 
-vi.mock("../../../src/app/services/session-cache-service.js", () => ({
+vi.mock("#src/app/services/session-cache-service.js", () => ({
   syncSessionDirectoryCache: mocked.syncSessionDirectoryCacheMock,
   __resetSessionDirectoryCacheForTests: vi.fn(),
 }));
 
-vi.mock("../../../src/app/services/project-service.js", () => ({
+vi.mock("#src/app/services/project-service.js", () => ({
   getProjects: mocked.getProjectsMock,
 }));
 
-vi.mock("../../../src/app/services/worktree-service.js", () => ({
+vi.mock("#src/app/services/worktree-service.js", () => ({
   getGitWorktreeContext: mocked.getGitWorktreeContextMock,
 }));
 
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.js", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
   setCurrentProject: vi.fn(),
 }));
 
-vi.mock("../../../src/app/services/session-service.js", () => ({
+vi.mock("#src/app/services/session-service.js", () => ({
   clearSession: vi.fn(),
 }));
 
-vi.mock("../../../src/app/managers/summary-aggregation-manager.js", () => ({
+vi.mock("#src/app/managers/summary-aggregation-manager.js", () => ({
   summaryAggregator: { clear: vi.fn() },
 }));
 
-vi.mock("../../../src/bot/pinned/pinned-message-manager.js", () => ({
+vi.mock("#src/bot/pinned/pinned-message-manager.js", () => ({
   pinnedMessageManager: {
     clear: vi.fn().mockResolvedValue(undefined),
     refreshContextLimit: vi.fn().mockResolvedValue(undefined),
@@ -46,35 +46,35 @@ vi.mock("../../../src/bot/pinned/pinned-message-manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/bot/keyboards/keyboard-manager.js", () => ({
+vi.mock("#src/bot/keyboards/keyboard-manager.js", () => ({
   keyboardManager: {
     initialize: vi.fn(),
     updateContext: vi.fn(),
   },
 }));
 
-vi.mock("../../../src/app/services/agent-selection-service.js", () => ({
+vi.mock("#src/app/services/agent-selection-service.js", () => ({
   getStoredAgent: vi.fn(() => "build"),
 }));
 
-vi.mock("../../../src/app/services/model-selection-service.js", () => ({
+vi.mock("#src/app/services/model-selection-service.js", () => ({
   getStoredModel: vi.fn(() => ({ providerID: "openai", modelID: "gpt-5", variant: "default" })),
 }));
 
-vi.mock("../../../src/app/services/variant-selection-service.js", () => ({
+vi.mock("#src/app/services/variant-selection-service.js", () => ({
   formatVariantForButton: vi.fn(() => "Default"),
 }));
 
-vi.mock("../../../src/app/managers/interaction-manager.js", () => ({
+vi.mock("#src/app/managers/interaction-manager.js", () => ({
   interactionManager: { clear: vi.fn() },
   clearAllInteractionState: vi.fn(),
 }));
 
-vi.mock("../../../src/bot/keyboards/main-reply-keyboard.js", () => ({
+vi.mock("#src/bot/keyboards/main-reply-keyboard.js", () => ({
   createMainKeyboard: vi.fn(() => ({ keyboard: true })),
 }));
 
-vi.mock("../../../src/bot/menus/inline-menu.js", () => ({
+vi.mock("#src/bot/menus/inline-menu.js", () => ({
   appendInlineMenuCancelButton: vi.fn(),
   ensureActiveInlineMenu: vi.fn(),
   replyWithInlineMenu: mocked.replyWithInlineMenuMock,

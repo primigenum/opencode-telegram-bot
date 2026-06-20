@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "#vitest";
 import type { Context, NextFunction } from "grammy";
-import { unknownCommandMiddleware } from "../../../src/bot/middleware/unknown-command.js";
-import { t } from "../../../src/i18n/index.js";
+import { unknownCommandMiddleware } from "#src/bot/middleware/unknown-command.js";
+import { t } from "#src/i18n/index.js";
 
 function createTextContext(text: string): Context {
   return {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "#vitest";
-import { parseTelegramBlocks } from "../../../src/bot/render/block-parser.js";
+import { parseTelegramBlocks } from "#src/bot/render/block-parser.js";
 
 describe("bot/render/block-parser", () => {
   it("parses paragraphs with inline formatting", () => {

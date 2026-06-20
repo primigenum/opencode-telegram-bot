@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
-import { mockDep } from "../../helpers/mock-dep.js";
-import { loadSut } from "../../helpers/sut-loader.js";
+import { mockDep } from "#helpers/mock-dep.js";
+import { loadSut } from "#helpers/sut-loader.js";
 
 const mocked = {
   sendBotTextMock: vi.fn(),
 };
 
 mockDep(
-  "../../../src/bot/messages/telegram-text.ts",
+  "#src/bot/messages/telegram-text.ts",
   () => ({
     sendBotText: mocked.sendBotTextMock,
   }),
@@ -15,14 +15,14 @@ mockDep(
 );
 
 const serviceSut = loadSut<
-  typeof import("../../../src/app/services/external-user-input-service.js")
+  typeof import("#src/app/services/external-user-input-service.js")
 >(
-  "../../../src/app/services/external-user-input-service.ts",
+  "#src/app/services/external-user-input-service.ts",
   import.meta.url,
 );
 
-const sut = loadSut<typeof import("../../../src/bot/messages/external-user-input-notification.js")>(
-  "../../../src/bot/messages/external-user-input-notification.ts",
+const sut = loadSut<typeof import("#src/bot/messages/external-user-input-notification.js")>(
+  "#src/bot/messages/external-user-input-notification.ts",
   import.meta.url,
 );
 

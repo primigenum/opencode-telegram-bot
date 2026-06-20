@@ -4,7 +4,7 @@ import {
   __resetUserAbortErrorSuppressionForTests,
   markUserAbortRequested,
   shouldSuppressUserAbortSessionError,
-} from "../../../src/app/managers/abort-suppression-manager.js";
+} from "#src/app/managers/abort-suppression-manager.js";
 
 describe("app/managers/abort-suppression-manager", () => {
   beforeEach(() => {

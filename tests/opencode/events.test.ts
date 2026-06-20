@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Event } from "@opencode-ai/sdk/v2";
-import { loadSut } from "../helpers/sut-loader.js";
+import { loadSut } from "#helpers/sut-loader.js";
 
 const { globalEventMock, subscribeMock } = vi.hoisted(() => {
   return {
@@ -9,7 +9,7 @@ const { globalEventMock, subscribeMock } = vi.hoisted(() => {
   };
 });
 
-vi.mock("../../src/opencode/client.ts", () => ({
+vi.mock("#src/opencode/client.ts", () => ({
   opencodeClient: {
     global: {
       event: globalEventMock,
@@ -20,12 +20,12 @@ vi.mock("../../src/opencode/client.ts", () => ({
   },
 }));
 
-const sut = loadSut<typeof import("../../src/opencode/events.js")>(
-  "../../src/opencode/events.ts",
+const sut = await loadSut<typeof import("#src/opencode/events.js")>(
+  "#src/opencode/events.ts",
   import.meta.url,
 );
 
-import { logger } from "../../src/utils/logger.js";
+import { logger } from "#src/utils/logger.js";
 
 function createStream<T>(events: T[]): AsyncGenerator<T, void, unknown> {
   return (async function* () {

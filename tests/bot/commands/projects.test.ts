@@ -4,7 +4,7 @@ import {
   buildProjectButtonLabel,
   getProjectFolderName,
   parseProjectPageCallback,
-} from "../../../src/bot/menus/project-selection-menu.js";
+} from "#src/bot/menus/project-selection-menu.js";
 
 describe("bot/commands/projects", () => {
   describe("getProjectFolderName", () => {

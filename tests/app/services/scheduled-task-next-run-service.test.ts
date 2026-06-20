@@ -3,8 +3,8 @@ import {
   computeNextCronRunAt,
   computeNextRunAt,
   isTaskDue,
-} from "../../../src/app/services/scheduled-task-next-run-service.js";
-import type { ScheduledTask } from "../../../src/app/types/scheduled-task.js";
+} from "#src/app/services/scheduled-task-next-run-service.js";
+import type { ScheduledTask } from "#src/app/types/scheduled-task.js";
 
 describe("app/services/scheduled-task-next-run-service", () => {
   it("computes next daily cron run in UTC", () => {

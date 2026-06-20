@@ -2,8 +2,8 @@ import { describe, expect, it } from "#vitest";
 import {
   renderTelegramBlocks,
   renderTelegramParts,
-} from "../../../src/bot/render/pipeline.js";
-import { validateTelegramEntities } from "../../../src/bot/render/validator.js";
+} from "#src/bot/render/pipeline.js";
+import { validateTelegramEntities } from "#src/bot/render/validator.js";
 
 describe("bot/render/pipeline", () => {
   it("renders markdown into block-level outputs", () => {

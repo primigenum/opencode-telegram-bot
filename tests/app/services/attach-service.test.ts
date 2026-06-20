@@ -5,11 +5,11 @@ import {
   configureAttachPresentation,
   detachAttachedSession,
   restoreAttachedCurrentSession,
-} from "../../../src/app/services/attach-service.js";
-import { attachManager } from "../../../src/app/managers/attach-manager.js";
-import { questionManager } from "../../../src/app/managers/question-manager.js";
-import { permissionManager } from "../../../src/app/managers/permission-manager.js";
-import { createAttachPresentation } from "../../../src/bot/services/attach-presentation.js";
+} from "#src/app/services/attach-service.js";
+import { attachManager } from "#src/app/managers/attach-manager.js";
+import { questionManager } from "#src/app/managers/question-manager.js";
+import { permissionManager } from "#src/app/managers/permission-manager.js";
+import { createAttachPresentation } from "#src/bot/services/attach-presentation.js";
 
 const mocked = vi.hoisted(() => ({
   currentProject: {
@@ -43,15 +43,15 @@ const mocked = vi.hoisted(() => ({
   stopEventListeningMock: vi.fn(),
 }));
 
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.js", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
 }));
 
-vi.mock("../../../src/app/services/session-service.js", () => ({
+vi.mock("#src/app/services/session-service.js", () => ({
   getCurrentSession: vi.fn(() => mocked.currentSession),
 }));
 
-vi.mock("../../../src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.js", () => ({
   opencodeClient: {
     global: {
       health: mocked.healthMock,
@@ -68,11 +68,11 @@ vi.mock("../../../src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("../../../src/opencode/events.js", () => ({
+vi.mock("#src/opencode/events.js", () => ({
   stopEventListening: mocked.stopEventListeningMock,
 }));
 
-vi.mock("../../../src/app/managers/summary-aggregation-manager.js", () => ({
+vi.mock("#src/app/managers/summary-aggregation-manager.js", () => ({
   summaryAggregator: {
     setSession: mocked.setSessionSummaryMock,
     setBotAndChatId: mocked.setBotAndChatIdMock,
@@ -80,7 +80,7 @@ vi.mock("../../../src/app/managers/summary-aggregation-manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/bot/pinned/pinned-message-manager.js", () => ({
+vi.mock("#src/bot/pinned/pinned-message-manager.js", () => ({
   pinnedMessageManager: {
     isInitialized: mocked.pinnedIsInitializedMock,
     initialize: mocked.pinnedInitializeMock,
@@ -93,18 +93,18 @@ vi.mock("../../../src/bot/pinned/pinned-message-manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/bot/keyboards/keyboard-manager.js", () => ({
+vi.mock("#src/bot/keyboards/keyboard-manager.js", () => ({
   keyboardManager: {
     initialize: mocked.keyboardInitializeMock,
     updateContext: mocked.keyboardUpdateContextMock,
   },
 }));
 
-vi.mock("../../../src/bot/menus/question-menu.js", () => ({
+vi.mock("#src/bot/menus/question-menu.js", () => ({
   showCurrentQuestion: mocked.showCurrentQuestionMock,
 }));
 
-vi.mock("../../../src/bot/menus/permission-menu.js", () => ({
+vi.mock("#src/bot/menus/permission-menu.js", () => ({
   showPermissionRequest: mocked.showPermissionRequestMock,
 }));
 

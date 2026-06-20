@@ -2,19 +2,19 @@ import { beforeEach, describe, expect, it, vi } from "#vitest";
 import {
   formatSummary,
   formatSummaryWithMode,
-} from "../../../src/bot/messages/summary-message-formatter.js";
+} from "#src/bot/messages/summary-message-formatter.js";
 import {
   formatToolInfo,
   prepareCodeFile,
-} from "../../../src/app/formatters/summary-formatter.js";
+} from "#src/app/formatters/summary-formatter.js";
 
 const mocked = vi.hoisted(() => ({
   getCurrentProjectMock: vi.fn(),
 }));
 
-vi.mock("../../../src/app/stores/settings-store.js", async () => {
-  const actual = await vi.importActual<typeof import("../../../src/app/stores/settings-store.js")>(
-    "../../../src/app/stores/settings-store.js",
+vi.mock("#src/app/stores/settings-store.js", async () => {
+  const actual = await vi.importActual<typeof import("#src/app/stores/settings-store.js")>(
+    "#src/app/stores/settings-store.js",
   );
 
   return {

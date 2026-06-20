@@ -2,7 +2,7 @@ import { describe, expect, it } from "#vitest";
 import {
   normalizeMarkdownForTelegramBlockParsing,
   normalizeMarkdownForTelegramRendering,
-} from "../../../src/bot/render/markdown-normalizer.js";
+} from "#src/bot/render/markdown-normalizer.js";
 
 describe("bot/render/markdown-normalizer", () => {
   it("normalizes headings, quotes, horizontal rules, and checklists", () => {

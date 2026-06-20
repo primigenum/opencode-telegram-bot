@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
-import { loadSut } from "../helpers/sut-loader.js";
+import { loadSut } from "#helpers/sut-loader.js";
 
 const mocked = vi.hoisted(() => ({
   healthMock: vi.fn(),
@@ -9,7 +9,7 @@ const mocked = vi.hoisted(() => ({
   loggerWarnMock: vi.fn(),
 }));
 
-vi.mock("../../src/opencode/client.ts", () => ({
+vi.mock("#src/opencode/client.ts", () => ({
   opencodeClient: {
     global: {
       health: mocked.healthMock,
@@ -17,12 +17,12 @@ vi.mock("../../src/opencode/client.ts", () => ({
   },
 }));
 
-vi.mock("../../src/app/services/session-cache-service.ts", () => ({
+vi.mock("#src/app/services/session-cache-service.ts", () => ({
   __resetSessionDirectoryCacheForTests: vi.fn(),
   warmupSessionDirectoryCache: mocked.warmupSessionDirectoryCacheMock,
 }));
 
-vi.mock("../../src/app/services/model-selection-service.ts", () => ({
+vi.mock("#src/app/services/model-selection-service.ts", () => ({
   reconcileStoredModelSelection: mocked.reconcileStoredModelSelectionMock,
   getModelSelectionLists: vi.fn(),
   __resetModelCatalogCacheForTests: vi.fn(),
@@ -33,7 +33,7 @@ vi.mock("../../src/app/services/model-selection-service.ts", () => ({
   getStoredModel: vi.fn(),
 }));
 
-vi.mock("../../src/utils/logger.ts", () => ({
+vi.mock("#src/utils/logger.ts", () => ({
   logger: {
     debug: mocked.loggerDebugMock,
     info: vi.fn(),
@@ -42,8 +42,8 @@ vi.mock("../../src/utils/logger.ts", () => ({
   },
 }));
 
-const sut = loadSut<typeof import("../../src/opencode/ready-refresh.js")>(
-  "../../src/opencode/ready-refresh.ts",
+const sut = await loadSut<typeof import("#src/opencode/ready-refresh.js")>(
+  "#src/opencode/ready-refresh.ts",
   import.meta.url,
 );
 

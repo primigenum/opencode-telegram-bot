@@ -2,15 +2,15 @@ import os from "node:os";
 import path from "node:path";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { beforeEach, afterEach, describe, expect, it, vi } from "#vitest";
-import { setRuntimeMode } from "../../../src/runtime/mode.js";
-import { loadSettings } from "../../../src/app/stores/settings-store.js";
+import { setRuntimeMode } from "#src/runtime/mode.js";
+import { loadSettings } from "#src/app/stores/settings-store.js";
 import {
   __resetSessionDirectoryCacheForTests,
   getCachedSessionDirectories,
   syncSessionDirectoryCache,
   upsertSessionDirectory,
   warmupSessionDirectoryCache,
-} from "../../../src/app/services/session-cache-service.js";
+} from "#src/app/services/session-cache-service.js";
 
 const { sessionListMock, loggerWarnMock, loggerDebugMock, loggerInfoMock, loggerErrorMock } =
   vi.hoisted(() => ({
@@ -21,7 +21,7 @@ const { sessionListMock, loggerWarnMock, loggerDebugMock, loggerInfoMock, logger
     loggerErrorMock: vi.fn(),
   }));
 
-vi.mock("../../../src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.js", () => ({
   opencodeClient: {
     session: {
       list: sessionListMock,
@@ -29,7 +29,7 @@ vi.mock("../../../src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("../../../src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.js", () => ({
   logger: {
     debug: loggerDebugMock,
     info: loggerInfoMock,

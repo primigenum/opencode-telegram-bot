@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { handlePhotoMessage, type PhotoHandlerDeps } from "../../../src/bot/handlers/photo-handler.js";
-import { t } from "../../../src/i18n/index.js";
+import { handlePhotoMessage, type PhotoHandlerDeps } from "#src/bot/handlers/photo-handler.js";
+import { t } from "#src/i18n/index.js";
 
 function createPhotoContext(caption = "Describe this"): { ctx: Context; replyMock: ReturnType<typeof vi.fn> } {
   const replyMock = vi.fn().mockResolvedValue({ message_id: 100 });

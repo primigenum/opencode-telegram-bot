@@ -1,19 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Bot, Context } from "grammy";
-import { commandsCommand } from "../../../src/bot/commands/command-catalog-command.js";
+import { commandsCommand } from "#src/bot/commands/command-catalog-command.js";
 import {
   handleCommandsCallback,
   type ExecuteCommandDeps,
-} from "../../../src/bot/callbacks/command-catalog-callback-handler.js";
-import { handleCommandTextArguments } from "../../../src/bot/handlers/text-message-handler.js";
+} from "#src/bot/callbacks/command-catalog-callback-handler.js";
+import { handleCommandTextArguments } from "#src/bot/handlers/text-message-handler.js";
 import {
   calculateCommandsPaginationRange,
   formatCommandsSelectText,
   parseCommandPageCallback,
-} from "../../../src/bot/menus/command-catalog-menu.js";
-import { interactionManager } from "../../../src/app/managers/interaction-manager.js";
-import { t } from "../../../src/i18n/index.js";
-import { foregroundSessionState } from "../../../src/app/managers/foreground-session-state-manager.js";
+} from "#src/bot/menus/command-catalog-menu.js";
+import { interactionManager } from "#src/app/managers/interaction-manager.js";
+import { t } from "#src/i18n/index.js";
+import { foregroundSessionState } from "#src/app/managers/foreground-session-state-manager.js";
 
 const mocked = vi.hoisted(() => ({
   currentProject: {
@@ -41,11 +41,11 @@ const mocked = vi.hoisted(() => ({
   attachToSessionMock: vi.fn(),
 }));
 
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.js", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
 }));
 
-vi.mock("../../../src/app/services/session-service.js", () => ({
+vi.mock("#src/app/services/session-service.js", () => ({
   getCurrentSession: vi.fn(() => mocked.currentSession),
   setCurrentSession: vi.fn((session) => {
     mocked.currentSession = session;
@@ -57,12 +57,12 @@ vi.mock("../../../src/app/services/session-service.js", () => ({
   }),
 }));
 
-vi.mock("../../../src/app/services/session-cache-service.js", () => ({
+vi.mock("#src/app/services/session-cache-service.js", () => ({
   ingestSessionInfoForCache: mocked.ingestSessionInfoForCacheMock,
   __resetSessionDirectoryCacheForTests: vi.fn(),
 }));
 
-vi.mock("../../../src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.js", () => ({
   opencodeClient: {
     command: {
       list: mocked.commandListMock,
@@ -75,7 +75,7 @@ vi.mock("../../../src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("../../../src/app/managers/summary-aggregation-manager.js", () => ({
+vi.mock("#src/app/managers/summary-aggregation-manager.js", () => ({
   summaryAggregator: {
     setSession: mocked.setSessionSummaryMock,
     setBotAndChatId: mocked.setBotAndChatIdMock,
@@ -83,12 +83,12 @@ vi.mock("../../../src/app/managers/summary-aggregation-manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/app/services/agent-selection-service.js", () => ({
+vi.mock("#src/app/services/agent-selection-service.js", () => ({
   getStoredAgent: vi.fn(() => "build"),
   resolveProjectAgent: vi.fn(async (agentName?: string) => agentName ?? "build"),
 }));
 
-vi.mock("../../../src/app/services/model-selection-service.js", () => ({
+vi.mock("#src/app/services/model-selection-service.js", () => ({
   getStoredModel: vi.fn(() => ({
     providerID: "openai",
     modelID: "gpt-5",
@@ -96,7 +96,7 @@ vi.mock("../../../src/app/services/model-selection-service.js", () => ({
   })),
 }));
 
-vi.mock("../../../src/utils/safe-background-task.js", () => ({
+vi.mock("#src/utils/safe-background-task.js", () => ({
   safeBackgroundTask: vi.fn((options) => {
     mocked.safeBackgroundTaskMock(options);
     try {
@@ -120,13 +120,13 @@ vi.mock("../../../src/utils/safe-background-task.js", () => ({
   }),
 }));
 
-vi.mock("../../../src/app/managers/external-input-suppression-manager.js", () => ({
+vi.mock("#src/app/managers/external-input-suppression-manager.js", () => ({
   externalUserInputSuppressionManager: {
     register: mocked.suppressionRegisterMock,
   },
 }));
 
-vi.mock("../../../src/app/services/attach-service.js", () => ({
+vi.mock("#src/app/services/attach-service.js", () => ({
   attachToSession: mocked.attachToSessionMock,
   detachAttachedSession: vi.fn(),
   markAttachedSessionBusy: vi.fn().mockResolvedValue(undefined),

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { t } from "../../../src/i18n/index.js";
+import { t } from "#src/i18n/index.js";
 
 const mocked = vi.hoisted(() => ({
   healthMock: vi.fn(),
@@ -17,11 +17,11 @@ const mocked = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../../../src/config.js", () => ({
+vi.mock("#src/config.js", () => ({
   config: mocked.config,
 }));
 
-vi.mock("../../../src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.js", () => ({
   opencodeClient: {
     global: {
       health: mocked.healthMock,
@@ -29,24 +29,24 @@ vi.mock("../../../src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("../../../src/opencode/process.js", () => ({
+vi.mock("#src/opencode/process.js", () => ({
   resolveLocalOpencodeTarget: mocked.resolveLocalOpencodeTargetMock,
   findServerPid: mocked.findServerPidMock,
   killServerProcess: mocked.killServerProcessMock,
 }));
 
-vi.mock("../../../src/bot/messages/telegram-text.js", () => ({
+vi.mock("#src/bot/messages/telegram-text.js", () => ({
   editBotText: mocked.editBotTextMock,
 }));
 
-vi.mock("../../../src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.js", () => ({
   logger: {
     info: mocked.loggerInfoMock,
     error: mocked.loggerErrorMock,
   },
 }));
 
-import { opencodeStopCommand } from "../../../src/bot/commands/opencode-stop-command.js";
+import { opencodeStopCommand } from "#src/bot/commands/opencode-stop-command.js";
 
 function createContext(): Context {
   return {

@@ -1,19 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { abortCommand, abortCurrentOperation } from "../../../src/bot/commands/abort-command.js";
-import { clearAllInteractionState } from "../../../src/app/managers/interaction-manager.js";
-import { questionManager } from "../../../src/app/managers/question-manager.js";
-import { permissionManager } from "../../../src/app/managers/permission-manager.js";
-import { renameManager } from "../../../src/app/managers/rename-manager.js";
-import { interactionManager } from "../../../src/app/managers/interaction-manager.js";
-import { foregroundSessionState } from "../../../src/app/managers/foreground-session-state-manager.js";
-import type { Question } from "../../../src/app/types/question.js";
-import type { PermissionRequest } from "../../../src/app/types/permission.js";
-import { t } from "../../../src/i18n/index.js";
+import { abortCommand, abortCurrentOperation } from "#src/bot/commands/abort-command.js";
+import { clearAllInteractionState } from "#src/app/managers/interaction-manager.js";
+import { questionManager } from "#src/app/managers/question-manager.js";
+import { permissionManager } from "#src/app/managers/permission-manager.js";
+import { renameManager } from "#src/app/managers/rename-manager.js";
+import { interactionManager } from "#src/app/managers/interaction-manager.js";
+import { foregroundSessionState } from "#src/app/managers/foreground-session-state-manager.js";
+import type { Question } from "#src/app/types/question.js";
+import type { PermissionRequest } from "#src/app/types/permission.js";
+import { t } from "#src/i18n/index.js";
 import {
   __resetUserAbortErrorSuppressionForTests,
   shouldSuppressUserAbortSessionError,
-} from "../../../src/app/managers/abort-suppression-manager.js";
+} from "#src/app/managers/abort-suppression-manager.js";
 
 const mocked = vi.hoisted(() => ({
   currentSession: null as { id: string; title: string; directory: string } | null,
@@ -24,11 +24,11 @@ const mocked = vi.hoisted(() => ({
   clearPromptResponseModeMock: vi.fn(),
 }));
 
-vi.mock("../../../src/app/services/session-service.js", () => ({
+vi.mock("#src/app/services/session-service.js", () => ({
   getCurrentSession: vi.fn(() => mocked.currentSession),
 }));
 
-vi.mock("../../../src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.js", () => ({
   opencodeClient: {
     session: {
       abort: mocked.abortMock,
@@ -37,17 +37,17 @@ vi.mock("../../../src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("../../../src/app/managers/assistant-run-state-manager.js", () => ({
+vi.mock("#src/app/managers/assistant-run-state-manager.js", () => ({
   assistantRunState: {
     clearRun: mocked.clearRunMock,
   },
 }));
 
-vi.mock("../../../src/app/services/attach-service.js", () => ({
+vi.mock("#src/app/services/attach-service.js", () => ({
   markAttachedSessionIdle: mocked.markAttachedSessionIdleMock,
 }));
 
-vi.mock("../../../src/bot/handlers/prompt.js", () => ({
+vi.mock("#src/bot/handlers/prompt.js", () => ({
   clearPromptResponseMode: mocked.clearPromptResponseModeMock,
 }));
 

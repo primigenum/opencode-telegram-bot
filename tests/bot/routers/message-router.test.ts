@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "#vitest";
-import { registerMessageRouter } from "../../../src/bot/routers/message-router.js";
+import { registerMessageRouter } from "#src/bot/routers/message-router.js";
 
 describe("bot/routers/message-router", () => {
   it("registers reply keyboard, media, and text routes", () => {

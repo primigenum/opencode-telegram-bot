@@ -8,7 +8,7 @@ import {
   resolveSupportedLocale,
   setRuntimeLocale,
   SUPPORTED_LOCALES,
-} from "../../src/i18n/index.js";
+} from "#src/i18n/index.js";
 
 describe("i18n/index locale helpers", () => {
   afterEach(() => {

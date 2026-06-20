@@ -30,60 +30,60 @@ const mocked = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../../src/bot/index.js", () => ({
+vi.mock("#src/bot/index.js", () => ({
   cleanupBotRuntime: mocked.cleanupBotRuntimeMock,
   createBot: mocked.createBotMock,
 }));
 
-vi.mock("../../src/config.js", () => ({
+vi.mock("#src/config.js", () => ({
   config: mocked.config,
 }));
 
-vi.mock("../../src/opencode/auto-restart.js", () => ({
+vi.mock("#src/opencode/auto-restart.js", () => ({
   opencodeAutoRestartService: {
     start: mocked.autoRestartStartMock,
     stop: mocked.autoRestartStopMock,
   },
 }));
 
-vi.mock("../../src/opencode/ready-refresh.js", () => ({
+vi.mock("#src/opencode/ready-refresh.js", () => ({
   notifyOpencodeReadyIfHealthy: mocked.notifyOpencodeReadyIfHealthyMock,
   registerOpenCodeReadyRefreshHandler: mocked.registerOpenCodeReadyRefreshHandlerMock,
 }));
 
-vi.mock("../../src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.js", () => ({
   loadSettings: mocked.loadSettingsMock,
 }));
 
-vi.mock("../../src/app/services/scheduled-task-runtime-service.js", () => ({
+vi.mock("#src/app/services/scheduled-task-runtime-service.js", () => ({
   scheduledTaskRuntime: {
     initialize: mocked.scheduledTaskInitializeMock,
     shutdown: mocked.scheduledTaskShutdownMock,
   },
 }));
 
-vi.mock("../../src/app/services/model-selection-service.js", () => ({
+vi.mock("#src/app/services/model-selection-service.js", () => ({
   reconcileStoredModelSelection: mocked.reconcileStoredModelSelectionMock,
 }));
 
-vi.mock("../../src/runtime/mode.js", () => ({
+vi.mock("#src/runtime/mode.js", () => ({
   getRuntimeMode: () => "source",
 }));
 
-vi.mock("../../src/runtime/paths.js", () => ({
+vi.mock("#src/runtime/paths.js", () => ({
   getRuntimePaths: () => ({ envFilePath: ".env" }),
 }));
 
-vi.mock("../../src/runtime/service/manager.js", () => ({
+vi.mock("#src/runtime/service/manager.js", () => ({
   clearServiceStateFile: mocked.clearServiceStateFileMock,
 }));
 
-vi.mock("../../src/runtime/service/env.js", () => ({
+vi.mock("#src/runtime/service/env.js", () => ({
   getServiceStateFilePathFromEnv: mocked.getServiceStateFilePathFromEnvMock,
   isServiceChildProcess: mocked.isServiceChildProcessMock,
 }));
 
-vi.mock("../../src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.js", () => ({
   getLogFilePath: mocked.getLogFilePathMock,
   initializeLogger: mocked.initializeLoggerMock,
   logger: {
@@ -94,7 +94,7 @@ vi.mock("../../src/utils/logger.js", () => ({
   },
 }));
 
-import { startBotApp } from "../../src/app/bootstrap/start-bot-app.js";
+import { startBotApp } from "#src/app/bootstrap/start-bot-app.js";
 
 function createBot() {
   return {

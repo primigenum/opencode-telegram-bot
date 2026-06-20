@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
-import * as actualSettingsStore from "../../../src/app/stores/settings-store.js";
-import { mockDep } from "../../helpers/mock-dep.js";
-import { loadSut } from "../../helpers/sut-loader.js";
+import * as actualSettingsStore from "#src/app/stores/settings-store.js";
+import { mockDep } from "#helpers/mock-dep.js";
+import { loadSut } from "#helpers/sut-loader.js";
 
 let currentProject:
   | {
@@ -44,7 +44,7 @@ const mocked = {
 };
 
 mockDep(
-  "../../../src/opencode/client.ts",
+  "#src/opencode/client.ts",
   () => ({
     opencodeClient: {
       app: {
@@ -59,7 +59,7 @@ mockDep(
 );
 
 mockDep(
-  "../../../src/app/stores/settings-store.ts",
+  "#src/app/stores/settings-store.ts",
   () => ({
     ...actualSettingsStore,
     getCurrentProject: mocked.getCurrentProjectMock,
@@ -70,7 +70,7 @@ mockDep(
 );
 
 mockDep(
-  "../../../src/app/services/session-service.ts",
+  "#src/app/services/session-service.ts",
   () => ({
     getCurrentSession: mocked.getCurrentSessionMock,
   }),
@@ -78,7 +78,7 @@ mockDep(
 );
 
 mockDep(
-  "../../../src/utils/logger.ts",
+  "#src/utils/logger.ts",
   () => ({
     logger: {
       debug: mocked.loggerDebugMock,
@@ -90,8 +90,8 @@ mockDep(
   import.meta.url,
 );
 
-const sut = loadSut<typeof import("../../../src/app/services/agent-selection-service.js")>(
-  "../../../src/app/services/agent-selection-service.ts",
+const sut = loadSut<typeof import("#src/app/services/agent-selection-service.js")>(
+  "#src/app/services/agent-selection-service.ts",
   import.meta.url,
 );
 

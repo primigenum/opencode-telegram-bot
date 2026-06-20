@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { t } from "../../../src/i18n/index.js";
+import { t } from "#src/i18n/index.js";
 
 const mocked = vi.hoisted(() => ({
   readdirMock: vi.fn(),
@@ -24,25 +24,25 @@ vi.mock("node:fs", () => ({
   },
 }));
 
-vi.mock("../../../src/app/services/run-control-service.js", () => ({
+vi.mock("#src/app/services/run-control-service.js", () => ({
   isForegroundBusy: mocked.isForegroundBusyMock,
 }));
 
-vi.mock("../../../src/bot/messages/busy-blocked-renderer.js", () => ({
+vi.mock("#src/bot/messages/busy-blocked-renderer.js", () => ({
   replyBusyBlocked: mocked.replyBusyBlockedMock,
 }));
 
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.js", () => ({
   getCurrentProject: mocked.getCurrentProjectMock,
 }));
 
-vi.mock("../../../src/bot/menus/inline-menu.js", () => ({
+vi.mock("#src/bot/menus/inline-menu.js", () => ({
   appendInlineMenuCancelButton: vi.fn((kb: unknown) => kb),
   ensureActiveInlineMenu: mocked.ensureActiveInlineMenuMock,
   clearActiveInlineMenu: mocked.clearActiveInlineMenuMock,
 }));
 
-vi.mock("../../../src/app/managers/interaction-manager.js", () => ({
+vi.mock("#src/app/managers/interaction-manager.js", () => ({
   interactionManager: {
     start: mocked.interactionStartMock,
     getSnapshot: vi.fn(() => null),
@@ -50,11 +50,11 @@ vi.mock("../../../src/app/managers/interaction-manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/bot/messages/send-downloaded-file.js", () => ({
+vi.mock("#src/bot/messages/send-downloaded-file.js", () => ({
   sendDownloadedFile: mocked.sendDownloadedFileMock,
 }));
 
-vi.mock("../../../src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.js", () => ({
   logger: {
     debug: mocked.loggerDebugMock,
     error: mocked.loggerErrorMock,
@@ -63,12 +63,12 @@ vi.mock("../../../src/utils/logger.js", () => ({
   },
 }));
 
-import { lsCommand } from "../../../src/bot/commands/ls-command.js";
+import { lsCommand } from "#src/bot/commands/ls-command.js";
 import {
   clearSessionDirectories,
   handleLsCallback,
-} from "../../../src/bot/callbacks/file-browser-callback-handler.js";
-import { clearLsPathIndex } from "../../../src/bot/menus/file-browser-menu.js";
+} from "#src/bot/callbacks/file-browser-callback-handler.js";
+import { clearLsPathIndex } from "#src/bot/menus/file-browser-menu.js";
 
 function createCommandContext(): Context {
   return {

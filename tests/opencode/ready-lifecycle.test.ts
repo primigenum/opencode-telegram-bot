@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
-import { loadSut } from "../helpers/sut-loader.js";
+import { loadSut } from "#helpers/sut-loader.js";
 
 const mocked = vi.hoisted(() => ({
   loggerDebugMock: vi.fn(),
@@ -7,7 +7,7 @@ const mocked = vi.hoisted(() => ({
   loggerWarnMock: vi.fn(),
 }));
 
-vi.mock("../../src/utils/logger.ts", () => ({
+vi.mock("#src/utils/logger.ts", () => ({
   logger: {
     debug: mocked.loggerDebugMock,
     info: mocked.loggerInfoMock,
@@ -15,8 +15,8 @@ vi.mock("../../src/utils/logger.ts", () => ({
   },
 }));
 
-const sut = loadSut<typeof import("../../src/opencode/ready-lifecycle.js")>(
-  "../../src/opencode/ready-lifecycle.ts",
+const sut = await loadSut<typeof import("#src/opencode/ready-lifecycle.js")>(
+  "#src/opencode/ready-lifecycle.ts",
   import.meta.url,
 );
 
