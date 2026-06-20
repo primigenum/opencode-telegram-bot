@@ -3,6 +3,7 @@ import { InputFile } from "grammy";
 import { mockDep } from "#helpers/mock-dep.js";
 import { loadSut } from "#helpers/sut-loader.js";
 
+import { loadSut } from "#helpers/sut-loader.js";
 mockDep(
   "#src/utils/logger.ts",
   () => ({
@@ -21,7 +22,10 @@ const sut = await loadSut<typeof import("#src/bot/handlers/tts-response-handler.
   import.meta.url,
 );
 
-import { t } from "#src/i18n/index.js";
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 describe("bot/handlers/tts-response-handler", () => {
   it("sends audio when the session response mode requires TTS", async () => {

@@ -1,14 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "#vitest";
-import {
-  getDateLocale,
-  getLocale,
-  getLocaleOptions,
-  normalizeLocale,
-  resetRuntimeLocale,
-  resolveSupportedLocale,
-  setRuntimeLocale,
-  SUPPORTED_LOCALES,
-} from "#src/i18n/index.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { getDateLocale, getLocale, getLocaleOptions, normalizeLocale, resetRuntimeLocale, resolveSupportedLocale, setRuntimeLocale, SUPPORTED_LOCALES } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 describe("i18n/index locale helpers", () => {
   afterEach(() => {

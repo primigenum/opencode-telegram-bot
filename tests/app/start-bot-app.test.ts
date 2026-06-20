@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 
+import { loadSut } from "#helpers/sut-loader.js";
 const mocked = vi.hoisted(() => ({
   createBotMock: vi.fn(),
   cleanupBotRuntimeMock: vi.fn(),
@@ -94,7 +95,10 @@ vi.mock("#src/utils/logger.ts", () => ({
   },
 }));
 
-import { startBotApp } from "#src/app/bootstrap/start-bot-app.js";
+const { startBotApp } = await loadSut<typeof import("#src/app/bootstrap/start-bot-app.js")>(
+  "#src/app/bootstrap/start-bot-app.ts",
+  import.meta.url,
+);
 
 function createBot() {
   return {

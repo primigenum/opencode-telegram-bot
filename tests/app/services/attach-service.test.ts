@@ -1,15 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Bot, Context } from "grammy";
-import {
-  attachToSession,
-  configureAttachPresentation,
-  detachAttachedSession,
-  restoreAttachedCurrentSession,
-} from "#src/app/services/attach-service.js";
-import { attachManager } from "#src/app/managers/attach-manager.js";
-import { questionManager } from "#src/app/managers/question-manager.js";
-import { permissionManager } from "#src/app/managers/permission-manager.js";
-import { createAttachPresentation } from "#src/bot/services/attach-presentation.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { attachToSession, configureAttachPresentation, detachAttachedSession, restoreAttachedCurrentSession } = await loadSut<typeof import("#src/app/services/attach-service.js")>(
+  "#src/app/services/attach-service.ts",
+  import.meta.url,
+);
+const { attachManager } = await loadSut<typeof import("#src/app/managers/attach-manager.js")>(
+  "#src/app/managers/attach-manager.ts",
+  import.meta.url,
+);
+const { questionManager } = await loadSut<typeof import("#src/app/managers/question-manager.js")>(
+  "#src/app/managers/question-manager.ts",
+  import.meta.url,
+);
+const { permissionManager } = await loadSut<typeof import("#src/app/managers/permission-manager.js")>(
+  "#src/app/managers/permission-manager.ts",
+  import.meta.url,
+);
+const { createAttachPresentation } = await loadSut<typeof import("#src/bot/services/attach-presentation.js")>(
+  "#src/bot/services/attach-presentation.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   currentProject: {

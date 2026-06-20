@@ -1,10 +1,13 @@
 import { describe, expect, it } from "#vitest";
-import { createMainKeyboard } from "#src/bot/keyboards/main-reply-keyboard.js";
-import {
-  AGENT_MODE_BUTTON_TEXT_PATTERN,
-  MODEL_BUTTON_TEXT_PATTERN,
-  VARIANT_BUTTON_TEXT_PATTERN,
-} from "#src/bot/message-patterns.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { createMainKeyboard } = await loadSut<typeof import("#src/bot/keyboards/main-reply-keyboard.js")>(
+  "#src/bot/keyboards/main-reply-keyboard.ts",
+  import.meta.url,
+);
+const { AGENT_MODE_BUTTON_TEXT_PATTERN, MODEL_BUTTON_TEXT_PATTERN, VARIANT_BUTTON_TEXT_PATTERN } = await loadSut<typeof import("#src/bot/message-patterns.js")>(
+  "#src/bot/message-patterns.ts",
+  import.meta.url,
+);
 
 function getButtonText(button: string | { text: string }): string {
   return typeof button === "string" ? button : button.text;

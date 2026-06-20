@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
 
+import { loadSut } from "#helpers/sut-loader.js";
 const mockSynthesizeSpeech = vi.hoisted(() => vi.fn());
 
 vi.mock("#src/utils/logger.ts", () => ({
@@ -67,13 +68,10 @@ vi.mock("#src/config.ts", () => ({
   },
 }));
 
-import {
-  isTtsConfigured,
-  synthesizeSpeech,
-  stripMarkdownForSpeech,
-  extractLanguageCode,
-  _resetGoogleClient,
-} from "#src/app/services/tts-service.js";
+const { isTtsConfigured, synthesizeSpeech, stripMarkdownForSpeech, extractLanguageCode, _resetGoogleClient } = await loadSut<typeof import("#src/app/services/tts-service.js")>(
+  "#src/app/services/tts-service.ts",
+  import.meta.url,
+);
 
 describe("isTtsConfigured", () => {
   beforeEach(() => {

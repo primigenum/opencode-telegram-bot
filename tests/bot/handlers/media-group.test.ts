@@ -1,10 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context, NextFunction } from "grammy";
-import {
-  MediaGroupAttachmentHandler,
-  type MediaGroupHandlerDeps,
-} from "#src/bot/handlers/media-group-handler.js";
-import { t } from "#src/i18n/index.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { MediaGroupAttachmentHandler, MediaGroupHandlerDeps } = await loadSut<typeof import("#src/bot/handlers/media-group-handler.js")>(
+  "#src/bot/handlers/media-group-handler.ts",
+  import.meta.url,
+);
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 function createBaseContext(message: Record<string, unknown>): {
   ctx: Context;

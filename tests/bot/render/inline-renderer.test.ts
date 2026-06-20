@@ -1,9 +1,13 @@
 import { describe, expect, it } from "#vitest";
-import { parseTelegramBlocks } from "#src/bot/render/block-parser.js";
-import {
-  renderInlineNodes,
-  renderInlineNodesValidated,
-} from "#src/bot/render/inline-renderer.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { parseTelegramBlocks } = await loadSut<typeof import("#src/bot/render/block-parser.js")>(
+  "#src/bot/render/block-parser.ts",
+  import.meta.url,
+);
+const { renderInlineNodes, renderInlineNodesValidated } = await loadSut<typeof import("#src/bot/render/inline-renderer.js")>(
+  "#src/bot/render/inline-renderer.ts",
+  import.meta.url,
+);
 import type { InlineNode } from "#src/bot/render/types.js";
 
 describe("bot/render/inline-renderer", () => {

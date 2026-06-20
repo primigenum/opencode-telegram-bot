@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 
+import { loadSut } from "#helpers/sut-loader.js";
 const mocked = vi.hoisted(() => ({
   sessionStatusMock: vi.fn(),
   markAttachedSessionBusyMock: vi.fn(),
@@ -34,15 +35,18 @@ vi.mock("#src/app/services/scheduled-task-runtime-service.ts", () => ({
   },
 }));
 
-import { attachManager } from "#src/app/managers/attach-manager.js";
-import { foregroundSessionState } from "#src/app/managers/foreground-session-state-manager.js";
-import {
-  __resetBusyReconciliationForTests,
-  reconcileBusyState,
-  reconcileBusyStateNow,
-  setPromptResponseModeClearerForReconciliation,
-  setResponseStreamerForReconciliation,
-} from "#src/app/services/busy-reconciliation-service.js";
+const { attachManager } = await loadSut<typeof import("#src/app/managers/attach-manager.js")>(
+  "#src/app/managers/attach-manager.ts",
+  import.meta.url,
+);
+const { foregroundSessionState } = await loadSut<typeof import("#src/app/managers/foreground-session-state-manager.js")>(
+  "#src/app/managers/foreground-session-state-manager.ts",
+  import.meta.url,
+);
+const { __resetBusyReconciliationForTests, reconcileBusyState, reconcileBusyStateNow, setPromptResponseModeClearerForReconciliation, setResponseStreamerForReconciliation } = await loadSut<typeof import("#src/app/services/busy-reconciliation-service.js")>(
+  "#src/app/services/busy-reconciliation-service.ts",
+  import.meta.url,
+);
 
 function markForegroundBusyAt(
   sessionId: string,

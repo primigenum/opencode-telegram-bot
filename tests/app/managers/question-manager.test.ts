@@ -1,5 +1,9 @@
 import { describe, expect, it } from "#vitest";
-import { questionManager } from "#src/app/managers/question-manager.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { questionManager } = await loadSut<typeof import("#src/app/managers/question-manager.js")>(
+  "#src/app/managers/question-manager.ts",
+  import.meta.url,
+);
 import type { Question } from "#src/app/types/question.js";
 
 const SINGLE_QUESTION: Question = {

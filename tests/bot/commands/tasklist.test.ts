@@ -1,9 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { taskListCommand } from "#src/bot/commands/tasklist-command.js";
-import { handleTaskListCallback } from "#src/bot/callbacks/scheduled-task-callback-handler.js";
-import { interactionManager } from "#src/app/managers/interaction-manager.js";
-import { t } from "#src/i18n/index.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { taskListCommand } = await loadSut<typeof import("#src/bot/commands/tasklist-command.js")>(
+  "#src/bot/commands/tasklist-command.ts",
+  import.meta.url,
+);
+const { handleTaskListCallback } = await loadSut<typeof import("#src/bot/callbacks/scheduled-task-callback-handler.js")>(
+  "#src/bot/callbacks/scheduled-task-callback-handler.ts",
+  import.meta.url,
+);
+const { interactionManager } = await loadSut<typeof import("#src/app/managers/interaction-manager.js")>(
+  "#src/app/managers/interaction-manager.ts",
+  import.meta.url,
+);
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   listScheduledTasksMock: vi.fn(),

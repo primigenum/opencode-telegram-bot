@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "#vitest";
-import { ToolCallStreamer } from "#src/bot/streaming/tool-call-streamer.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { ToolCallStreamer } = await loadSut<typeof import("#src/bot/streaming/tool-call-streamer.js")>(
+  "#src/bot/streaming/tool-call-streamer.ts",
+  import.meta.url,
+);
 
 describe("bot/streaming/tool-call-streamer", () => {
   afterEach(() => {

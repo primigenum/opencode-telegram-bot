@@ -1,13 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { renameCommand } from "#src/bot/commands/rename-command.js";
-import {
-  handleRenameCancel,
-  handleRenameTextAnswer,
-} from "#src/bot/callbacks/rename-callback-handler.js";
-import { renameManager } from "#src/app/managers/rename-manager.js";
-import { interactionManager } from "#src/app/managers/interaction-manager.js";
-import { t } from "#src/i18n/index.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { renameCommand } = await loadSut<typeof import("#src/bot/commands/rename-command.js")>(
+  "#src/bot/commands/rename-command.ts",
+  import.meta.url,
+);
+const { handleRenameCancel, handleRenameTextAnswer } = await loadSut<typeof import("#src/bot/callbacks/rename-callback-handler.js")>(
+  "#src/bot/callbacks/rename-callback-handler.ts",
+  import.meta.url,
+);
+const { renameManager } = await loadSut<typeof import("#src/app/managers/rename-manager.js")>(
+  "#src/app/managers/rename-manager.ts",
+  import.meta.url,
+);
+const { interactionManager } = await loadSut<typeof import("#src/app/managers/interaction-manager.js")>(
+  "#src/app/managers/interaction-manager.ts",
+  import.meta.url,
+);
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   currentSession: {

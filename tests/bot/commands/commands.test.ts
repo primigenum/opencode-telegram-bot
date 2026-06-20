@@ -1,19 +1,34 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Bot, Context } from "grammy";
-import { commandsCommand } from "#src/bot/commands/command-catalog-command.js";
-import {
-  handleCommandsCallback,
-  type ExecuteCommandDeps,
-} from "#src/bot/callbacks/command-catalog-callback-handler.js";
-import { handleCommandTextArguments } from "#src/bot/handlers/text-message-handler.js";
-import {
-  calculateCommandsPaginationRange,
-  formatCommandsSelectText,
-  parseCommandPageCallback,
-} from "#src/bot/menus/command-catalog-menu.js";
-import { interactionManager } from "#src/app/managers/interaction-manager.js";
-import { t } from "#src/i18n/index.js";
-import { foregroundSessionState } from "#src/app/managers/foreground-session-state-manager.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { commandsCommand } = await loadSut<typeof import("#src/bot/commands/command-catalog-command.js")>(
+  "#src/bot/commands/command-catalog-command.ts",
+  import.meta.url,
+);
+const { handleCommandsCallback, ExecuteCommandDeps } = await loadSut<typeof import("#src/bot/callbacks/command-catalog-callback-handler.js")>(
+  "#src/bot/callbacks/command-catalog-callback-handler.ts",
+  import.meta.url,
+);
+const { handleCommandTextArguments } = await loadSut<typeof import("#src/bot/handlers/text-message-handler.js")>(
+  "#src/bot/handlers/text-message-handler.ts",
+  import.meta.url,
+);
+const { calculateCommandsPaginationRange, formatCommandsSelectText, parseCommandPageCallback } = await loadSut<typeof import("#src/bot/menus/command-catalog-menu.js")>(
+  "#src/bot/menus/command-catalog-menu.ts",
+  import.meta.url,
+);
+const { interactionManager } = await loadSut<typeof import("#src/app/managers/interaction-manager.js")>(
+  "#src/app/managers/interaction-manager.ts",
+  import.meta.url,
+);
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
+const { foregroundSessionState } = await loadSut<typeof import("#src/app/managers/foreground-session-state-manager.js")>(
+  "#src/app/managers/foreground-session-state-manager.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   currentProject: {

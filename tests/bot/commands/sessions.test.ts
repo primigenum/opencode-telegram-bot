@@ -1,15 +1,34 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Bot, Context } from "grammy";
-import {
-  handleBackgroundSessionOpen,
-  handleSessionSelect,
-} from "#src/bot/callbacks/session-callback-handler.js";
-import { sessionsCommand } from "#src/bot/commands/sessions-command.js";
-import { buildBackgroundSessionOpenKeyboard } from "#src/bot/menus/session-selection-menu.js";
-import { interactionManager } from "#src/app/managers/interaction-manager.js";
-import { foregroundSessionState } from "#src/app/managers/foreground-session-state-manager.js";
-import { t } from "#src/i18n/index.js";
-import { safeBackgroundTask } from "#src/utils/safe-background-task.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { handleBackgroundSessionOpen, handleSessionSelect } = await loadSut<typeof import("#src/bot/callbacks/session-callback-handler.js")>(
+  "#src/bot/callbacks/session-callback-handler.ts",
+  import.meta.url,
+);
+const { sessionsCommand } = await loadSut<typeof import("#src/bot/commands/sessions-command.js")>(
+  "#src/bot/commands/sessions-command.ts",
+  import.meta.url,
+);
+const { buildBackgroundSessionOpenKeyboard } = await loadSut<typeof import("#src/bot/menus/session-selection-menu.js")>(
+  "#src/bot/menus/session-selection-menu.ts",
+  import.meta.url,
+);
+const { interactionManager } = await loadSut<typeof import("#src/app/managers/interaction-manager.js")>(
+  "#src/app/managers/interaction-manager.ts",
+  import.meta.url,
+);
+const { foregroundSessionState } = await loadSut<typeof import("#src/app/managers/foreground-session-state-manager.js")>(
+  "#src/app/managers/foreground-session-state-manager.ts",
+  import.meta.url,
+);
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
+const { safeBackgroundTask } = await loadSut<typeof import("#src/utils/safe-background-task.js")>(
+  "#src/utils/safe-background-task.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   currentProject: {

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "#vitest";
-import { formatAssistantRunFooter } from "#src/app/formatters/assistant-run-footer-formatter.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { formatAssistantRunFooter } = await loadSut<typeof import("#src/app/formatters/assistant-run-footer-formatter.js")>(
+  "#src/app/formatters/assistant-run-footer-formatter.ts",
+  import.meta.url,
+);
 
 describe("app/formatters/assistant-run-footer-formatter", () => {
   it("formats agent, model, and elapsed time in one line", () => {

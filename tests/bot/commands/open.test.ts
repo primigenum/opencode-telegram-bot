@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "#vitest";
 import type { Context } from "grammy";
-import { t } from "#src/i18n/index.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   scanDirectoryMock: vi.fn(),
@@ -83,9 +87,18 @@ vi.mock("#src/utils/logger.ts", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-import { openCommand } from "#src/bot/commands/open-command.js";
-import { handleOpenCallback } from "#src/bot/callbacks/file-browser-callback-handler.js";
-import { clearOpenPathIndex } from "#src/bot/menus/file-browser-menu.js";
+const { openCommand } = await loadSut<typeof import("#src/bot/commands/open-command.js")>(
+  "#src/bot/commands/open-command.ts",
+  import.meta.url,
+);
+const { handleOpenCallback } = await loadSut<typeof import("#src/bot/callbacks/file-browser-callback-handler.js")>(
+  "#src/bot/callbacks/file-browser-callback-handler.ts",
+  import.meta.url,
+);
+const { clearOpenPathIndex } = await loadSut<typeof import("#src/bot/menus/file-browser-menu.js")>(
+  "#src/bot/menus/file-browser-menu.ts",
+  import.meta.url,
+);
 
 // --- Context factories ---
 

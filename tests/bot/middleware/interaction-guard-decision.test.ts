@@ -1,8 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { resolveInteractionGuardDecision } from "#src/bot/middleware/interaction-guard-decision.js";
-import { interactionManager } from "#src/app/managers/interaction-manager.js";
-import { foregroundSessionState } from "#src/app/managers/foreground-session-state-manager.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { resolveInteractionGuardDecision } = await loadSut<typeof import("#src/bot/middleware/interaction-guard-decision.js")>(
+  "#src/bot/middleware/interaction-guard-decision.ts",
+  import.meta.url,
+);
+const { interactionManager } = await loadSut<typeof import("#src/app/managers/interaction-manager.js")>(
+  "#src/app/managers/interaction-manager.ts",
+  import.meta.url,
+);
+const { foregroundSessionState } = await loadSut<typeof import("#src/app/managers/foreground-session-state-manager.js")>(
+  "#src/app/managers/foreground-session-state-manager.ts",
+  import.meta.url,
+);
 
 function createContext({
   text,

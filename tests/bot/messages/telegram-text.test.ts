@@ -1,11 +1,9 @@
 import { describe, expect, it, vi } from "#vitest";
-import {
-  editRenderedBotPart,
-  editBotText,
-  getTelegramRenderedPartSignature,
-  sendBotText,
-  sendRenderedBotPart,
-} from "#src/bot/messages/telegram-text.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { editRenderedBotPart, editBotText, getTelegramRenderedPartSignature, sendBotText, sendRenderedBotPart } = await loadSut<typeof import("#src/bot/messages/telegram-text.js")>(
+  "#src/bot/messages/telegram-text.ts",
+  import.meta.url,
+);
 
 describe("bot/messages/telegram-text", () => {
   it("sends raw messages by default", async () => {

@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
-import { parseTaskSchedule } from "#src/app/services/scheduled-task-schedule-parser-service.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { parseTaskSchedule } = await loadSut<typeof import("#src/app/services/scheduled-task-schedule-parser-service.js")>(
+  "#src/app/services/scheduled-task-schedule-parser-service.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   sessionCreateMock: vi.fn(),

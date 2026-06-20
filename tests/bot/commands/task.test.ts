@@ -1,10 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { handleTaskTextInput, taskCommand } from "#src/bot/commands/task-command.js";
-import { handleTaskCallback } from "#src/bot/callbacks/scheduled-task-callback-handler.js";
-import { interactionManager } from "#src/app/managers/interaction-manager.js";
-import { taskCreationManager } from "#src/app/managers/scheduled-task-creation-manager.js";
-import { t } from "#src/i18n/index.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { handleTaskTextInput, taskCommand } = await loadSut<typeof import("#src/bot/commands/task-command.js")>(
+  "#src/bot/commands/task-command.ts",
+  import.meta.url,
+);
+const { handleTaskCallback } = await loadSut<typeof import("#src/bot/callbacks/scheduled-task-callback-handler.js")>(
+  "#src/bot/callbacks/scheduled-task-callback-handler.ts",
+  import.meta.url,
+);
+const { interactionManager } = await loadSut<typeof import("#src/app/managers/interaction-manager.js")>(
+  "#src/app/managers/interaction-manager.ts",
+  import.meta.url,
+);
+const { taskCreationManager } = await loadSut<typeof import("#src/app/managers/scheduled-task-creation-manager.js")>(
+  "#src/app/managers/scheduled-task-creation-manager.ts",
+  import.meta.url,
+);
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   currentProject: {

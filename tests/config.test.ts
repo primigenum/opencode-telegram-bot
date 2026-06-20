@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
-import { buildTelegramConfig, createConfig } from "#src/config.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { buildTelegramConfig, createConfig } = await loadSut<typeof import("#src/config.js")>(
+  "#src/config.ts",
+  import.meta.url,
+);
 
 describe("config boolean env parsing", () => {
   beforeEach(() => {

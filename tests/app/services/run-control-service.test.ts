@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 
+import { loadSut } from "#helpers/sut-loader.js";
 const mocked = vi.hoisted(() => ({
   reconcileBusyStateNowMock: vi.fn(),
   loggerWarnMock: vi.fn(),
@@ -18,9 +19,18 @@ vi.mock("#src/utils/logger.ts", () => ({
   },
 }));
 
-import { attachManager } from "#src/app/managers/attach-manager.js";
-import { foregroundSessionState } from "#src/app/managers/foreground-session-state-manager.js";
-import { reconcileForegroundBusyState } from "#src/app/services/run-control-service.js";
+const { attachManager } = await loadSut<typeof import("#src/app/managers/attach-manager.js")>(
+  "#src/app/managers/attach-manager.ts",
+  import.meta.url,
+);
+const { foregroundSessionState } = await loadSut<typeof import("#src/app/managers/foreground-session-state-manager.js")>(
+  "#src/app/managers/foreground-session-state-manager.ts",
+  import.meta.url,
+);
+const { reconcileForegroundBusyState } = await loadSut<typeof import("#src/app/services/run-control-service.js")>(
+  "#src/app/services/run-control-service.ts",
+  import.meta.url,
+);
 
 describe("app/services/run-control-service", () => {
   beforeEach(() => {

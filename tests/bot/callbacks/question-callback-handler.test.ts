@@ -1,14 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { questionManager } from "#src/app/managers/question-manager.js";
-import { interactionManager } from "#src/app/managers/interaction-manager.js";
-import { showCurrentQuestion } from "#src/bot/menus/question-menu.js";
-import {
-  handleQuestionCallback,
-  handleQuestionTextAnswer,
-} from "#src/bot/callbacks/question-callback-handler.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { questionManager } = await loadSut<typeof import("#src/app/managers/question-manager.js")>(
+  "#src/app/managers/question-manager.ts",
+  import.meta.url,
+);
+const { interactionManager } = await loadSut<typeof import("#src/app/managers/interaction-manager.js")>(
+  "#src/app/managers/interaction-manager.ts",
+  import.meta.url,
+);
+const { showCurrentQuestion } = await loadSut<typeof import("#src/bot/menus/question-menu.js")>(
+  "#src/bot/menus/question-menu.ts",
+  import.meta.url,
+);
+const { handleQuestionCallback, handleQuestionTextAnswer } = await loadSut<typeof import("#src/bot/callbacks/question-callback-handler.js")>(
+  "#src/bot/callbacks/question-callback-handler.ts",
+  import.meta.url,
+);
 import type { Question } from "#src/app/types/question.js";
-import { t } from "#src/i18n/index.js";
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 const QUESTION_ONE: Question = {
   header: "Q1",

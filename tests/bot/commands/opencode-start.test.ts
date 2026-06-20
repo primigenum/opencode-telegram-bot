@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
 import type { ChildProcess } from "node:child_process";
 import type { Context } from "grammy";
-import { t } from "#src/i18n/index.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   healthMock: vi.fn(),
@@ -56,7 +60,10 @@ vi.mock("#src/utils/logger.ts", () => ({
   },
 }));
 
-import { opencodeStartCommand } from "#src/bot/commands/opencode-start-command.js";
+const { opencodeStartCommand } = await loadSut<typeof import("#src/bot/commands/opencode-start-command.js")>(
+  "#src/bot/commands/opencode-start-command.ts",
+  import.meta.url,
+);
 
 function createContext(): Context {
   return {

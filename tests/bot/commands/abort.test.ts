@@ -1,19 +1,44 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { abortCommand, abortCurrentOperation } from "#src/bot/commands/abort-command.js";
-import { clearAllInteractionState } from "#src/app/managers/interaction-manager.js";
-import { questionManager } from "#src/app/managers/question-manager.js";
-import { permissionManager } from "#src/app/managers/permission-manager.js";
-import { renameManager } from "#src/app/managers/rename-manager.js";
-import { interactionManager } from "#src/app/managers/interaction-manager.js";
-import { foregroundSessionState } from "#src/app/managers/foreground-session-state-manager.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { abortCommand, abortCurrentOperation } = await loadSut<typeof import("#src/bot/commands/abort-command.js")>(
+  "#src/bot/commands/abort-command.ts",
+  import.meta.url,
+);
+const { clearAllInteractionState } = await loadSut<typeof import("#src/app/managers/interaction-manager.js")>(
+  "#src/app/managers/interaction-manager.ts",
+  import.meta.url,
+);
+const { questionManager } = await loadSut<typeof import("#src/app/managers/question-manager.js")>(
+  "#src/app/managers/question-manager.ts",
+  import.meta.url,
+);
+const { permissionManager } = await loadSut<typeof import("#src/app/managers/permission-manager.js")>(
+  "#src/app/managers/permission-manager.ts",
+  import.meta.url,
+);
+const { renameManager } = await loadSut<typeof import("#src/app/managers/rename-manager.js")>(
+  "#src/app/managers/rename-manager.ts",
+  import.meta.url,
+);
+const { interactionManager } = await loadSut<typeof import("#src/app/managers/interaction-manager.js")>(
+  "#src/app/managers/interaction-manager.ts",
+  import.meta.url,
+);
+const { foregroundSessionState } = await loadSut<typeof import("#src/app/managers/foreground-session-state-manager.js")>(
+  "#src/app/managers/foreground-session-state-manager.ts",
+  import.meta.url,
+);
 import type { Question } from "#src/app/types/question.js";
 import type { PermissionRequest } from "#src/app/types/permission.js";
-import { t } from "#src/i18n/index.js";
-import {
-  __resetUserAbortErrorSuppressionForTests,
-  shouldSuppressUserAbortSessionError,
-} from "#src/app/managers/abort-suppression-manager.js";
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
+const { __resetUserAbortErrorSuppressionForTests, shouldSuppressUserAbortSessionError } = await loadSut<typeof import("#src/app/managers/abort-suppression-manager.js")>(
+  "#src/app/managers/abort-suppression-manager.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   currentSession: null as { id: string; title: string; directory: string } | null,

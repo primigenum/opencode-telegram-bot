@@ -1,6 +1,10 @@
 import { Agent as HttpsAgent } from "https";
 import { describe, expect, it } from "#vitest";
-import { createTelegramBotOptions } from "#src/bot/telegram-client-options.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { createTelegramBotOptions } = await loadSut<typeof import("#src/bot/telegram-client-options.js")>(
+  "#src/bot/telegram-client-options.ts",
+  import.meta.url,
+);
 
 function makeTelegramConfig(overrides: Partial<Parameters<typeof createTelegramBotOptions>[0]> = {}) {
   return {

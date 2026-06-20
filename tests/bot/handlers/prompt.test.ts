@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Bot, Context } from "grammy";
-import {
-  consumePromptResponseMode,
-  processUserPrompt,
-  type ProcessPromptDeps,
-} from "#src/bot/handlers/prompt.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { consumePromptResponseMode, processUserPrompt, ProcessPromptDeps } = await loadSut<typeof import("#src/bot/handlers/prompt.js")>(
+  "#src/bot/handlers/prompt.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   currentProject: { id: "project-1", worktree: "D:\\Projects\\Repo" },

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Event } from "@opencode-ai/sdk/v2";
 import { loadSut } from "#helpers/sut-loader.js";
 
+import { loadSut } from "#helpers/sut-loader.js";
 const { globalEventMock, subscribeMock } = vi.hoisted(() => {
   return {
     globalEventMock: vi.fn(),
@@ -25,7 +26,10 @@ const sut = await loadSut<typeof import("#src/opencode/events.js")>(
   import.meta.url,
 );
 
-import { logger } from "#src/utils/logger.js";
+const { logger } = await loadSut<typeof import("#src/utils/logger.js")>(
+  "#src/utils/logger.ts",
+  import.meta.url,
+);
 
 function createStream<T>(events: T[]): AsyncGenerator<T, void, unknown> {
   return (async function* () {

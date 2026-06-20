@@ -1,9 +1,9 @@
 import { describe, expect, it } from "#vitest";
-import {
-  computeNextCronRunAt,
-  computeNextRunAt,
-  isTaskDue,
-} from "#src/app/services/scheduled-task-next-run-service.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { computeNextCronRunAt, computeNextRunAt, isTaskDue } = await loadSut<typeof import("#src/app/services/scheduled-task-next-run-service.js")>(
+  "#src/app/services/scheduled-task-next-run-service.ts",
+  import.meta.url,
+);
 import type { ScheduledTask } from "#src/app/types/scheduled-task.js";
 
 describe("app/services/scheduled-task-next-run-service", () => {

@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it } from "#vitest";
-import { renderSubagentCards } from "#src/app/formatters/subagent-formatter.js";
-import { resetRuntimeLocale, setRuntimeLocale } from "#src/i18n/index.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { renderSubagentCards } = await loadSut<typeof import("#src/app/formatters/subagent-formatter.js")>(
+  "#src/app/formatters/subagent-formatter.ts",
+  import.meta.url,
+);
+const { resetRuntimeLocale, setRuntimeLocale } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 describe("summary/subagent-formatter", () => {
   afterEach(() => {

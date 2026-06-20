@@ -1,5 +1,9 @@
 import { describe, expect, it } from "#vitest";
-import { parseTelegramBlocks } from "#src/bot/render/block-parser.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { parseTelegramBlocks } = await loadSut<typeof import("#src/bot/render/block-parser.js")>(
+  "#src/bot/render/block-parser.ts",
+  import.meta.url,
+);
 
 describe("bot/render/block-parser", () => {
   it("parses paragraphs with inline formatting", () => {

@@ -2,12 +2,15 @@ import os from "node:os";
 import path from "node:path";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { afterEach, beforeEach, describe, expect, it } from "#vitest";
-import { setRuntimeMode } from "#src/runtime/mode.js";
-import {
-  __resetSettingsForTests,
-  getTtsMode,
-  loadSettings,
-} from "#src/app/stores/settings-store.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { setRuntimeMode } = await loadSut<typeof import("#src/runtime/mode.js")>(
+  "#src/runtime/mode.ts",
+  import.meta.url,
+);
+const { __resetSettingsForTests, getTtsMode, loadSettings } = await loadSut<typeof import("#src/app/stores/settings-store.js")>(
+  "#src/app/stores/settings-store.ts",
+  import.meta.url,
+);
 
 describe("app/stores/settings-store", () => {
   let tempHome: string;

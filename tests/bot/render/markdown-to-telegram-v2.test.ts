@@ -1,5 +1,9 @@
 import { describe, expect, it } from "#vitest";
-import { convertToTelegramMarkdownV2 } from "#src/bot/render/markdown-to-telegram-v2.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { convertToTelegramMarkdownV2 } = await loadSut<typeof import("#src/bot/render/markdown-to-telegram-v2.js")>(
+  "#src/bot/render/markdown-to-telegram-v2.ts",
+  import.meta.url,
+);
 
 describe("summary/markdown-to-telegram-v2", () => {
   it("converts common inline markdown and escapes Telegram MarkdownV2 text", () => {

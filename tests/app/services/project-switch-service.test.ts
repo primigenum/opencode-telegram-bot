@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "#vitest";
 import type { Context } from "grammy";
 
+import { loadSut } from "#helpers/sut-loader.js";
 const mocked = vi.hoisted(() => ({
   setCurrentProjectMock: vi.fn(),
   clearSessionMock: vi.fn(),
@@ -67,8 +68,14 @@ vi.mock("#src/utils/logger.ts", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-import { switchToProject } from "#src/app/services/project-switch-service.js";
-import { createProjectSwitchPresentation } from "#src/bot/services/project-switch-presentation.js";
+const { switchToProject } = await loadSut<typeof import("#src/app/services/project-switch-service.js")>(
+  "#src/app/services/project-switch-service.ts",
+  import.meta.url,
+);
+const { createProjectSwitchPresentation } = await loadSut<typeof import("#src/bot/services/project-switch-presentation.js")>(
+  "#src/bot/services/project-switch-presentation.ts",
+  import.meta.url,
+);
 
 function createCtx(chatId: number = 123): Context {
   return {

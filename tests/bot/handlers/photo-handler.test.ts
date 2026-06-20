@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { handlePhotoMessage, type PhotoHandlerDeps } from "#src/bot/handlers/photo-handler.js";
-import { t } from "#src/i18n/index.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { handlePhotoMessage, type PhotoHandlerDeps } = await loadSut<typeof import("#src/bot/handlers/photo-handler.js")>(
+  "#src/bot/handlers/photo-handler.ts",
+  import.meta.url,
+);
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 function createPhotoContext(caption = "Describe this"): { ctx: Context; replyMock: ReturnType<typeof vi.fn> } {
   const replyMock = vi.fn().mockResolvedValue({ message_id: 100 });

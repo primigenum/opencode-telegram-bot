@@ -1,5 +1,9 @@
 import { describe, expect, it } from "#vitest";
-import { chunkTelegramRenderedBlocks } from "#src/bot/render/chunker.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { chunkTelegramRenderedBlocks } = await loadSut<typeof import("#src/bot/render/chunker.js")>(
+  "#src/bot/render/chunker.ts",
+  import.meta.url,
+);
 import type { TelegramRenderedBlock } from "#src/bot/render/types.js";
 
 describe("bot/render/chunker", () => {

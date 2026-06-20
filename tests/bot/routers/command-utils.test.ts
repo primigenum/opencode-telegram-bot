@@ -1,5 +1,9 @@
 import { describe, expect, it } from "#vitest";
-import { extractCommandName, isKnownCommand } from "#src/bot/routers/command-utils.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { extractCommandName, isKnownCommand } = await loadSut<typeof import("#src/bot/routers/command-utils.js")>(
+  "#src/bot/routers/command-utils.ts",
+  import.meta.url,
+);
 
 describe("bot/routers/command-utils", () => {
   it("extracts command name from slash command", () => {

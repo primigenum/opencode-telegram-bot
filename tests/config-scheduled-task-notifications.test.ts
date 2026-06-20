@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
-import { createConfig } from "#src/config.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { createConfig } = await loadSut<typeof import("#src/config.js")>(
+  "#src/config.ts",
+  import.meta.url,
+);
 
 describe("config scheduled task notifications", () => {
   beforeEach(() => {

@@ -1,13 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import { Context, InlineKeyboard } from "grammy";
-import { interactionManager } from "#src/app/managers/interaction-manager.js";
-import {
-  appendInlineMenuCancelButton,
-  ensureActiveInlineMenu,
-  replyWithInlineMenu,
-} from "#src/bot/menus/inline-menu.js";
-import { handleInlineMenuCancel } from "#src/bot/callbacks/inline-menu-cancel-callback-handler.js";
-import { t } from "#src/i18n/index.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { interactionManager } = await loadSut<typeof import("#src/app/managers/interaction-manager.js")>(
+  "#src/app/managers/interaction-manager.ts",
+  import.meta.url,
+);
+const { appendInlineMenuCancelButton, ensureActiveInlineMenu, replyWithInlineMenu } = await loadSut<typeof import("#src/bot/menus/inline-menu.js")>(
+  "#src/bot/menus/inline-menu.ts",
+  import.meta.url,
+);
+const { handleInlineMenuCancel } = await loadSut<typeof import("#src/bot/callbacks/inline-menu-cancel-callback-handler.js")>(
+  "#src/bot/callbacks/inline-menu-cancel-callback-handler.ts",
+  import.meta.url,
+);
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 function createReplyContext(messageId: number = 1): Context {
   return {

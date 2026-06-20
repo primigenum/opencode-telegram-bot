@@ -1,12 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Api } from "grammy";
 import { Agent as HttpsAgent } from "https";
-import {
-  toDataUri,
-  formatFileSize,
-  isFileSizeAllowed,
-  isTextMimeType,
-} from "#src/app/services/file-download-service.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { toDataUri, formatFileSize, isFileSizeAllowed, isTextMimeType } = await loadSut<typeof import("#src/app/services/file-download-service.js")>(
+  "#src/app/services/file-download-service.ts",
+  import.meta.url,
+);
 
 const nodeFetchMock = vi.hoisted(() => vi.fn());
 

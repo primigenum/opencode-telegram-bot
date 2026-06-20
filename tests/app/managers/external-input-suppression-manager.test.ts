@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it } from "#vitest";
-import { externalUserInputSuppressionManager } from "#src/app/managers/external-input-suppression-manager.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { externalUserInputSuppressionManager } = await loadSut<typeof import("#src/app/managers/external-input-suppression-manager.js")>(
+  "#src/app/managers/external-input-suppression-manager.ts",
+  import.meta.url,
+);
 
 describe("external-input/suppression", () => {
   beforeEach(() => {

@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
-import {
-  formatSummary,
-  formatSummaryWithMode,
-} from "#src/bot/messages/summary-message-formatter.js";
-import {
-  formatToolInfo,
-  prepareCodeFile,
-} from "#src/app/formatters/summary-formatter.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { formatSummary, formatSummaryWithMode } = await loadSut<typeof import("#src/bot/messages/summary-message-formatter.js")>(
+  "#src/bot/messages/summary-message-formatter.ts",
+  import.meta.url,
+);
+const { formatToolInfo, prepareCodeFile } = await loadSut<typeof import("#src/app/formatters/summary-formatter.js")>(
+  "#src/app/formatters/summary-formatter.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   getCurrentProjectMock: vi.fn(),

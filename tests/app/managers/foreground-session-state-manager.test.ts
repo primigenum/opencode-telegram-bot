@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it } from "#vitest";
-import { foregroundSessionState } from "#src/app/managers/foreground-session-state-manager.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { foregroundSessionState } = await loadSut<typeof import("#src/app/managers/foreground-session-state-manager.js")>(
+  "#src/app/managers/foreground-session-state-manager.ts",
+  import.meta.url,
+);
 
 describe("app/managers/foreground-session-state-manager", () => {
   beforeEach(() => {

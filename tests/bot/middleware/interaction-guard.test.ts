@@ -3,6 +3,7 @@ import type { Context, NextFunction } from "grammy";
 import { mockDep } from "#helpers/mock-dep.js";
 import { loadSut } from "#helpers/sut-loader.js";
 
+import { loadSut } from "#helpers/sut-loader.js";
 const mocked = {
   reconcileForegroundBusyStateMock: vi.fn(),
 };
@@ -20,9 +21,18 @@ const sut = await loadSut<typeof import("#src/bot/middleware/interaction-guard.j
   import.meta.url,
 );
 
-import { interactionManager } from "#src/app/managers/interaction-manager.js";
-import { foregroundSessionState } from "#src/app/managers/foreground-session-state-manager.js";
-import { t } from "#src/i18n/index.js";
+const { interactionManager } = await loadSut<typeof import("#src/app/managers/interaction-manager.js")>(
+  "#src/app/managers/interaction-manager.ts",
+  import.meta.url,
+);
+const { foregroundSessionState } = await loadSut<typeof import("#src/app/managers/foreground-session-state-manager.js")>(
+  "#src/app/managers/foreground-session-state-manager.ts",
+  import.meta.url,
+);
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 function createTextContext(text: string): Context {
   return {

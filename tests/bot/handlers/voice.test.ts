@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "#vitest";
 import { EventEmitter } from "node:events";
 import type { Context } from "grammy";
 import type { VoiceMessageDeps } from "#src/bot/handlers/voice-handler.js";
-import { t } from "#src/i18n/index.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   getTtsModeMock: vi.fn(),

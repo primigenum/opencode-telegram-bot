@@ -3,15 +3,11 @@ import os from "node:os";
 import path from "node:path";
 import { promises as fs } from "node:fs";
 import { mkdtemp, rm, mkdir } from "node:fs/promises";
-import {
-  getHomeDirectory,
-  pathToDisplayPath,
-  scanDirectory,
-  buildEntryLabel,
-  buildTreeHeader,
-  isScanError,
-  MAX_ENTRIES_PER_PAGE,
-} from "#src/app/services/file-browser-service.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { getHomeDirectory, pathToDisplayPath, scanDirectory, buildEntryLabel, buildTreeHeader, isScanError, MAX_ENTRIES_PER_PAGE } = await loadSut<typeof import("#src/app/services/file-browser-service.js")>(
+  "#src/app/services/file-browser-service.ts",
+  import.meta.url,
+);
 
 vi.mock("#src/utils/logger.ts", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },

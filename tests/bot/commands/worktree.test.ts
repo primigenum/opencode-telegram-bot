@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { t } from "#src/i18n/index.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   currentProject: { id: "project-1", worktree: "/repo", name: "Repo" } as {
@@ -63,8 +67,14 @@ vi.mock("#src/utils/logger.ts", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-import { worktreeCommand } from "#src/bot/commands/worktree-command.js";
-import { handleWorktreeCallback } from "#src/bot/callbacks/worktree-callback-handler.js";
+const { worktreeCommand } = await loadSut<typeof import("#src/bot/commands/worktree-command.js")>(
+  "#src/bot/commands/worktree-command.ts",
+  import.meta.url,
+);
+const { handleWorktreeCallback } = await loadSut<typeof import("#src/bot/callbacks/worktree-callback-handler.js")>(
+  "#src/bot/callbacks/worktree-callback-handler.ts",
+  import.meta.url,
+);
 
 function createCommandContext(): Context {
   return {

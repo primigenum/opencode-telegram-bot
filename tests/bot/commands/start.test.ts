@@ -3,6 +3,7 @@ import type { Context } from "grammy";
 import { mockDep } from "#helpers/mock-dep.js";
 import { loadSut } from "#helpers/sut-loader.js";
 
+import { loadSut } from "#helpers/sut-loader.js";
 const mocked = {
   abortCurrentOperationMock: vi.fn(),
   clearSessionMock: vi.fn(),
@@ -118,7 +119,10 @@ const sut = await loadSut<typeof import("#src/bot/commands/start-command.js")>(
   import.meta.url,
 );
 
-import { t } from "#src/i18n/index.js";
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 function createStartContext(): Context {
   return {

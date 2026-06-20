@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "#vitest";
-import { ResponseStreamer } from "#src/bot/streaming/response-streamer.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { ResponseStreamer } = await loadSut<typeof import("#src/bot/streaming/response-streamer.js")>(
+  "#src/bot/streaming/response-streamer.ts",
+  import.meta.url,
+);
 
 function plainPart(text: string) {
   return {

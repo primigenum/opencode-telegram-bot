@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { t } from "#src/i18n/index.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   readdirMock: vi.fn(),
@@ -63,12 +67,18 @@ vi.mock("#src/utils/logger.ts", () => ({
   },
 }));
 
-import { lsCommand } from "#src/bot/commands/ls-command.js";
-import {
-  clearSessionDirectories,
-  handleLsCallback,
-} from "#src/bot/callbacks/file-browser-callback-handler.js";
-import { clearLsPathIndex } from "#src/bot/menus/file-browser-menu.js";
+const { lsCommand } = await loadSut<typeof import("#src/bot/commands/ls-command.js")>(
+  "#src/bot/commands/ls-command.ts",
+  import.meta.url,
+);
+const { clearSessionDirectories, handleLsCallback } = await loadSut<typeof import("#src/bot/callbacks/file-browser-callback-handler.js")>(
+  "#src/bot/callbacks/file-browser-callback-handler.ts",
+  import.meta.url,
+);
+const { clearLsPathIndex } = await loadSut<typeof import("#src/bot/menus/file-browser-menu.js")>(
+  "#src/bot/menus/file-browser-menu.ts",
+  import.meta.url,
+);
 
 function createCommandContext(): Context {
   return {

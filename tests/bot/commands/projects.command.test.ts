@@ -1,8 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { projectsCommand } from "#src/bot/commands/projects-command.js";
-import { foregroundSessionState } from "#src/app/managers/foreground-session-state-manager.js";
-import { t } from "#src/i18n/index.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { projectsCommand } = await loadSut<typeof import("#src/bot/commands/projects-command.js")>(
+  "#src/bot/commands/projects-command.ts",
+  import.meta.url,
+);
+const { foregroundSessionState } = await loadSut<typeof import("#src/app/managers/foreground-session-state-manager.js")>(
+  "#src/app/managers/foreground-session-state-manager.ts",
+  import.meta.url,
+);
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   currentProject: null as { id: string; worktree: string; name?: string } | null,

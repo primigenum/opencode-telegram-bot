@@ -1,10 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
-import {
-  __getUserAbortErrorSuppressionSizeForTests,
-  __resetUserAbortErrorSuppressionForTests,
-  markUserAbortRequested,
-  shouldSuppressUserAbortSessionError,
-} from "#src/app/managers/abort-suppression-manager.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { __getUserAbortErrorSuppressionSizeForTests, __resetUserAbortErrorSuppressionForTests, markUserAbortRequested, shouldSuppressUserAbortSessionError } = await loadSut<typeof import("#src/app/managers/abort-suppression-manager.js")>(
+  "#src/app/managers/abort-suppression-manager.ts",
+  import.meta.url,
+);
 
 describe("app/managers/abort-suppression-manager", () => {
   beforeEach(() => {

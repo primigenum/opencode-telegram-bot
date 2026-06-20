@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
 
+import { loadSut } from "#helpers/sut-loader.js";
 const { projectListMock, cachedSessionProjectsMock } = vi.hoisted(() => ({
   projectListMock: vi.fn(),
   cachedSessionProjectsMock: vi.fn(),
@@ -21,7 +22,10 @@ vi.mock("#src/app/services/session-cache-service.ts", () => ({
   __resetSessionDirectoryCacheForTests: vi.fn(),
 }));
 
-import { getProjects, getProjectByWorktree } from "#src/app/services/project-service.js";
+const { getProjects, getProjectByWorktree } = await loadSut<typeof import("#src/app/services/project-service.js")>(
+  "#src/app/services/project-service.ts",
+  import.meta.url,
+);
 
 describe("project/manager", () => {
   let tempRoot = "";

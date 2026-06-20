@@ -1,5 +1,9 @@
 import { describe, expect, it } from "#vitest";
-import { formatTaskListBadge } from "#src/app/formatters/scheduled-task-display-formatter.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { formatTaskListBadge } = await loadSut<typeof import("#src/app/formatters/scheduled-task-display-formatter.js")>(
+  "#src/app/formatters/scheduled-task-display-formatter.ts",
+  import.meta.url,
+);
 import type { ScheduledTask } from "#src/app/types/scheduled-task.js";
 
 function createCronTask(cron: string): ScheduledTask {

@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "#vitest";
-import {
-  getTelegramRetryAfterMs,
-  withTelegramRateLimitRetry,
-} from "#src/utils/telegram-rate-limit-retry.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { getTelegramRetryAfterMs, withTelegramRateLimitRetry } = await loadSut<typeof import("#src/utils/telegram-rate-limit-retry.js")>(
+  "#src/utils/telegram-rate-limit-retry.ts",
+  import.meta.url,
+);
 
 describe("utils/telegram-rate-limit-retry", () => {
   afterEach(() => {

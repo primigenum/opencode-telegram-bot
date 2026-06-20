@@ -1,6 +1,10 @@
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
-import { getGitWorktreeContext, resolveGitDir } from "#src/app/services/worktree-service.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { getGitWorktreeContext, resolveGitDir } = await loadSut<typeof import("#src/app/services/worktree-service.js")>(
+  "#src/app/services/worktree-service.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   spawnMock: vi.fn(),

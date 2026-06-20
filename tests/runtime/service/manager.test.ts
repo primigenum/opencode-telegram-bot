@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
 
+import { loadSut } from "#helpers/sut-loader.js";
 const { spawnMock, execMock } = vi.hoisted(() => ({
   spawnMock: vi.fn(),
   execMock: vi.fn(),
@@ -35,12 +36,10 @@ vi.mock("#src/runtime/paths.ts", () => ({
   getRuntimePaths: getRuntimePathsMock,
 }));
 
-import {
-  getBotServiceStatus,
-  getServiceStateFilePath,
-  startBotDaemon,
-  stopBotDaemon,
-} from "#src/runtime/service/manager.js";
+const { getBotServiceStatus, getServiceStateFilePath, startBotDaemon, stopBotDaemon } = await loadSut<typeof import("#src/runtime/service/manager.js")>(
+  "#src/runtime/service/manager.ts",
+  import.meta.url,
+);
 
 function setPlatform(platform: NodeJS.Platform): () => void {
   const originalPlatform = process.platform;

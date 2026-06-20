@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { statusCommand } from "#src/bot/commands/status-command.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { statusCommand } = await loadSut<typeof import("#src/bot/commands/status-command.js")>(
+  "#src/bot/commands/status-command.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   healthMock: vi.fn(),

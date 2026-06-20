@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 
+import { loadSut } from "#helpers/sut-loader.js";
 vi.mock("#src/utils/logger.ts", () => ({
   logger: {
     debug: vi.fn(),
@@ -42,7 +43,10 @@ vi.mock("#src/config.ts", () => ({
   },
 }));
 
-import { isSttConfigured, transcribeAudio } from "#src/app/services/stt-service.js";
+const { isSttConfigured, transcribeAudio } = await loadSut<typeof import("#src/app/services/stt-service.js")>(
+  "#src/app/services/stt-service.ts",
+  import.meta.url,
+);
 
 describe("isSttConfigured", () => {
   beforeEach(() => {

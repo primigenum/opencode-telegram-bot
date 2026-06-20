@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
 import { loadSut } from "#helpers/sut-loader.js";
 
+import { loadSut } from "#helpers/sut-loader.js";
 const mocked = {
   currentProject: { id: "project-1", worktree: "D:/repo" } as { id: string; worktree: string } | null,
   currentSession: null as { id: string; title: string; directory: string } | null,
@@ -110,7 +111,10 @@ const sut = await loadSut<typeof import("#src/bot/commands/detach-command.js")>(
   import.meta.url,
 );
 
-import { t } from "#src/i18n/index.js";
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 function createContext(): Context {
   return {

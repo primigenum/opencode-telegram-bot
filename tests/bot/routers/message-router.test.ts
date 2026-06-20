@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "#vitest";
-import { registerMessageRouter } from "#src/bot/routers/message-router.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { registerMessageRouter } = await loadSut<typeof import("#src/bot/routers/message-router.js")>(
+  "#src/bot/routers/message-router.ts",
+  import.meta.url,
+);
 
 describe("bot/routers/message-router", () => {
   it("registers reply keyboard, media, and text routes", () => {

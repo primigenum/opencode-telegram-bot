@@ -2,15 +2,19 @@ import os from "node:os";
 import path from "node:path";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { beforeEach, afterEach, describe, expect, it, vi } from "#vitest";
-import { setRuntimeMode } from "#src/runtime/mode.js";
-import { loadSettings } from "#src/app/stores/settings-store.js";
-import {
-  __resetSessionDirectoryCacheForTests,
-  getCachedSessionDirectories,
-  syncSessionDirectoryCache,
-  upsertSessionDirectory,
-  warmupSessionDirectoryCache,
-} from "#src/app/services/session-cache-service.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { setRuntimeMode } = await loadSut<typeof import("#src/runtime/mode.js")>(
+  "#src/runtime/mode.ts",
+  import.meta.url,
+);
+const { loadSettings } = await loadSut<typeof import("#src/app/stores/settings-store.js")>(
+  "#src/app/stores/settings-store.ts",
+  import.meta.url,
+);
+const { __resetSessionDirectoryCacheForTests, getCachedSessionDirectories, syncSessionDirectoryCache, upsertSessionDirectory, warmupSessionDirectoryCache } = await loadSut<typeof import("#src/app/services/session-cache-service.js")>(
+  "#src/app/services/session-cache-service.ts",
+  import.meta.url,
+);
 
 const { sessionListMock, loggerWarnMock, loggerDebugMock, loggerInfoMock, loggerErrorMock } =
   vi.hoisted(() => ({
