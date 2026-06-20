@@ -57,3 +57,32 @@ export async function loadSut<T extends object>(
   const absPath = resolveAbsPath(relativePath, fromUrl);
   return (await import(absPath)) as T;
 }
+
+/**
+ * Creates a plain object that exposes the given SUT keys as thin wrappers
+ * that delegate to the SUT at call time. Useful when the test wants to
+ * destructure SUT exports at the module body (e.g. `const { foo } = bindSut(sut, ...)`)
+ * and `loadSut`'s Promise can't be awaited in the right position.
+ *
+ * Prefer `loadSut` + property access (`sut.x(...)`) over `bindSut` when
+ * possible — under bun, `mock.module` does not always replace the SUT's
+ * static imports with the mock factory's exports, so destructuring
+ * captures whatever the factory returned at the time `mock.module` was
+ * called (which can be a snapshot that doesn't reflect later mutations).
+ */
+export function bindSut<T extends object, K extends keyof T>(
+  sut: T,
+  keys: readonly K[],
+): Pick<T, K> {
+  const bound: Partial<Pick<T, K>> = {};
+  for (const key of keys) {
+    (bound as Record<K, unknown>)[key] = (...args: unknown[]) => {
+      const value = (sut as Record<K, unknown>)[key];
+      if (typeof value === "function") {
+        return (value as (...a: unknown[]) => unknown)(...args);
+      }
+      return value;
+    };
+  }
+  return bound as Pick<T, K>;
+}
