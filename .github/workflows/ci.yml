@@ -17,7 +17,11 @@ concurrency:
 jobs:
   quality:
     name: Lint, Build, Test
-    runs-on: self-hosted
+    # Run on the shared "server" self-hosted runner (same machine that
+    # serves nexum's CI). Fall back to ubuntu-latest if the runner is
+    # offline so the workflow still runs on forks/PRs from external
+    # contributors without a self-hosted runner available.
+    runs-on: [self-hosted, server]
     timeout-minutes: 15
 
     steps:

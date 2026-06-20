@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
-import * as actualSettingsStore from "#src/app/stores/settings-store.js";
 import { mockDep } from "#helpers/mock-dep.js";
 import { loadSut } from "#helpers/sut-loader.js";
 
@@ -19,53 +18,130 @@ let currentSession:
   | undefined;
 let currentAgent: string | undefined;
 
+// bun's mock.module caches the synthetic module on first load. The mock
+// factory is called once. After that, the SUT's static import holds a
+// reference to whatever the factory returned. If the factory returned
+// `vi.fn(() => currentProject)`, the SUT ends up with a mock whose
+// implementation captured `currentProject` at factory-call time, NOT at
+// mock-call time — so subsequent `currentProject = ...` updates are
+// invisible to the mock.
+//
+// Workaround: store mutable state on globalThis (per-test-file) and have
+// the mock factory return plain functions that read from globalThis at
+// call time.
+const TEST_STATE_KEY = "__bunTestAgentState__";
+interface TestState {
+  currentProject:
+    | {
+        id: string;
+        worktree: string;
+        name: string;
+      }
+    | undefined;
+  currentSession:
+    | {
+        id: string;
+        directory: string;
+        title: string;
+      }
+    | undefined;
+  currentAgent: string | undefined;
+}
+const state: TestState = (globalThis as Record<string, TestState>)[TEST_STATE_KEY] ??= {
+  currentProject: undefined,
+  currentSession: undefined,
+  currentAgent: undefined,
+};
+
 const mocked = {
   appAgentsMock: vi.fn(),
   sessionMessagesMock: vi.fn(),
-  getCurrentProjectMock: vi.fn(() => currentProject),
-  getCurrentSessionMock: vi.fn(() => currentSession),
-  getCurrentAgentMock: vi.fn(() => currentAgent),
+  getCurrentProjectMock: vi.fn(() => {
+    if (process.env.DEBUG_MOCK) console.log(`[getCurrentProjectMock] state.currentProject:`, JSON.stringify(state.currentProject));
+    return state.currentProject;
+  }),
+  getCurrentSessionMock: vi.fn(() => state.currentSession),
+  getCurrentAgentMock: vi.fn(() => state.currentAgent),
   setCurrentAgentMock: vi.fn((agentName: string) => {
-    currentAgent = agentName;
+    state.currentAgent = agentName;
   }),
   loggerDebugMock: vi.fn(),
   loggerErrorMock: vi.fn(),
   loggerInfoMock: vi.fn(),
   loggerWarnMock: vi.fn(),
   setCurrentProject: (project?: { id: string; worktree: string; name: string }) => {
-    currentProject = project;
+    state.currentProject = project;
   },
   setCurrentSession: (session?: { id: string; directory: string; title: string }) => {
-    currentSession = session;
+    state.currentSession = session;
   },
   setCurrentAgent: (agentName?: string) => {
-    currentAgent = agentName;
+    state.currentAgent = agentName;
   },
 };
 
 mockDep(
   "#src/opencode/client.ts",
-  () => ({
-    opencodeClient: {
-      app: {
-        agents: mocked.appAgentsMock,
+  () => {
+    if (process.env.DEBUG_MOCK) console.log("[FACTORY client.ts] called");
+    return {
+      opencodeClient: {
+        app: {
+          agents: mocked.appAgentsMock,
+        },
+        session: {
+          messages: mocked.sessionMessagesMock,
+        },
       },
-      session: {
-        messages: mocked.sessionMessagesMock,
-      },
-    },
-  }),
+    };
+  },
   import.meta.url,
 );
 
+// Provide the full set of exports from settings-store so the SUT (and any
+// transitive deps that import it) can destructure or call any export without
+// hitting "undefined is not a function". The four exports we actually exercise
+// in this test are wired to the mocks above; the rest are vi.fn() stubs.
+const settingsStoreStubExports = [
+  "getCurrentProject",
+  "setCurrentProject",
+  "clearProject",
+  "getCurrentSession",
+  "setCurrentSession",
+  "clearSession",
+  "getTtsMode",
+  "setTtsMode",
+  "getCurrentAgent",
+  "setCurrentAgent",
+  "clearCurrentAgent",
+  "getCurrentModel",
+  "setCurrentModel",
+  "clearCurrentModel",
+  "getPinnedMessageId",
+  "setPinnedMessageId",
+  "clearPinnedMessageId",
+  "getSessionDirectoryCache",
+  "setSessionDirectoryCache",
+  "clearSessionDirectoryCache",
+  "getScheduledTasks",
+  "setScheduledTasks",
+  "getScheduledTaskSessionIgnores",
+  "setScheduledTaskSessionIgnores",
+  "__resetSettingsForTests",
+  "loadSettings",
+] as const;
+
 mockDep(
   "#src/app/stores/settings-store.ts",
-  () => ({
-    ...actualSettingsStore,
-    getCurrentProject: mocked.getCurrentProjectMock,
-    getCurrentAgent: mocked.getCurrentAgentMock,
-    setCurrentAgent: mocked.setCurrentAgentMock,
-  }),
+  () => {
+    if (process.env.DEBUG_MOCK) console.log("[FACTORY settings-store.ts] called");
+    const stub: Record<string, unknown> = {};
+    for (const name of settingsStoreStubExports) stub[name] = vi.fn();
+    stub.getCurrentProject = mocked.getCurrentProjectMock;
+    stub.getCurrentAgent = mocked.getCurrentAgentMock;
+    stub.setCurrentAgent = mocked.setCurrentAgentMock;
+    return stub;
+  },
   import.meta.url,
 );
 
@@ -116,9 +192,9 @@ describe("agent/manager", () => {
     mocked.loggerErrorMock.mockReset();
     mocked.loggerInfoMock.mockReset();
     mocked.loggerWarnMock.mockReset();
-    mocked.setCurrentProject(undefined);
-    mocked.setCurrentSession(undefined);
-    mocked.setCurrentAgent(undefined);
+    state.currentProject = undefined;
+    state.currentSession = undefined;
+    state.currentAgent = undefined;
   });
 
   it("filters out hidden agents and subagents", async () => {
@@ -157,6 +233,8 @@ describe("agent/manager", () => {
         { name: "plan", mode: "primary" },
       ]),
     );
+
+    const agents = await sut.getAvailableAgents();
 
     const result = await sut.resolveProjectAgent("orchestrator");
 

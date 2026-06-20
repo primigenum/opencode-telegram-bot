@@ -36,6 +36,11 @@ export function mockDep(
       const absStripped = absPath.replace(/\.(ts|tsx|js|jsx)$/, "");
       registerMock(absStripped, factory);
       registerMock(absPath, factory);
+      // Also register every other extension so the mock applies regardless
+      // of which extension bun resolves the static import to.
+      for (const altExt of [".ts", ".tsx", ".js", ".jsx"]) {
+        if (altExt !== ext) registerMock(absPath.replace(/\.(ts|tsx|js|jsx)$/, "") + altExt, factory);
+      }
       return;
     } catch {
       // continue
