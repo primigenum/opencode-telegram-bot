@@ -10,18 +10,42 @@ const { formatToolInfo, prepareCodeFile } = await loadSut<typeof import("#src/ap
 );
 
 const mocked = vi.hoisted(() => ({
-  getCurrentProjectMock: vi.fn(),
+  getCurrentProjectMock: vi.fn(() => ({ id: "p1", worktree: "D:/repo", name: "repo" })),
 }));
 
-vi.mock("#src/app/stores/settings-store.ts", async () => {
-  const actual = await vi.importActual<typeof import("#src/app/stores/settings-store.js")>(
-    "#src/app/stores/settings-store.js",
-  );
-
-  return {
-    ...actual,
-    getCurrentProject: mocked.getCurrentProjectMock,
-  };
+vi.mock("#src/app/stores/settings-store.ts", () => {
+  const stubs = [
+    "getCurrentProject",
+    "setCurrentProject",
+    "clearProject",
+    "getCurrentSession",
+    "setCurrentSession",
+    "clearSession",
+    "getTtsMode",
+    "setTtsMode",
+    "getCurrentAgent",
+    "setCurrentAgent",
+    "clearCurrentAgent",
+    "getCurrentModel",
+    "setCurrentModel",
+    "clearCurrentModel",
+    "getPinnedMessageId",
+    "setPinnedMessageId",
+    "clearPinnedMessageId",
+    "getSessionDirectoryCache",
+    "setSessionDirectoryCache",
+    "clearSessionDirectoryCache",
+    "getScheduledTasks",
+    "setScheduledTasks",
+    "getScheduledTaskSessionIgnores",
+    "setScheduledTaskSessionIgnores",
+    "__resetSettingsForTests",
+    "loadSettings",
+  ];
+  const obj: Record<string, unknown> = {};
+  for (const name of stubs) obj[name] = vi.fn();
+  obj.getCurrentProject = mocked.getCurrentProjectMock;
+  return obj;
 });
 
 describe("bot/messages/summary-message-formatter", () => {
