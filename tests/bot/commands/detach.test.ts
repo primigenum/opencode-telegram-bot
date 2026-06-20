@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { mockDep } from "../../helpers/mock-dep.js";
 import { loadSut } from "../../helpers/sut-loader.js";
 
 const mocked = {
@@ -21,92 +20,90 @@ const mocked = {
   clearPromptResponseModeMock: vi.fn(),
 };
 
-mockDep(
-  "../../../src/app/stores/settings-store.ts",
-  () => ({
-    getCurrentProject: vi.fn(() => mocked.currentProject),
-  }),
-  import.meta.url,
-);
+vi.mock("../../../src/app/stores/settings-store.ts", () => {
+  const fns = [
+    "getCurrentProject",
+    "setCurrentProject",
+    "clearProject",
+    "getCurrentSession",
+    "setCurrentSession",
+    "clearSession",
+    "getTtsMode",
+    "setTtsMode",
+    "getCurrentAgent",
+    "setCurrentAgent",
+    "clearCurrentAgent",
+    "getCurrentModel",
+    "setCurrentModel",
+    "clearCurrentModel",
+    "getPinnedMessageId",
+    "setPinnedMessageId",
+    "clearPinnedMessageId",
+    "getSessionDirectoryCache",
+    "setSessionDirectoryCache",
+    "clearSessionDirectoryCache",
+    "getScheduledTasks",
+    "setScheduledTasks",
+    "getScheduledTaskSessionIgnores",
+    "setScheduledTaskSessionIgnores",
+    "__resetSettingsForTests",
+    "loadSettings",
+  ];
+  const obj: Record<string, unknown> = {};
+  for (const name of fns) obj[name] = vi.fn();
+  obj.getCurrentProject = vi.fn(() => mocked.currentProject);
+  obj.clearSession = mocked.clearSessionMock;
+  return obj;
+});
 
-mockDep(
-  "../../../src/app/services/session-service.ts",
-  () => ({
-    getCurrentSession: vi.fn(() => mocked.currentSession),
-    clearSession: mocked.clearSessionMock,
-  }),
-  import.meta.url,
-);
+vi.mock("../../../src/app/services/attach-service.ts", () => ({
+  detachAttachedSession: mocked.detachAttachedSessionMock,
+}));
 
-mockDep(
-  "../../../src/app/services/attach-service.ts",
-  () => ({
-    detachAttachedSession: mocked.detachAttachedSessionMock,
-  }),
-  import.meta.url,
-);
+vi.mock("../../../src/app/managers/interaction-manager.ts", () => ({
+  interactionManager: { clear: vi.fn() },
+  clearAllInteractionState: mocked.clearAllInteractionStateMock,
+  questionManager: { clear: vi.fn(), startQuestions: vi.fn(), isActive: vi.fn(() => false) },
+  permissionManager: { clear: vi.fn(), startPermission: vi.fn(), isActive: vi.fn(() => false) },
+  renameManager: { clear: vi.fn(), startWaiting: vi.fn(), isWaitingForName: vi.fn(() => false) },
+  getSnapshot: vi.fn(),
+}));
 
-mockDep(
-  "../../../src/app/managers/interaction-manager.ts",
-  () => ({
-    interactionManager: { clear: vi.fn() },
-    clearAllInteractionState: mocked.clearAllInteractionStateMock,
-  }),
-  import.meta.url,
-);
+vi.mock("../../../src/bot/pinned/pinned-message-manager.ts", () => ({
+  pinnedMessageManager: {
+    isInitialized: mocked.pinnedIsInitializedMock,
+    clear: mocked.pinnedClearMock,
+    refreshContextLimit: mocked.pinnedRefreshContextLimitMock,
+    getContextLimit: mocked.pinnedGetContextLimitMock,
+  },
+}));
 
-mockDep(
-  "../../../src/bot/pinned/pinned-message-manager.ts",
-  () => ({
-    pinnedMessageManager: {
-      isInitialized: mocked.pinnedIsInitializedMock,
-      clear: mocked.pinnedClearMock,
-      refreshContextLimit: mocked.pinnedRefreshContextLimitMock,
-      getContextLimit: mocked.pinnedGetContextLimitMock,
-    },
-  }),
-  import.meta.url,
-);
+vi.mock("../../../src/bot/keyboards/keyboard-manager.ts", () => ({
+  keyboardManager: {
+    initialize: mocked.keyboardInitializeMock,
+    updateContext: mocked.keyboardUpdateContextMock,
+    getKeyboard: mocked.keyboardGetKeyboardMock,
+  },
+}));
 
-mockDep(
-  "../../../src/bot/keyboards/keyboard-manager.ts",
-  () => ({
-    keyboardManager: {
-      initialize: mocked.keyboardInitializeMock,
-      updateContext: mocked.keyboardUpdateContextMock,
-      getKeyboard: mocked.keyboardGetKeyboardMock,
-    },
-  }),
-  import.meta.url,
-);
+vi.mock("../../../src/app/managers/foreground-session-state-manager.ts", () => ({
+  foregroundSessionState: {
+    markIdle: mocked.foregroundMarkIdleMock,
+    isBusy: vi.fn(() => false),
+    markBusy: vi.fn(),
+    __resetForTests: vi.fn(),
+  },
+}));
 
-mockDep(
-  "../../../src/app/managers/foreground-session-state-manager.ts",
-  () => ({
-    foregroundSessionState: {
-      markIdle: mocked.foregroundMarkIdleMock,
-    },
-  }),
-  import.meta.url,
-);
+vi.mock("../../../src/app/managers/assistant-run-state-manager.ts", () => ({
+  assistantRunState: {
+    clearRun: mocked.assistantClearRunMock,
+  },
+}));
 
-mockDep(
-  "../../../src/app/managers/assistant-run-state-manager.ts",
-  () => ({
-    assistantRunState: {
-      clearRun: mocked.assistantClearRunMock,
-    },
-  }),
-  import.meta.url,
-);
-
-mockDep(
-  "../../../src/bot/handlers/prompt.ts",
-  () => ({
-    clearPromptResponseMode: mocked.clearPromptResponseModeMock,
-  }),
-  import.meta.url,
-);
+vi.mock("../../../src/bot/handlers/prompt.ts", () => ({
+  clearPromptResponseMode: mocked.clearPromptResponseModeMock,
+}));
 
 const sut = loadSut<typeof import("../../../src/bot/commands/detach-command.js")>(
   "../../../src/bot/commands/detach-command.ts",

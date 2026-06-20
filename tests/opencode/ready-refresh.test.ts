@@ -1,54 +1,46 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
-import { mockDep } from "../helpers/mock-dep.js";
 import { loadSut } from "../helpers/sut-loader.js";
 
-const mocked = {
+const mocked = vi.hoisted(() => ({
   healthMock: vi.fn(),
   warmupSessionDirectoryCacheMock: vi.fn(),
   reconcileStoredModelSelectionMock: vi.fn(),
   loggerDebugMock: vi.fn(),
   loggerWarnMock: vi.fn(),
-};
+}));
 
-mockDep(
-  "../../src/opencode/client.ts",
-  () => ({
-    opencodeClient: {
-      global: {
-        health: mocked.healthMock,
-      },
+vi.mock("../../src/opencode/client.ts", () => ({
+  opencodeClient: {
+    global: {
+      health: mocked.healthMock,
     },
-  }),
-  import.meta.url,
-);
+  },
+}));
 
-mockDep(
-  "../../src/app/services/session-cache-service.ts",
-  () => ({
-    __resetSessionDirectoryCacheForTests: vi.fn(),
-    warmupSessionDirectoryCache: mocked.warmupSessionDirectoryCacheMock,
-  }),
-  import.meta.url,
-);
+vi.mock("../../src/app/services/session-cache-service.ts", () => ({
+  __resetSessionDirectoryCacheForTests: vi.fn(),
+  warmupSessionDirectoryCache: mocked.warmupSessionDirectoryCacheMock,
+}));
 
-mockDep(
-  "../../src/app/services/model-selection-service.ts",
-  () => ({
-    reconcileStoredModelSelection: mocked.reconcileStoredModelSelectionMock,
-  }),
-  import.meta.url,
-);
+vi.mock("../../src/app/services/model-selection-service.ts", () => ({
+  reconcileStoredModelSelection: mocked.reconcileStoredModelSelectionMock,
+  getModelSelectionLists: vi.fn(),
+  __resetModelCatalogCacheForTests: vi.fn(),
+  getFavoriteModels: vi.fn(),
+  searchModels: vi.fn(),
+  fetchCurrentModel: vi.fn(),
+  selectModel: vi.fn(),
+  getStoredModel: vi.fn(),
+}));
 
-mockDep(
-  "../../src/utils/logger.ts",
-  () => ({
-    logger: {
-      debug: mocked.loggerDebugMock,
-      warn: mocked.loggerWarnMock,
-    },
-  }),
-  import.meta.url,
-);
+vi.mock("../../src/utils/logger.ts", () => ({
+  logger: {
+    debug: mocked.loggerDebugMock,
+    info: vi.fn(),
+    warn: mocked.loggerWarnMock,
+    error: vi.fn(),
+  },
+}));
 
 const sut = loadSut<typeof import("../../src/opencode/ready-refresh.js")>(
   "../../src/opencode/ready-refresh.ts",
@@ -117,6 +109,7 @@ describe("opencode/ready-refresh", () => {
 
     expect(mocked.loggerWarnMock).toHaveBeenCalledWith(
       "[OpenCodeReady] Failed to refresh model catalog: reason=opencode_start_success",
+      expect.any(Error),
     );
   });
 });

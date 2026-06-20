@@ -1,9 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
 import type { ChildProcess } from "node:child_process";
-import { mockDep } from "../helpers/mock-dep.js";
 import { loadSut } from "../helpers/sut-loader.js";
 
-const mocked = {
+const mocked = vi.hoisted(() => ({
   healthMock: vi.fn(),
   resolveLocalOpencodeTargetMock: vi.fn(),
   startLocalOpencodeServerMock: vi.fn(),
@@ -20,60 +19,40 @@ const mocked = {
       monitorIntervalSec: 300,
     },
   },
-};
+}));
 
-mockDep(
-  "../../src/config.ts",
-  () => ({
-    config: mocked.config,
-  }),
-  import.meta.url,
-);
+vi.mock("../../src/config.ts", () => ({
+  config: mocked.config,
+}));
 
-mockDep(
-  "../../src/opencode/client.ts",
-  () => ({
-    opencodeClient: {
-      global: {
-        health: mocked.healthMock,
-      },
+vi.mock("../../src/opencode/client.ts", () => ({
+  opencodeClient: {
+    global: {
+      health: mocked.healthMock,
     },
-  }),
-  import.meta.url,
-);
+  },
+}));
 
-mockDep(
-  "../../src/opencode/process.ts",
-  () => ({
-    resolveLocalOpencodeTarget: mocked.resolveLocalOpencodeTargetMock,
-    startLocalOpencodeServer: mocked.startLocalOpencodeServerMock,
-  }),
-  import.meta.url,
-);
+vi.mock("../../src/opencode/process.ts", () => ({
+  resolveLocalOpencodeTarget: mocked.resolveLocalOpencodeTargetMock,
+  startLocalOpencodeServer: mocked.startLocalOpencodeServerMock,
+}));
 
-mockDep(
-  "../../src/opencode/ready-lifecycle.ts",
-  () => ({
-    opencodeReadyLifecycle: {
-      notifyReady: mocked.notifyReadyMock,
-      notifyUnavailable: mocked.notifyUnavailableMock,
-    },
-  }),
-  import.meta.url,
-);
+vi.mock("../../src/opencode/ready-lifecycle.ts", () => ({
+  opencodeReadyLifecycle: {
+    notifyReady: mocked.notifyReadyMock,
+    notifyUnavailable: mocked.notifyUnavailableMock,
+  },
+}));
 
-mockDep(
-  "../../src/utils/logger.ts",
-  () => ({
-    logger: {
-      debug: mocked.loggerDebugMock,
-      info: mocked.loggerInfoMock,
-      warn: mocked.loggerWarnMock,
-      error: mocked.loggerErrorMock,
-    },
-  }),
-  import.meta.url,
-);
+vi.mock("../../src/utils/logger.ts", () => ({
+  logger: {
+    debug: mocked.loggerDebugMock,
+    info: mocked.loggerInfoMock,
+    warn: mocked.loggerWarnMock,
+    error: mocked.loggerErrorMock,
+  },
+}));
 
 const sut = loadSut<typeof import("../../src/opencode/auto-restart.js")>(
   "../../src/opencode/auto-restart.ts",
