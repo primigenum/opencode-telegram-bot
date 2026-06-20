@@ -9,8 +9,8 @@ export type MessageFormatMode = "raw" | "markdown";
 export type StreamingMode = "edit" | "draft";
 export type TtsProvider = "openai" | "google" | "elevenlabs";
 
-function getEnvVar(key: string, required: boolean = true): string {
-  const value = process.env[key];
+function getEnvVar(env: NodeJS.ProcessEnv, key: string, required: boolean = true): string {
+  const value = env[key];
   if (required && !value) {
     throw new Error(
       `Missing required environment variable: ${key} (expected in ${runtimePaths.envFilePath})`,
@@ -19,8 +19,12 @@ function getEnvVar(key: string, required: boolean = true): string {
   return value || "";
 }
 
-function getOptionalPositiveIntEnvVar(key: string, defaultValue: number): number {
-  const value = getEnvVar(key, false);
+function getOptionalPositiveIntEnvVar(
+  env: NodeJS.ProcessEnv,
+  key: string,
+  defaultValue: number,
+): number {
+  const value = getEnvVar(env, key, false);
 
   if (!value) {
     return defaultValue;
@@ -34,13 +38,17 @@ function getOptionalPositiveIntEnvVar(key: string, defaultValue: number): number
   return parsedValue;
 }
 
-function getOptionalLocaleEnvVar(key: string, defaultValue: Locale): Locale {
-  const value = getEnvVar(key, false);
+function getOptionalLocaleEnvVar(env: NodeJS.ProcessEnv, key: string, defaultValue: Locale): Locale {
+  const value = getEnvVar(env, key, false);
   return normalizeLocale(value, defaultValue);
 }
 
-function getOptionalBooleanEnvVar(key: string, defaultValue: boolean): boolean {
-  const value = getEnvVar(key, false);
+function getOptionalBooleanEnvVar(
+  env: NodeJS.ProcessEnv,
+  key: string,
+  defaultValue: boolean,
+): boolean {
+  const value = getEnvVar(env, key, false);
 
   if (!value) {
     return defaultValue;
@@ -60,10 +68,11 @@ function getOptionalBooleanEnvVar(key: string, defaultValue: boolean): boolean {
 }
 
 function getOptionalStreamingModeEnvVar(
+  env: NodeJS.ProcessEnv,
   key: string,
   defaultValue: StreamingMode,
 ): StreamingMode {
-  const value = getEnvVar(key, false);
+  const value = getEnvVar(env, key, false);
 
   if (!value) {
     return defaultValue;
@@ -78,10 +87,11 @@ function getOptionalStreamingModeEnvVar(
 }
 
 function getOptionalMessageFormatModeEnvVar(
+  env: NodeJS.ProcessEnv,
   key: string,
   defaultValue: MessageFormatMode,
 ): MessageFormatMode {
-  const value = getEnvVar(key, false);
+  const value = getEnvVar(env, key, false);
 
   if (!value) {
     return defaultValue;
@@ -97,8 +107,12 @@ function getOptionalMessageFormatModeEnvVar(
 
 const VALID_TTS_PROVIDERS: TtsProvider[] = ["openai", "google", "elevenlabs"];
 
-function getOptionalTtsProviderEnvVar(key: string, defaultValue: TtsProvider): TtsProvider {
-  const value = getEnvVar(key, false);
+function getOptionalTtsProviderEnvVar(
+  env: NodeJS.ProcessEnv,
+  key: string,
+  defaultValue: TtsProvider,
+): TtsProvider {
+  const value = getEnvVar(env, key, false);
 
   if (!value) {
     return defaultValue;
@@ -112,20 +126,22 @@ function getOptionalTtsProviderEnvVar(key: string, defaultValue: TtsProvider): T
   return defaultValue;
 }
 
-export function buildTelegramConfig(): {
+export interface TelegramConfig {
   token: string;
   allowedUserId: number;
   proxyUrl: string;
   apiRoot: string;
   proxySecret: string;
   forceIpv4: boolean;
-} {
-  const proxyUrl = getEnvVar("TELEGRAM_PROXY_URL", false);
+}
+
+export function buildTelegramConfig(env: NodeJS.ProcessEnv): TelegramConfig {
+  const proxyUrl = getEnvVar(env, "TELEGRAM_PROXY_URL", false);
   // grammY rejects an apiRoot ending with `/`, so normalize once at config
   // load instead of leaking the concern into every consumer.
-  const apiRoot = getEnvVar("TELEGRAM_API_ROOT", false).replace(/\/+$/, "");
-  const proxySecret = getEnvVar("TELEGRAM_PROXY_SECRET", false);
-  const forceIpv4 = getOptionalBooleanEnvVar("TELEGRAM_FORCE_IPV4", false);
+  const apiRoot = getEnvVar(env, "TELEGRAM_API_ROOT", false).replace(/\/+$/, "");
+  const proxySecret = getEnvVar(env, "TELEGRAM_PROXY_SECRET", false);
+  const forceIpv4 = getOptionalBooleanEnvVar(env, "TELEGRAM_FORCE_IPV4", false);
 
   if (proxyUrl && apiRoot) {
     throw new Error(
@@ -142,8 +158,8 @@ export function buildTelegramConfig(): {
   }
 
   return {
-    token: getEnvVar("TELEGRAM_BOT_TOKEN"),
-    allowedUserId: parseInt(getEnvVar("TELEGRAM_ALLOWED_USER_ID"), 10),
+    token: getEnvVar(env, "TELEGRAM_BOT_TOKEN"),
+    allowedUserId: parseInt(getEnvVar(env, "TELEGRAM_ALLOWED_USER_ID"), 10),
     proxyUrl,
     apiRoot,
     proxySecret,
@@ -151,75 +167,80 @@ export function buildTelegramConfig(): {
   };
 }
 
-export const config = {
-  telegram: buildTelegramConfig(),
-  opencode: {
-    apiUrl: getEnvVar("OPENCODE_API_URL", false) || "http://localhost:4096",
-    username: getEnvVar("OPENCODE_SERVER_USERNAME", false) || "opencode",
-    password: getEnvVar("OPENCODE_SERVER_PASSWORD", false),
-    autoRestartEnabled: getOptionalBooleanEnvVar("OPENCODE_AUTO_RESTART_ENABLED", false),
-    monitorIntervalSec: getOptionalPositiveIntEnvVar("OPENCODE_MONITOR_INTERVAL_SEC", 300),
-    model: {
-      provider: getEnvVar("OPENCODE_MODEL_PROVIDER", true), // Required
-      modelId: getEnvVar("OPENCODE_MODEL_ID", true), // Required
+export function createConfig(env: NodeJS.ProcessEnv) {
+  const provider = getOptionalTtsProviderEnvVar(env, "TTS_PROVIDER", "openai");
+  const defaultVoice =
+    provider === "google"
+      ? "en-US-Studio-O"
+      : provider === "elevenlabs"
+        ? "21m00Tcm4TlvDq8ikWAM"
+        : "alloy";
+  const defaultModel = provider === "elevenlabs" ? "eleven_flash_v2_5" : "gpt-4o-mini-tts";
+
+  return {
+    telegram: buildTelegramConfig(env),
+    opencode: {
+      apiUrl: getEnvVar(env, "OPENCODE_API_URL", false) || "http://localhost:4096",
+      username: getEnvVar(env, "OPENCODE_SERVER_USERNAME", false) || "opencode",
+      password: getEnvVar(env, "OPENCODE_SERVER_PASSWORD", false),
+      autoRestartEnabled: getOptionalBooleanEnvVar(env, "OPENCODE_AUTO_RESTART_ENABLED", false),
+      monitorIntervalSec: getOptionalPositiveIntEnvVar(env, "OPENCODE_MONITOR_INTERVAL_SEC", 300),
+      model: {
+        provider: getEnvVar(env, "OPENCODE_MODEL_PROVIDER", true), // Required
+        modelId: getEnvVar(env, "OPENCODE_MODEL_ID", true), // Required
+      },
     },
-  },
-  server: {
-    logLevel: getEnvVar("LOG_LEVEL", false) || "info",
-  },
-  bot: {
-    sessionsListLimit: getOptionalPositiveIntEnvVar("SESSIONS_LIST_LIMIT", 10),
-    messagesListLimit: getOptionalPositiveIntEnvVar("MESSAGES_LIST_LIMIT", 10),
-    projectsListLimit: getOptionalPositiveIntEnvVar("PROJECTS_LIST_LIMIT", 10),
-    commandsListLimit: getOptionalPositiveIntEnvVar("COMMANDS_LIST_LIMIT", 10),
-    taskLimit: getOptionalPositiveIntEnvVar("TASK_LIMIT", 10),
-    scheduledTaskExecutionTimeoutMinutes: getOptionalPositiveIntEnvVar(
-      "SCHEDULED_TASK_EXECUTION_TIMEOUT_MINUTES",
-      120,
-    ),
-    scheduledTaskNotificationsSilent: getOptionalBooleanEnvVar(
-      "SCHEDULED_TASK_DISABLE_NOTIFICATION",
-      false,
-    ),
-    responseStreamThrottleMs: getOptionalPositiveIntEnvVar("RESPONSE_STREAM_THROTTLE_MS", 1000),
-    responseStreamingMode: getOptionalStreamingModeEnvVar("RESPONSE_STREAMING_MODE", "edit"),
-    bashToolDisplayMaxLength: getOptionalPositiveIntEnvVar("BASH_TOOL_DISPLAY_MAX_LENGTH", 128),
-    locale: getOptionalLocaleEnvVar("BOT_LOCALE", "en"),
-    hideThinkingMessages: getOptionalBooleanEnvVar("HIDE_THINKING_MESSAGES", false),
-    hideToolCallMessages: getOptionalBooleanEnvVar("HIDE_TOOL_CALL_MESSAGES", false),
-    hideToolFileMessages: getOptionalBooleanEnvVar("HIDE_TOOL_FILE_MESSAGES", false),
-    trackBackgroundSessions: getOptionalBooleanEnvVar("TRACK_BACKGROUND_SESSIONS", true),
-    messageFormatMode: getOptionalMessageFormatModeEnvVar("MESSAGE_FORMAT_MODE", "markdown"),
-  },
-  files: {
-    maxFileSizeKb: parseInt(getEnvVar("CODE_FILE_MAX_SIZE_KB", false) || "100", 10),
-  },
-  open: {
-    browserRoots: getEnvVar("OPEN_BROWSER_ROOTS", false),
-  },
-  stt: {
-    apiUrl: getEnvVar("STT_API_URL", false),
-    apiKey: getEnvVar("STT_API_KEY", false),
-    model: getEnvVar("STT_MODEL", false) || "whisper-large-v3-turbo",
-    language: getEnvVar("STT_LANGUAGE", false),
-    notePrompt: getEnvVar("STT_NOTE_PROMPT", false),
-  },
-  tts: (() => {
-    const provider = getOptionalTtsProviderEnvVar("TTS_PROVIDER", "openai");
-    const defaultVoice =
-      provider === "google"
-        ? "en-US-Studio-O"
-        : provider === "elevenlabs"
-          ? "21m00Tcm4TlvDq8ikWAM"
-          : "alloy";
-    const defaultModel =
-      provider === "elevenlabs" ? "eleven_flash_v2_5" : "gpt-4o-mini-tts";
-    return {
-      apiUrl: getEnvVar("TTS_API_URL", false),
-      apiKey: getEnvVar("TTS_API_KEY", false),
+    server: {
+      logLevel: getEnvVar(env, "LOG_LEVEL", false) || "info",
+    },
+    bot: {
+      sessionsListLimit: getOptionalPositiveIntEnvVar(env, "SESSIONS_LIST_LIMIT", 10),
+      messagesListLimit: getOptionalPositiveIntEnvVar(env, "MESSAGES_LIST_LIMIT", 10),
+      projectsListLimit: getOptionalPositiveIntEnvVar(env, "PROJECTS_LIST_LIMIT", 10),
+      commandsListLimit: getOptionalPositiveIntEnvVar(env, "COMMANDS_LIST_LIMIT", 10),
+      taskLimit: getOptionalPositiveIntEnvVar(env, "TASK_LIMIT", 10),
+      scheduledTaskExecutionTimeoutMinutes: getOptionalPositiveIntEnvVar(
+        env,
+        "SCHEDULED_TASK_EXECUTION_TIMEOUT_MINUTES",
+        120,
+      ),
+      scheduledTaskNotificationsSilent: getOptionalBooleanEnvVar(
+        env,
+        "SCHEDULED_TASK_DISABLE_NOTIFICATION",
+        false,
+      ),
+      responseStreamThrottleMs: getOptionalPositiveIntEnvVar(env, "RESPONSE_STREAM_THROTTLE_MS", 1000),
+      responseStreamingMode: getOptionalStreamingModeEnvVar(env, "RESPONSE_STREAMING_MODE", "edit"),
+      bashToolDisplayMaxLength: getOptionalPositiveIntEnvVar(env, "BASH_TOOL_DISPLAY_MAX_LENGTH", 128),
+      locale: getOptionalLocaleEnvVar(env, "BOT_LOCALE", "en"),
+      hideThinkingMessages: getOptionalBooleanEnvVar(env, "HIDE_THINKING_MESSAGES", false),
+      hideToolCallMessages: getOptionalBooleanEnvVar(env, "HIDE_TOOL_CALL_MESSAGES", false),
+      hideToolFileMessages: getOptionalBooleanEnvVar(env, "HIDE_TOOL_FILE_MESSAGES", false),
+      trackBackgroundSessions: getOptionalBooleanEnvVar(env, "TRACK_BACKGROUND_SESSIONS", true),
+      messageFormatMode: getOptionalMessageFormatModeEnvVar(env, "MESSAGE_FORMAT_MODE", "markdown"),
+    },
+    files: {
+      maxFileSizeKb: parseInt(getEnvVar(env, "CODE_FILE_MAX_SIZE_KB", false) || "100", 10),
+    },
+    open: {
+      browserRoots: getEnvVar(env, "OPEN_BROWSER_ROOTS", false),
+    },
+    stt: {
+      apiUrl: getEnvVar(env, "STT_API_URL", false),
+      apiKey: getEnvVar(env, "STT_API_KEY", false),
+      model: getEnvVar(env, "STT_MODEL", false) || "whisper-large-v3-turbo",
+      language: getEnvVar(env, "STT_LANGUAGE", false),
+      notePrompt: getEnvVar(env, "STT_NOTE_PROMPT", false),
+    },
+    tts: {
+      apiUrl: getEnvVar(env, "TTS_API_URL", false),
+      apiKey: getEnvVar(env, "TTS_API_KEY", false),
       provider,
-      model: getEnvVar("TTS_MODEL", false) || defaultModel,
-      voice: getEnvVar("TTS_VOICE", false) || defaultVoice,
-    };
-  })(),
-};
+      model: getEnvVar(env, "TTS_MODEL", false) || defaultModel,
+      voice: getEnvVar(env, "TTS_VOICE", false) || defaultVoice,
+    },
+  };
+}
+
+export const config = createConfig(process.env);
+export type Config = ReturnType<typeof createConfig>;

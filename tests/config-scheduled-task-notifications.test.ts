@@ -1,10 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
-
-async function loadConfig() {
-  vi.resetModules();
-  const module = await import("../src/config.js");
-  return module.config;
-}
+import { createConfig } from "../src/config.js";
 
 describe("config scheduled task notifications", () => {
   beforeEach(() => {
@@ -15,24 +10,24 @@ describe("config scheduled task notifications", () => {
     vi.stubEnv("SCHEDULED_TASK_DISABLE_NOTIFICATION", "");
   });
 
-  it("keeps scheduled task notifications enabled by default", async () => {
-    const config = await loadConfig();
+  it("keeps scheduled task notifications enabled by default", () => {
+    const config = createConfig(process.env);
 
     expect(config.bot.scheduledTaskNotificationsSilent).toBe(false);
   });
 
-  it("parses SCHEDULED_TASK_DISABLE_NOTIFICATION as a boolean", async () => {
+  it("parses SCHEDULED_TASK_DISABLE_NOTIFICATION as a boolean", () => {
     vi.stubEnv("SCHEDULED_TASK_DISABLE_NOTIFICATION", "true");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.scheduledTaskNotificationsSilent).toBe(true);
   });
 
-  it("falls back to enabled notifications on invalid values", async () => {
+  it("falls back to enabled notifications on invalid values", () => {
     vi.stubEnv("SCHEDULED_TASK_DISABLE_NOTIFICATION", "banana");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.scheduledTaskNotificationsSilent).toBe(false);
   });
