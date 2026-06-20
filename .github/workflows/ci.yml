@@ -23,7 +23,11 @@ jobs:
     # contributors, switch to a matrix that falls through to
     # ubuntu-latest.
     runs-on: [self-hosted, server]
-    timeout-minutes: 15
+    # 30 min cap: ~4 min of setup (bun install from scratch on
+    # self-hosted) + up to ~14 min of test execution (118 files at
+    # ~7s each, with the per-file log capture). Bump the runner's
+    # own job-timeout if the SIGTERM at 5 min shows up in CI.
+    timeout-minutes: 30
 
     steps:
       - name: Runner cleanup
@@ -72,6 +76,11 @@ jobs:
         # failures across the loop so the job exits non-zero when any
         # file fails (the previous loop swallowed the exit code and let
         # CI pass with 100% test failures).
+        #
+        # Per-step 25 min: 118 files at ~7s each (per-file bun
+        # startup + test) fits well under this; if we ever see this
+        # step time out, it's a real hang, not slow tests.
+        timeout-minutes: 25
         run: |
           set +e
           mkdir -p test-logs
@@ -90,7 +99,13 @@ jobs:
           exit $overall_status
 
       - name: Upload test logs
-        if: failure()
+        # Always upload (not just on failure) — the per-file logs are
+        # the primary debug surface while the test suite is being
+        # fixed. Nexum uses `if: failure()` for the Playwright
+        # report, but the equivalent for bun tests is `if: always()`
+        # because the per-file logs exist regardless of pass/fail.
+        # Storage cost is negligible (~10 MB worst case).
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-logs
