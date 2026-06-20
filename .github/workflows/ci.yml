@@ -17,10 +17,11 @@ concurrency:
 jobs:
   quality:
     name: Lint, Build, Test
-    # Run on the shared "server" self-hosted runner (same machine that
-    # serves nexum's CI). Fall back to ubuntu-latest if the runner is
-    # offline so the workflow still runs on forks/PRs from external
-    # contributors without a self-hosted runner available.
+    # Shared self-hosted runner (same machine that serves nexum's CI).
+    # External forks cannot reach self-hosted runners; this is fine
+    # for an internal/private fork. If we ever open it up to outside
+    # contributors, switch to a matrix that falls through to
+    # ubuntu-latest.
     runs-on: [self-hosted, server]
     timeout-minutes: 15
 
@@ -31,8 +32,15 @@ jobs:
           pkill -f "bun src/index.ts" 2>/dev/null || true
           rm -rf /tmp/bun-* /tmp/esbuild-* 2>/dev/null || true
 
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          clean: false
 
       - name: Setup Bun
         if: ${{ hashFiles('bun.lock') != '' }}
@@ -58,16 +66,38 @@ jobs:
         run: bun run build
 
       - name: Test
-        # Run each test file in its own bun process. vi.mock / mock.module
-        # are process-global in bun, so two test files that mock the same
-        # source module would otherwise pollute each other.
+        # Run each test file in its own bun process. mock.module is
+        # process-global in bun, so two test files that mock the same
+        # source module would otherwise pollute each other. Track
+        # failures across the loop so the job exits non-zero when any
+        # file fails (the previous loop swallowed the exit code and let
+        # CI pass with 100% test failures).
         run: |
           set +e
+          mkdir -p test-logs
+          overall_status=0
           for f in $(find tests -name "*.test.ts" | sort); do
+            name=$(basename "$f" .test.ts)
+            log="test-logs/${name}.log"
             echo "=== $f ==="
-            bun test "$f"
-            status=$?
+            bun test "$f" 2>&1 | tee "$log"
+            status=${PIPESTATUS[0]}
             if [ $status -ne 0 ]; then
               echo "FAILED: $f (exit $status)"
+              overall_status=1
             fi
           done
+          exit $overall_status
+
+      - name: Upload test logs
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-logs
+          path: test-logs/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Kill background servers
+        if: always()
+        run: pkill -f "bun src/index.ts" 2>/dev/null || true
