@@ -29,9 +29,6 @@ export function mockDep(
   for (const ext of [".ts", ".tsx", ".js", ".jsx"]) {
     try {
       const candidate = stripped + ext;
-      // Strip the leading slash so the URL resolves relative to baseUrl
-      // (which already includes the trailing slash). Otherwise `new URL`
-      // treats the candidate as an absolute filesystem path.
       const relativeCandidate = candidate.startsWith("/") ? candidate.slice(1) : candidate;
       const absPath = fileURLToPath(new URL(relativeCandidate, baseUrl));
       registerMock(absPath, factory);
