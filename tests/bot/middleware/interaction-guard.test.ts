@@ -15,7 +15,7 @@ mockDep(
   import.meta.url,
 );
 
-const sut = loadSut<typeof import("#src/bot/middleware/interaction-guard.js")>(
+const sut = await loadSut<typeof import("#src/bot/middleware/interaction-guard.js")>(
   "#src/bot/middleware/interaction-guard.ts",
   import.meta.url,
 );

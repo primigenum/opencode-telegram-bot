@@ -116,7 +116,7 @@ vi.mock("#src/utils/logger.ts", () => ({
   },
 }));
 
-const sut = loadSut<typeof import("#src/app/services/model-selection-service.js")>(
+const sut = await loadSut<typeof import("#src/app/services/model-selection-service.js")>(
   "#src/app/services/model-selection-service.ts",
   import.meta.url,
 );

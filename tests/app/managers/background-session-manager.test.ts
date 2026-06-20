@@ -15,7 +15,7 @@ mockDep(
   import.meta.url,
 );
 
-const sut = loadSut<typeof import("#src/app/managers/background-session-manager.js")>(
+const sut = await loadSut<typeof import("#src/app/managers/background-session-manager.js")>(
   "#src/app/managers/background-session-manager.ts",
   import.meta.url,
 );

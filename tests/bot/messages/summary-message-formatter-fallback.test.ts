@@ -1,20 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
-import { mockDep } from "#helpers/mock-dep.js";
 import { loadSut } from "#helpers/sut-loader.js";
 
 const mocked = {
   convertToTelegramMarkdownV2: vi.fn(),
 };
 
-mockDep(
-  "#src/bot/render/markdown-to-telegram-v2.ts",
-  () => ({
-    convertToTelegramMarkdownV2: mocked.convertToTelegramMarkdownV2,
-  }),
-  import.meta.url,
-);
+vi.mock("#src/bot/render/markdown-to-telegram-v2.ts", () => ({
+  convertToTelegramMarkdownV2: mocked.convertToTelegramMarkdownV2,
+}));
 
-const sut = loadSut<typeof import("#src/bot/messages/summary-message-formatter.js")>(
+const sut = await loadSut<typeof import("#src/bot/messages/summary-message-formatter.js")>(
   "#src/bot/messages/summary-message-formatter.ts",
   import.meta.url,
 );

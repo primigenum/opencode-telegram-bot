@@ -113,7 +113,7 @@ mockDep(
   import.meta.url,
 );
 
-const sut = loadSut<typeof import("#src/bot/commands/start-command.js")>(
+const sut = await loadSut<typeof import("#src/bot/commands/start-command.js")>(
   "#src/bot/commands/start-command.ts",
   import.meta.url,
 );

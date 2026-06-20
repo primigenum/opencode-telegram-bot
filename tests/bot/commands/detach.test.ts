@@ -105,7 +105,7 @@ vi.mock("#src/bot/handlers/prompt.ts", () => ({
   clearPromptResponseMode: mocked.clearPromptResponseModeMock,
 }));
 
-const sut = loadSut<typeof import("#src/bot/commands/detach-command.js")>(
+const sut = await loadSut<typeof import("#src/bot/commands/detach-command.js")>(
   "#src/bot/commands/detach-command.ts",
   import.meta.url,
 );

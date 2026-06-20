@@ -90,7 +90,7 @@ mockDep(
   import.meta.url,
 );
 
-const sut = loadSut<typeof import("#src/app/services/agent-selection-service.js")>(
+const sut = await loadSut<typeof import("#src/app/services/agent-selection-service.js")>(
   "#src/app/services/agent-selection-service.ts",
   import.meta.url,
 );

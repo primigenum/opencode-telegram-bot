@@ -21,7 +21,7 @@ const serviceSut = loadSut<
   import.meta.url,
 );
 
-const sut = loadSut<typeof import("#src/bot/messages/external-user-input-notification.js")>(
+const sut = await loadSut<typeof import("#src/bot/messages/external-user-input-notification.js")>(
   "#src/bot/messages/external-user-input-notification.ts",
   import.meta.url,
 );

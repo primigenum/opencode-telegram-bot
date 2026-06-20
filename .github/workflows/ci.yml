@@ -54,4 +54,16 @@ jobs:
         run: bun run build
 
       - name: Test
-        run: bun test
+        # Run each test file in its own bun process. vi.mock / mock.module
+        # are process-global in bun, so two test files that mock the same
+        # source module would otherwise pollute each other.
+        run: |
+          set +e
+          for f in $(find tests -name "*.test.ts" | sort); do
+            echo "=== $f ==="
+            bun test "$f"
+            status=$?
+            if [ $status -ne 0 ]; then
+              echo "FAILED: $f (exit $status)"
+            fi
+          done

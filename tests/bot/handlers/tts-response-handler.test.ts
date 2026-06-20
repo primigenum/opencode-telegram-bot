@@ -16,7 +16,7 @@ mockDep(
   import.meta.url,
 );
 
-const sut = loadSut<typeof import("#src/bot/handlers/tts-response-handler.js")>(
+const sut = await loadSut<typeof import("#src/bot/handlers/tts-response-handler.js")>(
   "#src/bot/handlers/tts-response-handler.ts",
   import.meta.url,
 );

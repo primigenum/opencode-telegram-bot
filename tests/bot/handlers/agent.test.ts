@@ -17,7 +17,7 @@ registerMock(
   }),
 );
 
-const sut = loadSut<typeof import("#src/bot/menus/agent-selection-menu.js")>(
+const sut = await loadSut<typeof import("#src/bot/menus/agent-selection-menu.js")>(
   "#src/bot/menus/agent-selection-menu.ts",
   import.meta.url,
 );

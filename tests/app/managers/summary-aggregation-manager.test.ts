@@ -17,7 +17,7 @@ mockDep(
   import.meta.url,
 );
 
-const sut = loadSut<typeof import("#src/app/managers/summary-aggregation-manager.js")>(
+const sut = await loadSut<typeof import("#src/app/managers/summary-aggregation-manager.js")>(
   "#src/app/managers/summary-aggregation-manager.ts",
   import.meta.url,
 );
