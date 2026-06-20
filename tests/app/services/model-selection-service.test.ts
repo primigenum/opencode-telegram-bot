@@ -81,6 +81,33 @@ setMocks({
   },
   getCurrentModel: getCurrentModelMock,
   setCurrentModel: setCurrentModelMock,
+  // Stub vi.fn() for every other settings-store export the SUT or its
+  // transitive deps might reach for. The mock factory wires each export
+  // to the corresponding entry in this state object.
+  getCurrentProject: vi.fn(),
+  setCurrentProject: vi.fn(),
+  clearProject: vi.fn(),
+  getCurrentSession: vi.fn(),
+  setCurrentSession: vi.fn(),
+  clearSession: vi.fn(),
+  getTtsMode: vi.fn(),
+  setTtsMode: vi.fn(),
+  getCurrentAgent: vi.fn(),
+  setCurrentAgent: vi.fn(),
+  clearCurrentAgent: vi.fn(),
+  clearCurrentModel: vi.fn(),
+  getPinnedMessageId: vi.fn(),
+  setPinnedMessageId: vi.fn(),
+  clearPinnedMessageId: vi.fn(),
+  getSessionDirectoryCache: vi.fn(),
+  setSessionDirectoryCache: vi.fn(),
+  clearSessionDirectoryCache: vi.fn(),
+  getScheduledTasks: vi.fn(),
+  setScheduledTasks: vi.fn(),
+  getScheduledTaskSessionIgnores: vi.fn(),
+  setScheduledTaskSessionIgnores: vi.fn(),
+  __resetSettingsForTests: vi.fn(),
+  loadSettings: vi.fn(),
   logger: {
     info: loggerInfoMock,
     warn: loggerWarnMock,
@@ -101,14 +128,52 @@ vi.mock("#src/opencode/client.ts", () => ({
   },
 }));
 
-vi.mock("#src/app/stores/settings-store.ts", () => ({
-  get getCurrentModel() {
-    return (globalThis as Record<string, { getCurrentModel?: unknown }>)[TEST_MOCKS_KEY].getCurrentModel;
-  },
-  get setCurrentModel() {
-    return (globalThis as Record<string, { setCurrentModel?: unknown }>)[TEST_MOCKS_KEY].setCurrentModel;
-  },
-}));
+vi.mock("#src/app/stores/settings-store.ts", () => {
+  // Provide every export as a function that reads from the per-test state
+  // object. The test controls getCurrentModel / setCurrentModel; all
+  // other exports are vi.fn() stubs (set up in setMocks, but readable
+  // through the same state pattern, and they don't need test control).
+  const exportsList = [
+    "getCurrentProject",
+    "setCurrentProject",
+    "clearProject",
+    "getCurrentSession",
+    "setCurrentSession",
+    "clearSession",
+    "getTtsMode",
+    "setTtsMode",
+    "getCurrentAgent",
+    "setCurrentAgent",
+    "clearCurrentAgent",
+    "getCurrentModel",
+    "setCurrentModel",
+    "clearCurrentModel",
+    "getPinnedMessageId",
+    "setPinnedMessageId",
+    "clearPinnedMessageId",
+    "getSessionDirectoryCache",
+    "setSessionDirectoryCache",
+    "clearSessionDirectoryCache",
+    "getScheduledTasks",
+    "setScheduledTasks",
+    "getScheduledTaskSessionIgnores",
+    "setScheduledTaskSessionIgnores",
+    "__resetSettingsForTests",
+    "loadSettings",
+  ] as const;
+  const obj: Record<string, unknown> = {};
+  for (const name of exportsList) {
+    obj[name] = (...args: unknown[]) => {
+      const state = (globalThis as Record<string, Record<string, unknown>>)[TEST_MOCKS_KEY];
+      const fn = state[name];
+      if (typeof fn === "function") {
+        return (fn as (...a: unknown[]) => unknown)(...args);
+      }
+      return fn;
+    };
+  }
+  return obj;
+});
 
 vi.mock("#src/utils/logger.ts", () => ({
   get logger() {
