@@ -19,47 +19,47 @@ const mocked = vi.hoisted(() => ({
   clearAllInteractionStateMock: vi.fn(),
 }));
 
-vi.mock("#src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.ts", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
 }));
 
-vi.mock("#src/app/services/worktree-service.js", () => ({
+vi.mock("#src/app/services/worktree-service.ts", () => ({
   getGitWorktreeContext: mocked.getGitWorktreeContextMock,
 }));
 
-vi.mock("#src/bot/menus/inline-menu.js", () => ({
+vi.mock("#src/bot/menus/inline-menu.ts", () => ({
   appendInlineMenuCancelButton: vi.fn((keyboard: unknown) => keyboard),
   ensureActiveInlineMenu: mocked.ensureActiveInlineMenuMock,
   replyWithInlineMenu: mocked.replyWithInlineMenuMock,
 }));
 
-vi.mock("#src/app/services/run-control-service.js", () => ({
+vi.mock("#src/app/services/run-control-service.ts", () => ({
   isForegroundBusy: mocked.isForegroundBusyMock,
 }));
 
-vi.mock("#src/bot/messages/busy-blocked-renderer.js", () => ({
+vi.mock("#src/bot/messages/busy-blocked-renderer.ts", () => ({
   replyBusyBlocked: mocked.replyBusyBlockedMock,
 }));
 
-vi.mock("#src/app/services/session-cache-service.js", () => ({
+vi.mock("#src/app/services/session-cache-service.ts", () => ({
   upsertSessionDirectory: mocked.upsertSessionDirectoryMock,
   __resetSessionDirectoryCacheForTests: vi.fn(),
 }));
 
-vi.mock("#src/app/services/project-service.js", () => ({
+vi.mock("#src/app/services/project-service.ts", () => ({
   getProjectByWorktree: mocked.getProjectByWorktreeMock,
 }));
 
-vi.mock("#src/app/services/project-switch-service.js", () => ({
+vi.mock("#src/app/services/project-switch-service.ts", () => ({
   switchToProject: mocked.switchToProjectMock,
 }));
 
-vi.mock("#src/app/managers/interaction-manager.js", () => ({
+vi.mock("#src/app/managers/interaction-manager.ts", () => ({
   interactionManager: { clear: vi.fn() },
   clearAllInteractionState: mocked.clearAllInteractionStateMock,
 }));
 
-vi.mock("#src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.ts", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 

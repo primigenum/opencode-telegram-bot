@@ -5,11 +5,11 @@ const mocked = vi.hoisted(() => ({
   loggerWarnMock: vi.fn(),
 }));
 
-vi.mock("#src/app/services/busy-reconciliation-service.js", () => ({
+vi.mock("#src/app/services/busy-reconciliation-service.ts", () => ({
   reconcileBusyStateNow: mocked.reconcileBusyStateNowMock,
 }));
 
-vi.mock("#src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.ts", () => ({
   logger: {
     debug: vi.fn(),
     info: vi.fn(),

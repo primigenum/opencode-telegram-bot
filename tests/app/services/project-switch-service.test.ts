@@ -23,47 +23,47 @@ const mocked = vi.hoisted(() => ({
   createMainKeyboardMock: vi.fn(() => ({ keyboard: [[{ text: "mock" }]] })),
 }));
 
-vi.mock("#src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.ts", () => ({
   setCurrentProject: mocked.setCurrentProjectMock,
 }));
-vi.mock("#src/app/services/session-service.js", () => ({
+vi.mock("#src/app/services/session-service.ts", () => ({
   clearSession: mocked.clearSessionMock,
 }));
-vi.mock("#src/app/managers/summary-aggregation-manager.js", () => ({
+vi.mock("#src/app/managers/summary-aggregation-manager.ts", () => ({
   summaryAggregator: { clear: mocked.summaryAggregatorClearMock },
 }));
-vi.mock("#src/app/managers/interaction-manager.js", () => ({
+vi.mock("#src/app/managers/interaction-manager.ts", () => ({
   interactionManager: { clear: vi.fn() },
   clearAllInteractionState: mocked.clearAllInteractionStateMock,
 }));
-vi.mock("#src/bot/pinned/pinned-message-manager.js", () => ({
+vi.mock("#src/bot/pinned/pinned-message-manager.ts", () => ({
   pinnedMessageManager: {
     clear: mocked.pinnedClearMock,
     refreshContextLimit: mocked.pinnedRefreshMock,
     getContextLimit: mocked.pinnedGetLimitMock,
   },
 }));
-vi.mock("#src/bot/keyboards/keyboard-manager.js", () => ({
+vi.mock("#src/bot/keyboards/keyboard-manager.ts", () => ({
   keyboardManager: {
     initialize: mocked.keyboardInitMock,
     updateContext: mocked.keyboardUpdateMock,
     updateAgent: mocked.keyboardUpdateAgentMock,
   },
 }));
-vi.mock("#src/app/services/agent-selection-service.js", () => ({
+vi.mock("#src/app/services/agent-selection-service.ts", () => ({
   getStoredAgent: mocked.getStoredAgentMock,
   resolveProjectAgent: mocked.resolveProjectAgentMock,
 }));
-vi.mock("#src/app/services/model-selection-service.js", () => ({
+vi.mock("#src/app/services/model-selection-service.ts", () => ({
   getStoredModel: mocked.getStoredModelMock,
 }));
-vi.mock("#src/app/services/variant-selection-service.js", () => ({
+vi.mock("#src/app/services/variant-selection-service.ts", () => ({
   formatVariantForButton: mocked.formatVariantMock,
 }));
-vi.mock("#src/bot/keyboards/main-reply-keyboard.js", () => ({
+vi.mock("#src/bot/keyboards/main-reply-keyboard.ts", () => ({
   createMainKeyboard: mocked.createMainKeyboardMock,
 }));
-vi.mock("#src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.ts", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 

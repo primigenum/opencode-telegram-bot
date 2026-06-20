@@ -8,7 +8,7 @@ const { projectListMock, cachedSessionProjectsMock } = vi.hoisted(() => ({
   cachedSessionProjectsMock: vi.fn(),
 }));
 
-vi.mock("#src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.ts", () => ({
   opencodeClient: {
     project: {
       list: projectListMock,
@@ -16,7 +16,7 @@ vi.mock("#src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("#src/app/services/session-cache-service.js", () => ({
+vi.mock("#src/app/services/session-cache-service.ts", () => ({
   getCachedSessionProjects: cachedSessionProjectsMock,
   __resetSessionDirectoryCacheForTests: vi.fn(),
 }));

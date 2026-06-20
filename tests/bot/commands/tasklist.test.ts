@@ -12,13 +12,13 @@ const mocked = vi.hoisted(() => ({
   runtimeRemoveTaskMock: vi.fn(),
 }));
 
-vi.mock("#src/app/stores/scheduled-task-store.js", () => ({
+vi.mock("#src/app/stores/scheduled-task-store.ts", () => ({
   listScheduledTasks: mocked.listScheduledTasksMock,
   getScheduledTask: mocked.getScheduledTaskMock,
   removeScheduledTask: mocked.removeScheduledTaskMock,
 }));
 
-vi.mock("#src/app/services/scheduled-task-runtime-service.js", () => ({
+vi.mock("#src/app/services/scheduled-task-runtime-service.ts", () => ({
   scheduledTaskRuntime: {
     removeTask: mocked.runtimeRemoveTaskMock,
   },

@@ -21,7 +21,7 @@ const { sessionListMock, loggerWarnMock, loggerDebugMock, loggerInfoMock, logger
     loggerErrorMock: vi.fn(),
   }));
 
-vi.mock("#src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.ts", () => ({
   opencodeClient: {
     session: {
       list: sessionListMock,
@@ -29,7 +29,7 @@ vi.mock("#src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("#src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.ts", () => ({
   logger: {
     debug: loggerDebugMock,
     info: loggerInfoMock,

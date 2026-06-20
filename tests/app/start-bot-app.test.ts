@@ -30,60 +30,60 @@ const mocked = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("#src/bot/index.js", () => ({
+vi.mock("#src/bot/index.ts", () => ({
   cleanupBotRuntime: mocked.cleanupBotRuntimeMock,
   createBot: mocked.createBotMock,
 }));
 
-vi.mock("#src/config.js", () => ({
+vi.mock("#src/config.ts", () => ({
   config: mocked.config,
 }));
 
-vi.mock("#src/opencode/auto-restart.js", () => ({
+vi.mock("#src/opencode/auto-restart.ts", () => ({
   opencodeAutoRestartService: {
     start: mocked.autoRestartStartMock,
     stop: mocked.autoRestartStopMock,
   },
 }));
 
-vi.mock("#src/opencode/ready-refresh.js", () => ({
+vi.mock("#src/opencode/ready-refresh.ts", () => ({
   notifyOpencodeReadyIfHealthy: mocked.notifyOpencodeReadyIfHealthyMock,
   registerOpenCodeReadyRefreshHandler: mocked.registerOpenCodeReadyRefreshHandlerMock,
 }));
 
-vi.mock("#src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.ts", () => ({
   loadSettings: mocked.loadSettingsMock,
 }));
 
-vi.mock("#src/app/services/scheduled-task-runtime-service.js", () => ({
+vi.mock("#src/app/services/scheduled-task-runtime-service.ts", () => ({
   scheduledTaskRuntime: {
     initialize: mocked.scheduledTaskInitializeMock,
     shutdown: mocked.scheduledTaskShutdownMock,
   },
 }));
 
-vi.mock("#src/app/services/model-selection-service.js", () => ({
+vi.mock("#src/app/services/model-selection-service.ts", () => ({
   reconcileStoredModelSelection: mocked.reconcileStoredModelSelectionMock,
 }));
 
-vi.mock("#src/runtime/mode.js", () => ({
+vi.mock("#src/runtime/mode.ts", () => ({
   getRuntimeMode: () => "source",
 }));
 
-vi.mock("#src/runtime/paths.js", () => ({
+vi.mock("#src/runtime/paths.ts", () => ({
   getRuntimePaths: () => ({ envFilePath: ".env" }),
 }));
 
-vi.mock("#src/runtime/service/manager.js", () => ({
+vi.mock("#src/runtime/service/manager.ts", () => ({
   clearServiceStateFile: mocked.clearServiceStateFileMock,
 }));
 
-vi.mock("#src/runtime/service/env.js", () => ({
+vi.mock("#src/runtime/service/env.ts", () => ({
   getServiceStateFilePathFromEnv: mocked.getServiceStateFilePathFromEnvMock,
   isServiceChildProcess: mocked.isServiceChildProcessMock,
 }));
 
-vi.mock("#src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.ts", () => ({
   getLogFilePath: mocked.getLogFilePathMock,
   initializeLogger: mocked.initializeLoggerMock,
   logger: {

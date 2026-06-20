@@ -9,7 +9,7 @@ const mocked = vi.hoisted(() => ({
   flushDeferredDeliveriesMock: vi.fn(),
 }));
 
-vi.mock("#src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.ts", () => ({
   opencodeClient: {
     session: {
       status: mocked.sessionStatusMock,
@@ -17,18 +17,18 @@ vi.mock("#src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("#src/app/services/attach-service.js", () => ({
+vi.mock("#src/app/services/attach-service.ts", () => ({
   markAttachedSessionBusy: mocked.markAttachedSessionBusyMock,
   markAttachedSessionIdle: mocked.markAttachedSessionIdleMock,
 }));
 
-vi.mock("#src/app/managers/assistant-run-state-manager.js", () => ({
+vi.mock("#src/app/managers/assistant-run-state-manager.ts", () => ({
   assistantRunState: {
     clearRun: mocked.clearRunMock,
   },
 }));
 
-vi.mock("#src/app/services/scheduled-task-runtime-service.js", () => ({
+vi.mock("#src/app/services/scheduled-task-runtime-service.ts", () => ({
   scheduledTaskRuntime: {
     flushDeferredDeliveries: mocked.flushDeferredDeliveriesMock,
   },

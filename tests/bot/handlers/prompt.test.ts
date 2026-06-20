@@ -25,7 +25,7 @@ const mocked = vi.hoisted(() => ({
   getTtsModeMock: vi.fn(),
 }));
 
-vi.mock("#src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.ts", () => ({
   opencodeClient: {
     session: {
       status: mocked.sessionStatusMock,
@@ -36,28 +36,28 @@ vi.mock("#src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("#src/app/services/session-service.js", () => ({
+vi.mock("#src/app/services/session-service.ts", () => ({
   getCurrentSession: vi.fn(() => mocked.currentSession),
   setCurrentSession: vi.fn(),
   clearSession: vi.fn(),
 }));
 
-vi.mock("#src/app/services/session-cache-service.js", () => ({
+vi.mock("#src/app/services/session-cache-service.ts", () => ({
   ingestSessionInfoForCache: vi.fn(),
   __resetSessionDirectoryCacheForTests: vi.fn(),
 }));
 
-vi.mock("#src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.ts", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
   getTtsMode: mocked.getTtsModeMock,
 }));
 
-vi.mock("#src/app/services/agent-selection-service.js", () => ({
+vi.mock("#src/app/services/agent-selection-service.ts", () => ({
   getStoredAgent: vi.fn(() => "build"),
   resolveProjectAgent: vi.fn(async (agentName?: string) => agentName ?? "build"),
 }));
 
-vi.mock("#src/app/services/model-selection-service.js", () => ({
+vi.mock("#src/app/services/model-selection-service.ts", () => ({
   getStoredModel: vi.fn(() => ({
     providerID: "openai",
     modelID: "gpt-5",
@@ -65,7 +65,7 @@ vi.mock("#src/app/services/model-selection-service.js", () => ({
   })),
 }));
 
-vi.mock("#src/bot/pinned/pinned-message-manager.js", () => ({
+vi.mock("#src/bot/pinned/pinned-message-manager.ts", () => ({
   pinnedMessageManager: {
     isInitialized: vi.fn(() => true),
     initialize: vi.fn(),
@@ -76,7 +76,7 @@ vi.mock("#src/bot/pinned/pinned-message-manager.js", () => ({
   },
 }));
 
-vi.mock("#src/bot/keyboards/keyboard-manager.js", () => ({
+vi.mock("#src/bot/keyboards/keyboard-manager.ts", () => ({
   keyboardManager: {
     initialize: vi.fn(),
     clearContext: vi.fn(),
@@ -84,7 +84,7 @@ vi.mock("#src/bot/keyboards/keyboard-manager.js", () => ({
   },
 }));
 
-vi.mock("#src/app/managers/summary-aggregation-manager.js", () => ({
+vi.mock("#src/app/managers/summary-aggregation-manager.ts", () => ({
   summaryAggregator: {
     setSession: mocked.setSessionSummaryMock,
     setBotAndChatId: mocked.setBotAndChatIdMock,
@@ -92,7 +92,7 @@ vi.mock("#src/app/managers/summary-aggregation-manager.js", () => ({
   },
 }));
 
-vi.mock("#src/app/managers/interaction-manager.js", () => ({
+vi.mock("#src/app/managers/interaction-manager.ts", () => ({
   interactionManager: {
     clear: vi.fn(),
     getSnapshot: vi.fn(() => null),
@@ -100,17 +100,17 @@ vi.mock("#src/app/managers/interaction-manager.js", () => ({
   clearAllInteractionState: vi.fn(),
 }));
 
-vi.mock("#src/utils/safe-background-task.js", () => ({
+vi.mock("#src/utils/safe-background-task.ts", () => ({
   safeBackgroundTask: vi.fn((options) => {
     mocked.safeBackgroundTaskMock(options);
   }),
 }));
 
-vi.mock("#src/utils/error-format.js", () => ({
+vi.mock("#src/utils/error-format.ts", () => ({
   formatErrorDetails: vi.fn(() => "formatted error"),
 }));
 
-vi.mock("#src/app/managers/foreground-session-state-manager.js", () => ({
+vi.mock("#src/app/managers/foreground-session-state-manager.ts", () => ({
   foregroundSessionState: {
     markBusy: vi.fn(),
     markIdle: vi.fn(),
@@ -118,7 +118,7 @@ vi.mock("#src/app/managers/foreground-session-state-manager.js", () => ({
   },
 }));
 
-vi.mock("#src/app/managers/assistant-run-state-manager.js", () => ({
+vi.mock("#src/app/managers/assistant-run-state-manager.ts", () => ({
   assistantRunState: {
     startRun: vi.fn(),
     clearRun: vi.fn(),
@@ -126,14 +126,14 @@ vi.mock("#src/app/managers/assistant-run-state-manager.js", () => ({
   },
 }));
 
-vi.mock("#src/app/services/attach-service.js", () => ({
+vi.mock("#src/app/services/attach-service.ts", () => ({
   attachToSession: mocked.attachToSessionMock,
   detachAttachedSession: vi.fn(),
   markAttachedSessionBusy: vi.fn().mockResolvedValue(undefined),
   markAttachedSessionIdle: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("#src/app/managers/external-input-suppression-manager.js", () => ({
+vi.mock("#src/app/managers/external-input-suppression-manager.ts", () => ({
   externalUserInputSuppressionManager: {
     register: mocked.suppressionRegisterMock,
   },

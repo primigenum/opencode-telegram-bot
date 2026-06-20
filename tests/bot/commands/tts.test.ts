@@ -11,12 +11,12 @@ const mocked = vi.hoisted(() => ({
   isTtsConfiguredMock: vi.fn(),
 }));
 
-vi.mock("#src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.ts", () => ({
   getTtsMode: mocked.getTtsModeMock,
   setTtsMode: mocked.setTtsModeMock,
 }));
 
-vi.mock("#src/app/services/tts-service.js", () => ({
+vi.mock("#src/app/services/tts-service.ts", () => ({
   isTtsConfigured: mocked.isTtsConfiguredMock,
 }));
 

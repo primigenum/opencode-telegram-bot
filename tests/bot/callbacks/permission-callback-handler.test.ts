@@ -16,7 +16,7 @@ const mocked = vi.hoisted(() => ({
   currentSession: null as { id: string; title: string; directory: string } | null,
 }));
 
-vi.mock("#src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.ts", () => ({
   opencodeClient: {
     permission: {
       reply: mocked.permissionReplyMock,
@@ -24,15 +24,15 @@ vi.mock("#src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("#src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.ts", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
 }));
 
-vi.mock("#src/app/services/session-service.js", () => ({
+vi.mock("#src/app/services/session-service.ts", () => ({
   getCurrentSession: vi.fn(() => mocked.currentSession),
 }));
 
-vi.mock("#src/utils/safe-background-task.js", () => ({
+vi.mock("#src/utils/safe-background-task.ts", () => ({
   safeBackgroundTask: ({
     task,
     onSuccess,

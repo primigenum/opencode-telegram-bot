@@ -13,7 +13,7 @@ import {
   MAX_ENTRIES_PER_PAGE,
 } from "#src/app/services/file-browser-service.js";
 
-vi.mock("#src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.ts", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 

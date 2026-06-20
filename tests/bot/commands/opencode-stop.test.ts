@@ -17,11 +17,11 @@ const mocked = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("#src/config.js", () => ({
+vi.mock("#src/config.ts", () => ({
   config: mocked.config,
 }));
 
-vi.mock("#src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.ts", () => ({
   opencodeClient: {
     global: {
       health: mocked.healthMock,
@@ -29,17 +29,17 @@ vi.mock("#src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("#src/opencode/process.js", () => ({
+vi.mock("#src/opencode/process.ts", () => ({
   resolveLocalOpencodeTarget: mocked.resolveLocalOpencodeTargetMock,
   findServerPid: mocked.findServerPidMock,
   killServerProcess: mocked.killServerProcessMock,
 }));
 
-vi.mock("#src/bot/messages/telegram-text.js", () => ({
+vi.mock("#src/bot/messages/telegram-text.ts", () => ({
   editBotText: mocked.editBotTextMock,
 }));
 
-vi.mock("#src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.ts", () => ({
   logger: {
     info: mocked.loggerInfoMock,
     error: mocked.loggerErrorMock,

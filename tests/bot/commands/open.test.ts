@@ -32,7 +32,7 @@ const mocked = vi.hoisted(() => ({
   interactionStartMock: vi.fn(),
 }));
 
-vi.mock("#src/app/services/file-browser-service.js", () => ({
+vi.mock("#src/app/services/file-browser-service.ts", () => ({
   pathToDisplayPath: mocked.pathToDisplayPathMock,
   scanDirectory: mocked.scanDirectoryMock,
   buildEntryLabel: mocked.buildEntryLabelMock,
@@ -44,12 +44,12 @@ vi.mock("#src/app/services/file-browser-service.js", () => ({
   isAllowedRoot: mocked.isAllowedRootMock,
 }));
 
-vi.mock("#src/bot/menus/inline-menu.js", () => ({
+vi.mock("#src/bot/menus/inline-menu.ts", () => ({
   appendInlineMenuCancelButton: vi.fn((kb: unknown) => kb),
   ensureActiveInlineMenu: mocked.ensureActiveInlineMenuMock,
 }));
 
-vi.mock("#src/app/managers/interaction-manager.js", () => ({
+vi.mock("#src/app/managers/interaction-manager.ts", () => ({
   interactionManager: {
     start: mocked.interactionStartMock,
     getSnapshot: vi.fn(() => null),
@@ -57,29 +57,29 @@ vi.mock("#src/app/managers/interaction-manager.js", () => ({
   },
 }));
 
-vi.mock("#src/app/services/run-control-service.js", () => ({
+vi.mock("#src/app/services/run-control-service.ts", () => ({
   isForegroundBusy: mocked.isForegroundBusyMock,
 }));
 
-vi.mock("#src/bot/messages/busy-blocked-renderer.js", () => ({
+vi.mock("#src/bot/messages/busy-blocked-renderer.ts", () => ({
   replyBusyBlocked: mocked.replyBusyBlockedMock,
 }));
 
-vi.mock("#src/app/services/session-cache-service.js", () => ({
+vi.mock("#src/app/services/session-cache-service.ts", () => ({
   upsertSessionDirectory: mocked.upsertSessionDirectoryMock,
   __resetSessionDirectoryCacheForTests: vi.fn(),
   syncSessionDirectoryCache: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("#src/app/services/project-service.js", () => ({
+vi.mock("#src/app/services/project-service.ts", () => ({
   getProjectByWorktree: mocked.getProjectByWorktreeMock,
 }));
 
-vi.mock("#src/app/services/project-switch-service.js", () => ({
+vi.mock("#src/app/services/project-switch-service.ts", () => ({
   switchToProject: mocked.switchToProjectMock,
 }));
 
-vi.mock("#src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.ts", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 

@@ -23,7 +23,7 @@ const mocked = vi.hoisted(() => ({
   registerTaskMock: vi.fn(),
 }));
 
-vi.mock("#src/config.js", () => ({
+vi.mock("#src/config.ts", () => ({
   config: {
     telegram: {
       token: "test-token",
@@ -65,24 +65,24 @@ vi.mock("#src/config.js", () => ({
   },
 }));
 
-vi.mock("#src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.ts", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
 }));
 
-vi.mock("#src/app/services/model-selection-service.js", () => ({
+vi.mock("#src/app/services/model-selection-service.ts", () => ({
   getStoredModel: vi.fn(() => mocked.storedModel),
 }));
 
-vi.mock("#src/app/services/scheduled-task-schedule-parser-service.js", () => ({
+vi.mock("#src/app/services/scheduled-task-schedule-parser-service.ts", () => ({
   parseTaskSchedule: mocked.parseTaskScheduleMock,
 }));
 
-vi.mock("#src/app/stores/scheduled-task-store.js", () => ({
+vi.mock("#src/app/stores/scheduled-task-store.ts", () => ({
   addScheduledTask: mocked.addScheduledTaskMock,
   listScheduledTasks: mocked.listScheduledTasksMock,
 }));
 
-vi.mock("#src/app/services/scheduled-task-runtime-service.js", () => ({
+vi.mock("#src/app/services/scheduled-task-runtime-service.ts", () => ({
   scheduledTaskRuntime: {
     registerTask: mocked.registerTaskMock,
   },

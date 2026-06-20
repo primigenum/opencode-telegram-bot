@@ -11,7 +11,7 @@ const mocked = vi.hoisted(() => ({
   ensureEventSubscriptionMock: vi.fn(),
 }));
 
-vi.mock("#src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.ts", () => ({
   opencodeClient: {
     session: {
       create: mocked.sessionCreateMock,
@@ -19,29 +19,29 @@ vi.mock("#src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("#src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.ts", () => ({
   getCurrentProject: mocked.getCurrentProjectMock,
 }));
 
-vi.mock("#src/app/services/session-service.js", () => ({
+vi.mock("#src/app/services/session-service.ts", () => ({
   setCurrentSession: vi.fn(),
 }));
 
-vi.mock("#src/app/services/session-cache-service.js", () => ({
+vi.mock("#src/app/services/session-cache-service.ts", () => ({
   ingestSessionInfoForCache: vi.fn().mockResolvedValue(undefined),
   __resetSessionDirectoryCacheForTests: vi.fn(),
 }));
 
-vi.mock("#src/app/managers/interaction-manager.js", () => ({
+vi.mock("#src/app/managers/interaction-manager.ts", () => ({
   interactionManager: { clear: vi.fn() },
   clearAllInteractionState: vi.fn(),
 }));
 
-vi.mock("#src/app/managers/summary-aggregation-manager.js", () => ({
+vi.mock("#src/app/managers/summary-aggregation-manager.ts", () => ({
   summaryAggregator: { clear: vi.fn() },
 }));
 
-vi.mock("#src/bot/pinned/pinned-message-manager.js", () => ({
+vi.mock("#src/bot/pinned/pinned-message-manager.ts", () => ({
   pinnedMessageManager: {
     isInitialized: vi.fn(() => false),
     initialize: vi.fn(),
@@ -49,7 +49,7 @@ vi.mock("#src/bot/pinned/pinned-message-manager.js", () => ({
   },
 }));
 
-vi.mock("#src/bot/keyboards/keyboard-manager.js", () => ({
+vi.mock("#src/bot/keyboards/keyboard-manager.ts", () => ({
   keyboardManager: {
     initialize: vi.fn(),
     updateAgent: vi.fn(),
@@ -57,24 +57,24 @@ vi.mock("#src/bot/keyboards/keyboard-manager.js", () => ({
   },
 }));
 
-vi.mock("#src/app/services/agent-selection-service.js", () => ({
+vi.mock("#src/app/services/agent-selection-service.ts", () => ({
   getStoredAgent: vi.fn(() => "build"),
   resolveProjectAgent: vi.fn(async (agentName?: string) => agentName ?? "build"),
 }));
 
-vi.mock("#src/app/services/model-selection-service.js", () => ({
+vi.mock("#src/app/services/model-selection-service.ts", () => ({
   getStoredModel: vi.fn(() => ({ providerID: "openai", modelID: "gpt-5", variant: "default" })),
 }));
 
-vi.mock("#src/app/services/variant-selection-service.js", () => ({
+vi.mock("#src/app/services/variant-selection-service.ts", () => ({
   formatVariantForButton: vi.fn(() => "Default"),
 }));
 
-vi.mock("#src/bot/keyboards/main-reply-keyboard.js", () => ({
+vi.mock("#src/bot/keyboards/main-reply-keyboard.ts", () => ({
   createMainKeyboard: vi.fn(() => ({ keyboard: true })),
 }));
 
-vi.mock("#src/app/services/attach-service.js", () => ({
+vi.mock("#src/app/services/attach-service.ts", () => ({
   attachToSession: mocked.attachToSessionMock,
 }));
 

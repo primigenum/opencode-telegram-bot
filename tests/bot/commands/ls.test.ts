@@ -24,25 +24,25 @@ vi.mock("node:fs", () => ({
   },
 }));
 
-vi.mock("#src/app/services/run-control-service.js", () => ({
+vi.mock("#src/app/services/run-control-service.ts", () => ({
   isForegroundBusy: mocked.isForegroundBusyMock,
 }));
 
-vi.mock("#src/bot/messages/busy-blocked-renderer.js", () => ({
+vi.mock("#src/bot/messages/busy-blocked-renderer.ts", () => ({
   replyBusyBlocked: mocked.replyBusyBlockedMock,
 }));
 
-vi.mock("#src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.ts", () => ({
   getCurrentProject: mocked.getCurrentProjectMock,
 }));
 
-vi.mock("#src/bot/menus/inline-menu.js", () => ({
+vi.mock("#src/bot/menus/inline-menu.ts", () => ({
   appendInlineMenuCancelButton: vi.fn((kb: unknown) => kb),
   ensureActiveInlineMenu: mocked.ensureActiveInlineMenuMock,
   clearActiveInlineMenu: mocked.clearActiveInlineMenuMock,
 }));
 
-vi.mock("#src/app/managers/interaction-manager.js", () => ({
+vi.mock("#src/app/managers/interaction-manager.ts", () => ({
   interactionManager: {
     start: mocked.interactionStartMock,
     getSnapshot: vi.fn(() => null),
@@ -50,11 +50,11 @@ vi.mock("#src/app/managers/interaction-manager.js", () => ({
   },
 }));
 
-vi.mock("#src/bot/messages/send-downloaded-file.js", () => ({
+vi.mock("#src/bot/messages/send-downloaded-file.ts", () => ({
   sendDownloadedFile: mocked.sendDownloadedFileMock,
 }));
 
-vi.mock("#src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.ts", () => ({
   logger: {
     debug: mocked.loggerDebugMock,
     error: mocked.loggerErrorMock,

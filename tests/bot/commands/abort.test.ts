@@ -24,11 +24,11 @@ const mocked = vi.hoisted(() => ({
   clearPromptResponseModeMock: vi.fn(),
 }));
 
-vi.mock("#src/app/services/session-service.js", () => ({
+vi.mock("#src/app/services/session-service.ts", () => ({
   getCurrentSession: vi.fn(() => mocked.currentSession),
 }));
 
-vi.mock("#src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.ts", () => ({
   opencodeClient: {
     session: {
       abort: mocked.abortMock,
@@ -37,17 +37,17 @@ vi.mock("#src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("#src/app/managers/assistant-run-state-manager.js", () => ({
+vi.mock("#src/app/managers/assistant-run-state-manager.ts", () => ({
   assistantRunState: {
     clearRun: mocked.clearRunMock,
   },
 }));
 
-vi.mock("#src/app/services/attach-service.js", () => ({
+vi.mock("#src/app/services/attach-service.ts", () => ({
   markAttachedSessionIdle: mocked.markAttachedSessionIdleMock,
 }));
 
-vi.mock("#src/bot/handlers/prompt.js", () => ({
+vi.mock("#src/bot/handlers/prompt.ts", () => ({
   clearPromptResponseMode: mocked.clearPromptResponseModeMock,
 }));
 

@@ -8,11 +8,11 @@ const mocked = vi.hoisted(() => ({
   getTtsModeMock: vi.fn(),
 }));
 
-vi.mock("#src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.ts", () => ({
   getTtsMode: mocked.getTtsModeMock,
 }));
 
-vi.mock("#src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.ts", () => ({
   logger: {
     debug: vi.fn(),
     info: vi.fn(),

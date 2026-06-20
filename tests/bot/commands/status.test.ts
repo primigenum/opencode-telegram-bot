@@ -21,7 +21,7 @@ const mocked = vi.hoisted(() => ({
   sendBotTextMock: vi.fn(),
 }));
 
-vi.mock("#src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.ts", () => ({
   opencodeClient: {
     global: {
       health: mocked.healthMock,
@@ -29,28 +29,28 @@ vi.mock("#src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("#src/app/services/session-service.js", () => ({
+vi.mock("#src/app/services/session-service.ts", () => ({
   getCurrentSession: mocked.getCurrentSessionMock,
 }));
 
-vi.mock("#src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.ts", () => ({
   getCurrentProject: mocked.getCurrentProjectMock,
   getTtsMode: mocked.getTtsModeMock,
 }));
 
-vi.mock("#src/app/services/agent-selection-service.js", () => ({
+vi.mock("#src/app/services/agent-selection-service.ts", () => ({
   fetchCurrentAgent: mocked.fetchCurrentAgentMock,
 }));
 
-vi.mock("#src/app/services/model-selection-service.js", () => ({
+vi.mock("#src/app/services/model-selection-service.ts", () => ({
   fetchCurrentModel: mocked.fetchCurrentModelMock,
 }));
 
-vi.mock("#src/app/services/worktree-service.js", () => ({
+vi.mock("#src/app/services/worktree-service.ts", () => ({
   getGitWorktreeContext: mocked.getGitWorktreeContextMock,
 }));
 
-vi.mock("#src/bot/keyboards/keyboard-manager.js", () => ({
+vi.mock("#src/bot/keyboards/keyboard-manager.ts", () => ({
   keyboardManager: {
     initialize: mocked.keyboardInitializeMock,
     updateContext: mocked.keyboardUpdateContextMock,
@@ -58,7 +58,7 @@ vi.mock("#src/bot/keyboards/keyboard-manager.js", () => ({
   },
 }));
 
-vi.mock("#src/bot/pinned/pinned-message-manager.js", () => ({
+vi.mock("#src/bot/pinned/pinned-message-manager.ts", () => ({
   pinnedMessageManager: {
     isInitialized: mocked.pinnedIsInitializedMock,
     initialize: mocked.pinnedInitializeMock,
@@ -68,7 +68,7 @@ vi.mock("#src/bot/pinned/pinned-message-manager.js", () => ({
   },
 }));
 
-vi.mock("#src/bot/messages/telegram-text.js", () => ({
+vi.mock("#src/bot/messages/telegram-text.ts", () => ({
   sendBotText: mocked.sendBotTextMock,
 }));
 

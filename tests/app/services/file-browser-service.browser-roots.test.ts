@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "#vitest";
 import os from "node:os";
 import path from "node:path";
 
-vi.mock("#src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.ts", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 

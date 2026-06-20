@@ -21,11 +21,11 @@ const mocked = vi.hoisted(() => ({
   processUserPromptMock: vi.fn(),
 }));
 
-vi.mock("#src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.ts", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
 }));
 
-vi.mock("#src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.ts", () => ({
   opencodeClient: {
     command: {
       list: mocked.commandListMock,
@@ -33,7 +33,7 @@ vi.mock("#src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("#src/bot/handlers/prompt.js", () => ({
+vi.mock("#src/bot/handlers/prompt.ts", () => ({
   processUserPrompt: mocked.processUserPromptMock,
 }));
 

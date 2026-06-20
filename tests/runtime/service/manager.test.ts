@@ -31,7 +31,7 @@ vi.mock("node:child_process", () => ({
   exec: execMock,
 }));
 
-vi.mock("#src/runtime/paths.js", () => ({
+vi.mock("#src/runtime/paths.ts", () => ({
   getRuntimePaths: getRuntimePathsMock,
 }));
 

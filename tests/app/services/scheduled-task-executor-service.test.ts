@@ -17,7 +17,7 @@ const mocked = vi.hoisted(() => ({
   loggerWarnMock: vi.fn(),
 }));
 
-vi.mock("#src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.ts", () => ({
   opencodeClient: {
     session: {
       create: mocked.createMock,
@@ -38,7 +38,7 @@ vi.mock("#src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("#src/config.js", () => ({
+vi.mock("#src/config.ts", () => ({
   config: {
     bot: {
       scheduledTaskExecutionTimeoutMinutes: 120,
@@ -46,7 +46,7 @@ vi.mock("#src/config.js", () => ({
   },
 }));
 
-vi.mock("#src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.ts", () => ({
   logger: {
     warn: mocked.loggerWarnMock,
     info: vi.fn(),
@@ -55,7 +55,7 @@ vi.mock("#src/utils/logger.js", () => ({
   },
 }));
 
-vi.mock("#src/app/services/scheduled-task-session-ignore-service.js", () => ({
+vi.mock("#src/app/services/scheduled-task-session-ignore-service.ts", () => ({
   cleanupScheduledTaskSessionIgnores: mocked.cleanupIgnoresMock,
   registerScheduledTaskSessionIgnore: mocked.registerIgnoreMock,
 }));

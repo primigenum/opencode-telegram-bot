@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
 
 const mockSynthesizeSpeech = vi.hoisted(() => vi.fn());
 
-vi.mock("#src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.ts", () => ({
   logger: {
     debug: vi.fn(),
     info: vi.fn(),
@@ -34,7 +34,7 @@ const mockTts = vi.hoisted(() => ({
   voice: "alloy",
 }));
 
-vi.mock("#src/config.js", () => ({
+vi.mock("#src/config.ts", () => ({
   config: {
     tts: mockTts,
     telegram: { token: "test", allowedUserId: 0, proxyUrl: "" },
