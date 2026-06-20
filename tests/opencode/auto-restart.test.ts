@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
 import type { ChildProcess } from "node:child_process";
+import { mockDep } from "../helpers/mock-dep.js";
+import { loadSut } from "../helpers/sut-loader.js";
 
-const mocked = vi.hoisted(() => ({
+const mocked = {
   healthMock: vi.fn(),
   resolveLocalOpencodeTargetMock: vi.fn(),
   startLocalOpencodeServerMock: vi.fn(),
@@ -18,42 +20,65 @@ const mocked = vi.hoisted(() => ({
       monitorIntervalSec: 300,
     },
   },
-}));
+};
 
-vi.mock("../../src/config.js", () => ({
-  config: mocked.config,
-}));
+mockDep(
+  "../../src/config.ts",
+  () => ({
+    config: mocked.config,
+  }),
+  import.meta.url,
+);
 
-vi.mock("../../src/opencode/client.js", () => ({
-  opencodeClient: {
-    global: {
-      health: mocked.healthMock,
+mockDep(
+  "../../src/opencode/client.ts",
+  () => ({
+    opencodeClient: {
+      global: {
+        health: mocked.healthMock,
+      },
     },
-  },
-}));
+  }),
+  import.meta.url,
+);
 
-vi.mock("../../src/opencode/process.js", () => ({
-  resolveLocalOpencodeTarget: mocked.resolveLocalOpencodeTargetMock,
-  startLocalOpencodeServer: mocked.startLocalOpencodeServerMock,
-}));
+mockDep(
+  "../../src/opencode/process.ts",
+  () => ({
+    resolveLocalOpencodeTarget: mocked.resolveLocalOpencodeTargetMock,
+    startLocalOpencodeServer: mocked.startLocalOpencodeServerMock,
+  }),
+  import.meta.url,
+);
 
-vi.mock("../../src/opencode/ready-lifecycle.js", () => ({
-  opencodeReadyLifecycle: {
-    notifyReady: mocked.notifyReadyMock,
-    notifyUnavailable: mocked.notifyUnavailableMock,
-  },
-}));
+mockDep(
+  "../../src/opencode/ready-lifecycle.ts",
+  () => ({
+    opencodeReadyLifecycle: {
+      notifyReady: mocked.notifyReadyMock,
+      notifyUnavailable: mocked.notifyUnavailableMock,
+    },
+  }),
+  import.meta.url,
+);
 
-vi.mock("../../src/utils/logger.js", () => ({
-  logger: {
-    debug: mocked.loggerDebugMock,
-    info: mocked.loggerInfoMock,
-    warn: mocked.loggerWarnMock,
-    error: mocked.loggerErrorMock,
-  },
-}));
+mockDep(
+  "../../src/utils/logger.ts",
+  () => ({
+    logger: {
+      debug: mocked.loggerDebugMock,
+      info: mocked.loggerInfoMock,
+      warn: mocked.loggerWarnMock,
+      error: mocked.loggerErrorMock,
+    },
+  }),
+  import.meta.url,
+);
 
-import { OpencodeAutoRestartService } from "../../src/opencode/auto-restart.js";
+const sut = loadSut<typeof import("../../src/opencode/auto-restart.js")>(
+  "../../src/opencode/auto-restart.ts",
+  import.meta.url,
+);
 
 function createChildProcess(pid: number): ChildProcess {
   return {
@@ -98,7 +123,7 @@ describe("opencode/auto-restart", () => {
   });
 
   it("does nothing when auto-restart is disabled", async () => {
-    const service = new OpencodeAutoRestartService();
+    const service = new sut.OpencodeAutoRestartService();
 
     await service.start();
 
@@ -111,7 +136,7 @@ describe("opencode/auto-restart", () => {
     mocked.config.opencode.autoRestartEnabled = true;
     mocked.config.opencode.apiUrl = "https://example.com";
     mocked.resolveLocalOpencodeTargetMock.mockReturnValue(null);
-    const service = new OpencodeAutoRestartService();
+    const service = new sut.OpencodeAutoRestartService();
 
     await service.start();
 
@@ -126,7 +151,7 @@ describe("opencode/auto-restart", () => {
   it("does not start a process when the server is healthy", async () => {
     mocked.config.opencode.autoRestartEnabled = true;
     mocked.healthMock.mockResolvedValue(healthyResponse());
-    const service = new OpencodeAutoRestartService();
+    const service = new sut.OpencodeAutoRestartService();
 
     await service.start();
 
@@ -144,7 +169,7 @@ describe("opencode/auto-restart", () => {
     mocked.healthMock
       .mockRejectedValueOnce(new Error("offline"))
       .mockResolvedValueOnce(healthyResponse());
-    const service = new OpencodeAutoRestartService();
+    const service = new sut.OpencodeAutoRestartService();
 
     await service.start();
 
@@ -167,7 +192,7 @@ describe("opencode/auto-restart", () => {
     mocked.healthMock
       .mockReturnValueOnce(new Promise(() => undefined))
       .mockResolvedValueOnce(healthyResponse());
-    const service = new OpencodeAutoRestartService();
+    const service = new sut.OpencodeAutoRestartService();
 
     const startPromise = service.start();
     await vi.advanceTimersByTimeAsync(3000);
@@ -187,7 +212,7 @@ describe("opencode/auto-restart", () => {
     mocked.config.opencode.autoRestartEnabled = true;
     mocked.config.opencode.monitorIntervalSec = 300;
     mocked.healthMock.mockResolvedValue(healthyResponse());
-    const service = new OpencodeAutoRestartService();
+    const service = new sut.OpencodeAutoRestartService();
 
     await service.start();
     await vi.advanceTimersByTimeAsync(300_000);
@@ -204,7 +229,7 @@ describe("opencode/auto-restart", () => {
     mocked.healthMock
       .mockRejectedValueOnce(new Error("offline"))
       .mockResolvedValueOnce(healthyResponse());
-    const service = new OpencodeAutoRestartService();
+    const service = new sut.OpencodeAutoRestartService();
 
     await service.start();
 
@@ -224,7 +249,7 @@ describe("opencode/auto-restart", () => {
       .mockResolvedValueOnce(healthyResponse())
       .mockRejectedValueOnce(new Error("offline"))
       .mockResolvedValueOnce(healthyResponse());
-    const service = new OpencodeAutoRestartService();
+    const service = new sut.OpencodeAutoRestartService();
 
     await service.start();
     await vi.advanceTimersByTimeAsync(300_000);
@@ -240,7 +265,7 @@ describe("opencode/auto-restart", () => {
     mocked.config.opencode.autoRestartEnabled = true;
     mocked.config.opencode.monitorIntervalSec = 1;
     mocked.healthMock.mockResolvedValueOnce(healthyResponse());
-    const service = new OpencodeAutoRestartService();
+    const service = new sut.OpencodeAutoRestartService();
     await service.start();
 
     let resolveHealth: (value: ReturnType<typeof unhealthyResponse>) => void = () => undefined;

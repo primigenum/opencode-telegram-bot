@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import { InlineKeyboard } from "grammy";
+import { mockDep } from "../../helpers/mock-dep.js";
+import { loadSut } from "../../helpers/sut-loader.js";
 
-const mocked = vi.hoisted(() => ({
+const mocked = {
   getModelSelectionListsMock: vi.fn(),
   searchModelsMock: vi.fn(),
   interactionManagerGetSnapshotMock: vi.fn(),
@@ -9,39 +11,53 @@ const mocked = vi.hoisted(() => ({
   interactionManagerTransitionMock: vi.fn(),
   interactionManagerClearMock: vi.fn(),
   ensureActiveInlineMenuMock: vi.fn(),
-}));
+};
 
-vi.mock("../../../src/app/services/model-selection-service.js", () => ({
-  getModelSelectionLists: mocked.getModelSelectionListsMock,
-  searchModels: mocked.searchModelsMock,
-  selectModel: vi.fn(),
-  fetchCurrentModel: vi.fn(),
-}));
+mockDep(
+  "../../../src/app/services/model-selection-service.ts",
+  () => ({
+    getModelSelectionLists: mocked.getModelSelectionListsMock,
+    searchModels: mocked.searchModelsMock,
+    selectModel: vi.fn(),
+    fetchCurrentModel: vi.fn(),
+  }),
+  import.meta.url,
+);
 
-vi.mock("../../../src/app/managers/interaction-manager.js", () => ({
-  interactionManager: {
-    getSnapshot: mocked.interactionManagerGetSnapshotMock,
-    start: mocked.interactionManagerStartMock,
-    transition: mocked.interactionManagerTransitionMock,
-    clear: mocked.interactionManagerClearMock,
-  },
-}));
+mockDep(
+  "../../../src/app/managers/interaction-manager.ts",
+  () => ({
+    interactionManager: {
+      getSnapshot: mocked.interactionManagerGetSnapshotMock,
+      start: mocked.interactionManagerStartMock,
+      transition: mocked.interactionManagerTransitionMock,
+      clear: mocked.interactionManagerClearMock,
+    },
+  }),
+  import.meta.url,
+);
 
-vi.mock("../../../src/bot/menus/inline-menu.js", () => ({
-  ensureActiveInlineMenu: mocked.ensureActiveInlineMenuMock,
-  clearActiveInlineMenu: vi.fn(),
-  replyWithInlineMenu: vi.fn(),
-}));
+mockDep(
+  "../../../src/bot/menus/inline-menu.ts",
+  () => ({
+    ensureActiveInlineMenu: mocked.ensureActiveInlineMenuMock,
+    clearActiveInlineMenu: vi.fn(),
+    replyWithInlineMenu: vi.fn(),
+  }),
+  import.meta.url,
+);
 
-import {
-  buildModelSelectionMenu,
-} from "../../../src/bot/menus/model-selection-menu.js";
+const menuSut = loadSut<typeof import("../../../src/bot/menus/model-selection-menu.js")>(
+  "../../../src/bot/menus/model-selection-menu.ts",
+  import.meta.url,
+);
 
-import {
-  handleModelSearchCallback,
-  handleModelSearchTextInput,
-  handleModelSearchResults,
-} from "../../../src/bot/callbacks/model-selection-callback-handler.js";
+const callbackSut = loadSut<
+  typeof import("../../../src/bot/callbacks/model-selection-callback-handler.js")
+>(
+  "../../../src/bot/callbacks/model-selection-callback-handler.ts",
+  import.meta.url,
+);
 
 function mockContext(overrides: Record<string, unknown> = {}) {
   return {
@@ -73,7 +89,7 @@ describe("bot model selection", () => {
         recent: [{ providerID: "google", modelID: "gemini-pro" }],
       });
 
-      const keyboard = await buildModelSelectionMenu();
+      const keyboard = await menuSut.buildModelSelectionMenu();
 
       expect(keyboard).toBeInstanceOf(InlineKeyboard);
       const rows = keyboard.inline_keyboard;
@@ -88,9 +104,8 @@ describe("bot model selection", () => {
         recent: [],
       });
 
-      const keyboard = await buildModelSelectionMenu();
+      const keyboard = await menuSut.buildModelSelectionMenu();
 
-      // Keyboard always has at least the search button row
       expect(keyboard.inline_keyboard.length).toBeGreaterThanOrEqual(1);
       expect(keyboard.inline_keyboard[0][0].text).toBe("🔍 Search");
       expect(keyboard.inline_keyboard[0][0].callback_data).toBe("model:search");
@@ -103,7 +118,7 @@ describe("bot model selection", () => {
         callbackQuery: { data: "model:openai:gpt-4o" },
       });
 
-      const result = await handleModelSearchCallback(ctx);
+      const result = await callbackSut.handleModelSearchCallback(ctx);
 
       expect(result).toBe(false);
     });
@@ -111,7 +126,7 @@ describe("bot model selection", () => {
     it("returns false when no callback data", async () => {
       const ctx = mockContext({ callbackQuery: undefined });
 
-      const result = await handleModelSearchCallback(ctx);
+      const result = await callbackSut.handleModelSearchCallback(ctx);
 
       expect(result).toBe(false);
     });
@@ -125,7 +140,7 @@ describe("bot model selection", () => {
         message: { text: "gpt" },
       });
 
-      const result = await handleModelSearchTextInput(ctx);
+      const result = await callbackSut.handleModelSearchTextInput(ctx);
 
       expect(result).toBe(false);
     });
@@ -140,7 +155,7 @@ describe("bot model selection", () => {
         message: { text: "gpt" },
       });
 
-      const result = await handleModelSearchTextInput(ctx);
+      const result = await callbackSut.handleModelSearchTextInput(ctx);
 
       expect(result).toBe(false);
     });
@@ -155,7 +170,7 @@ describe("bot model selection", () => {
         message: { text: "gpt" },
       });
 
-      const result = await handleModelSearchTextInput(ctx);
+      const result = await callbackSut.handleModelSearchTextInput(ctx);
 
       expect(result).toBe(false);
     });
@@ -170,7 +185,7 @@ describe("bot model selection", () => {
         message: { text: undefined },
       });
 
-      const result = await handleModelSearchTextInput(ctx);
+      const result = await callbackSut.handleModelSearchTextInput(ctx);
 
       expect(result).toBe(false);
     });
@@ -180,7 +195,7 @@ describe("bot model selection", () => {
     it("returns false when no callback data", async () => {
       const ctx = mockContext({ callbackQuery: undefined });
 
-      const result = await handleModelSearchResults(ctx);
+      const result = await callbackSut.handleModelSearchResults(ctx);
 
       expect(result).toBe(false);
     });
@@ -192,7 +207,7 @@ describe("bot model selection", () => {
         callbackQuery: { data: "model:search:cancel" },
       });
 
-      const result = await handleModelSearchResults(ctx);
+      const result = await callbackSut.handleModelSearchResults(ctx);
 
       expect(result).toBe(false);
     });
@@ -207,7 +222,7 @@ describe("bot model selection", () => {
         callbackQuery: { data: "model:search:cancel" },
       });
 
-      const result = await handleModelSearchResults(ctx);
+      const result = await callbackSut.handleModelSearchResults(ctx);
 
       expect(result).toBe(false);
     });
@@ -222,7 +237,7 @@ describe("bot model selection", () => {
         callbackQuery: { data: "model:search:cancel" },
       });
 
-      const result = await handleModelSearchResults(ctx);
+      const result = await callbackSut.handleModelSearchResults(ctx);
 
       expect(result).toBe(false);
     });

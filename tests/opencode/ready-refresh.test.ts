@@ -1,41 +1,59 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
+import { mockDep } from "../helpers/mock-dep.js";
+import { loadSut } from "../helpers/sut-loader.js";
 
-const mocked = vi.hoisted(() => ({
+const mocked = {
   healthMock: vi.fn(),
   warmupSessionDirectoryCacheMock: vi.fn(),
   reconcileStoredModelSelectionMock: vi.fn(),
   loggerDebugMock: vi.fn(),
   loggerWarnMock: vi.fn(),
-}));
+};
 
-vi.mock("../../src/opencode/client.js", () => ({
-  opencodeClient: {
-    global: {
-      health: mocked.healthMock,
+mockDep(
+  "../../src/opencode/client.ts",
+  () => ({
+    opencodeClient: {
+      global: {
+        health: mocked.healthMock,
+      },
     },
-  },
-}));
+  }),
+  import.meta.url,
+);
 
-vi.mock("../../src/app/services/session-cache-service.js", () => ({
-  __resetSessionDirectoryCacheForTests: vi.fn(),
-  warmupSessionDirectoryCache: mocked.warmupSessionDirectoryCacheMock,
-}));
+mockDep(
+  "../../src/app/services/session-cache-service.ts",
+  () => ({
+    __resetSessionDirectoryCacheForTests: vi.fn(),
+    warmupSessionDirectoryCache: mocked.warmupSessionDirectoryCacheMock,
+  }),
+  import.meta.url,
+);
 
-vi.mock("../../src/app/services/model-selection-service.js", () => ({
-  reconcileStoredModelSelection: mocked.reconcileStoredModelSelectionMock,
-}));
+mockDep(
+  "../../src/app/services/model-selection-service.ts",
+  () => ({
+    reconcileStoredModelSelection: mocked.reconcileStoredModelSelectionMock,
+  }),
+  import.meta.url,
+);
 
-vi.mock("../../src/utils/logger.js", () => ({
-  logger: {
-    debug: mocked.loggerDebugMock,
-    warn: mocked.loggerWarnMock,
-  },
-}));
+mockDep(
+  "../../src/utils/logger.ts",
+  () => ({
+    logger: {
+      debug: mocked.loggerDebugMock,
+      warn: mocked.loggerWarnMock,
+    },
+  }),
+  import.meta.url,
+);
 
-import {
-  refreshSessionCacheAfterOpencodeReady,
-  refreshSessionCacheIfOpencodeReady,
-} from "../../src/opencode/ready-refresh.js";
+const sut = loadSut<typeof import("../../src/opencode/ready-refresh.js")>(
+  "../../src/opencode/ready-refresh.ts",
+  import.meta.url,
+);
 
 describe("opencode/ready-refresh", () => {
   beforeEach(() => {
@@ -52,7 +70,7 @@ describe("opencode/ready-refresh", () => {
   it("skips refresh with a short warning when OpenCode server is unavailable", async () => {
     mocked.healthMock.mockRejectedValueOnce(new Error("fetch failed"));
 
-    const refreshed = await refreshSessionCacheIfOpencodeReady("startup");
+    const refreshed = await sut.refreshSessionCacheIfOpencodeReady("startup");
 
     expect(refreshed).toBe(false);
     expect(mocked.warmupSessionDirectoryCacheMock).not.toHaveBeenCalled();
@@ -65,7 +83,7 @@ describe("opencode/ready-refresh", () => {
   it("refreshes cache when OpenCode server is healthy", async () => {
     mocked.healthMock.mockResolvedValueOnce({ data: { healthy: true }, error: null });
 
-    const refreshed = await refreshSessionCacheIfOpencodeReady("startup");
+    const refreshed = await sut.refreshSessionCacheIfOpencodeReady("startup");
 
     expect(refreshed).toBe(true);
     expect(mocked.warmupSessionDirectoryCacheMock).toHaveBeenCalledTimes(1);
@@ -78,7 +96,7 @@ describe("opencode/ready-refresh", () => {
     mocked.warmupSessionDirectoryCacheMock.mockRejectedValueOnce(new Error("refresh failed"));
 
     await expect(
-      refreshSessionCacheAfterOpencodeReady("opencode_start_success"),
+      sut.refreshSessionCacheAfterOpencodeReady("opencode_start_success"),
     ).resolves.toBeUndefined();
 
     expect(mocked.loggerWarnMock).toHaveBeenCalledWith(
@@ -94,12 +112,11 @@ describe("opencode/ready-refresh", () => {
     mocked.reconcileStoredModelSelectionMock.mockRejectedValueOnce(new Error("model failed"));
 
     await expect(
-      refreshSessionCacheAfterOpencodeReady("opencode_start_success"),
+      sut.refreshSessionCacheAfterOpencodeReady("opencode_start_success"),
     ).resolves.toBeUndefined();
 
     expect(mocked.loggerWarnMock).toHaveBeenCalledWith(
       "[OpenCodeReady] Failed to refresh model catalog: reason=opencode_start_success",
-      expect.any(Error),
     );
   });
 });

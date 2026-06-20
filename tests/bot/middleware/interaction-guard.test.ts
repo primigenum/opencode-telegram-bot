@@ -1,17 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context, NextFunction } from "grammy";
-import { interactionGuardMiddleware } from "../../../src/bot/middleware/interaction-guard.js";
+import { mockDep } from "../../helpers/mock-dep.js";
+import { loadSut } from "../../helpers/sut-loader.js";
+
+const mocked = {
+  reconcileForegroundBusyStateMock: vi.fn(),
+};
+
+mockDep(
+  "../../../src/app/services/run-control-service.ts",
+  () => ({
+    reconcileForegroundBusyState: mocked.reconcileForegroundBusyStateMock,
+  }),
+  import.meta.url,
+);
+
+const sut = loadSut<typeof import("../../../src/bot/middleware/interaction-guard.js")>(
+  "../../../src/bot/middleware/interaction-guard.ts",
+  import.meta.url,
+);
+
 import { interactionManager } from "../../../src/app/managers/interaction-manager.js";
 import { foregroundSessionState } from "../../../src/app/managers/foreground-session-state-manager.js";
 import { t } from "../../../src/i18n/index.js";
-
-const mocked = vi.hoisted(() => ({
-  reconcileForegroundBusyStateMock: vi.fn(),
-}));
-
-vi.mock("../../../src/app/services/run-control-service.js", () => ({
-  reconcileForegroundBusyState: mocked.reconcileForegroundBusyStateMock,
-}));
 
 function createTextContext(text: string): Context {
   return {
@@ -51,7 +62,7 @@ describe("interactionGuardMiddleware", () => {
     const ctx = createTextContext("hello");
     const next: NextFunction = vi.fn().mockResolvedValue(undefined);
 
-    await interactionGuardMiddleware(ctx, next);
+    await sut.interactionGuardMiddleware(ctx, next);
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(ctx.reply).not.toHaveBeenCalled();
@@ -66,7 +77,7 @@ describe("interactionGuardMiddleware", () => {
     const ctx = createTextContext("hello");
     const next: NextFunction = vi.fn().mockResolvedValue(undefined);
 
-    await interactionGuardMiddleware(ctx, next);
+    await sut.interactionGuardMiddleware(ctx, next);
 
     expect(next).not.toHaveBeenCalled();
     expect(ctx.reply).toHaveBeenCalledWith(t("inline.blocked.expected_choice"));
@@ -81,7 +92,7 @@ describe("interactionGuardMiddleware", () => {
     const ctx = createCallbackContext("project:123");
     const next: NextFunction = vi.fn().mockResolvedValue(undefined);
 
-    await interactionGuardMiddleware(ctx, next);
+    await sut.interactionGuardMiddleware(ctx, next);
 
     expect(next).not.toHaveBeenCalled();
     expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({
@@ -100,7 +111,7 @@ describe("interactionGuardMiddleware", () => {
     const ctx = createTextContext("/status");
     const next: NextFunction = vi.fn().mockResolvedValue(undefined);
 
-    await interactionGuardMiddleware(ctx, next);
+    await sut.interactionGuardMiddleware(ctx, next);
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(ctx.reply).not.toHaveBeenCalled();
@@ -116,7 +127,7 @@ describe("interactionGuardMiddleware", () => {
     const ctx = createTextContext("/start");
     const next: NextFunction = vi.fn().mockResolvedValue(undefined);
 
-    await interactionGuardMiddleware(ctx, next);
+    await sut.interactionGuardMiddleware(ctx, next);
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(ctx.reply).not.toHaveBeenCalled();
@@ -132,7 +143,7 @@ describe("interactionGuardMiddleware", () => {
     const ctx = createTextContext("/help");
     const next: NextFunction = vi.fn().mockResolvedValue(undefined);
 
-    await interactionGuardMiddleware(ctx, next);
+    await sut.interactionGuardMiddleware(ctx, next);
 
     expect(next).not.toHaveBeenCalled();
     expect(ctx.reply).toHaveBeenCalledWith(t("inline.blocked.command_not_allowed"));
@@ -147,7 +158,7 @@ describe("interactionGuardMiddleware", () => {
     const ctx = createTextContext("hello");
     const next: NextFunction = vi.fn().mockResolvedValue(undefined);
 
-    await interactionGuardMiddleware(ctx, next);
+    await sut.interactionGuardMiddleware(ctx, next);
 
     expect(next).not.toHaveBeenCalled();
     expect(ctx.reply).toHaveBeenCalledWith(t("permission.blocked.expected_reply"));
@@ -163,7 +174,7 @@ describe("interactionGuardMiddleware", () => {
     const ctx = createTextContext("/new");
     const next: NextFunction = vi.fn().mockResolvedValue(undefined);
 
-    await interactionGuardMiddleware(ctx, next);
+    await sut.interactionGuardMiddleware(ctx, next);
 
     expect(next).not.toHaveBeenCalled();
     expect(ctx.reply).toHaveBeenCalledWith(t("permission.blocked.command_not_allowed"));
@@ -179,7 +190,7 @@ describe("interactionGuardMiddleware", () => {
     const ctx = createTextContext("/new");
     const next: NextFunction = vi.fn().mockResolvedValue(undefined);
 
-    await interactionGuardMiddleware(ctx, next);
+    await sut.interactionGuardMiddleware(ctx, next);
 
     expect(next).not.toHaveBeenCalled();
     expect(ctx.reply).toHaveBeenCalledWith(t("rename.blocked.command_not_allowed"));
@@ -194,7 +205,7 @@ describe("interactionGuardMiddleware", () => {
     const ctx = createVoiceContext();
     const next: NextFunction = vi.fn().mockResolvedValue(undefined);
 
-    await interactionGuardMiddleware(ctx, next);
+    await sut.interactionGuardMiddleware(ctx, next);
 
     expect(next).not.toHaveBeenCalled();
     expect(ctx.reply).toHaveBeenCalledWith(t("rename.blocked.expected_name"));
@@ -209,7 +220,7 @@ describe("interactionGuardMiddleware", () => {
     const ctx = createTextContext("hello");
     const next: NextFunction = vi.fn().mockResolvedValue(undefined);
 
-    await interactionGuardMiddleware(ctx, next);
+    await sut.interactionGuardMiddleware(ctx, next);
 
     expect(next).not.toHaveBeenCalled();
     expect(ctx.reply).toHaveBeenCalledWith(t("question.blocked.expected_answer"));
@@ -225,7 +236,7 @@ describe("interactionGuardMiddleware", () => {
     const ctx = createTextContext("/new");
     const next: NextFunction = vi.fn().mockResolvedValue(undefined);
 
-    await interactionGuardMiddleware(ctx, next);
+    await sut.interactionGuardMiddleware(ctx, next);
 
     expect(next).not.toHaveBeenCalled();
     expect(ctx.reply).toHaveBeenCalledWith(t("question.blocked.command_not_allowed"));
@@ -240,7 +251,7 @@ describe("interactionGuardMiddleware", () => {
     const ctx = createCallbackContext("task:cancel");
     const next: NextFunction = vi.fn().mockResolvedValue(undefined);
 
-    await interactionGuardMiddleware(ctx, next);
+    await sut.interactionGuardMiddleware(ctx, next);
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(ctx.answerCallbackQuery).not.toHaveBeenCalled();
@@ -256,7 +267,7 @@ describe("interactionGuardMiddleware", () => {
     const ctx = createTextContext("/new");
     const next: NextFunction = vi.fn().mockResolvedValue(undefined);
 
-    await interactionGuardMiddleware(ctx, next);
+    await sut.interactionGuardMiddleware(ctx, next);
 
     expect(next).not.toHaveBeenCalled();
     expect(ctx.reply).toHaveBeenCalledWith(t("task.blocked.command_not_allowed"));
@@ -268,7 +279,7 @@ describe("interactionGuardMiddleware", () => {
     const ctx = createTextContext("/new");
     const next: NextFunction = vi.fn().mockResolvedValue(undefined);
 
-    await interactionGuardMiddleware(ctx, next);
+    await sut.interactionGuardMiddleware(ctx, next);
 
     expect(next).not.toHaveBeenCalled();
     expect(ctx.reply).toHaveBeenCalledWith(t("bot.session_busy"));
@@ -280,7 +291,7 @@ describe("interactionGuardMiddleware", () => {
     const ctx = createTextContext("hello");
     const next: NextFunction = vi.fn().mockResolvedValue(undefined);
 
-    await interactionGuardMiddleware(ctx, next);
+    await sut.interactionGuardMiddleware(ctx, next);
 
     expect(next).not.toHaveBeenCalled();
     expect(ctx.reply).toHaveBeenCalledWith(t("bot.session_busy"));
@@ -295,7 +306,7 @@ describe("interactionGuardMiddleware", () => {
     const ctx = createTextContext("hello");
     const next: NextFunction = vi.fn().mockResolvedValue(undefined);
 
-    await interactionGuardMiddleware(ctx, next);
+    await sut.interactionGuardMiddleware(ctx, next);
 
     expect(mocked.reconcileForegroundBusyStateMock).toHaveBeenCalledTimes(1);
     expect(next).toHaveBeenCalledTimes(1);
@@ -308,7 +319,7 @@ describe("interactionGuardMiddleware", () => {
     const ctx = createTextContext("hello");
     const next: NextFunction = vi.fn().mockResolvedValue(undefined);
 
-    await interactionGuardMiddleware(ctx, next);
+    await sut.interactionGuardMiddleware(ctx, next);
 
     expect(mocked.reconcileForegroundBusyStateMock).toHaveBeenCalledTimes(1);
     expect(next).not.toHaveBeenCalled();
@@ -321,7 +332,7 @@ describe("interactionGuardMiddleware", () => {
     const ctx = createCallbackContext("project:123");
     const next: NextFunction = vi.fn().mockResolvedValue(undefined);
 
-    await interactionGuardMiddleware(ctx, next);
+    await sut.interactionGuardMiddleware(ctx, next);
 
     expect(next).not.toHaveBeenCalled();
     expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({
@@ -336,7 +347,7 @@ describe("interactionGuardMiddleware", () => {
       const ctx = createTextContext(command);
       const next: NextFunction = vi.fn().mockResolvedValue(undefined);
 
-      await interactionGuardMiddleware(ctx, next);
+      await sut.interactionGuardMiddleware(ctx, next);
 
       expect(next).toHaveBeenCalledTimes(1);
       expect(ctx.reply).not.toHaveBeenCalled();
@@ -353,7 +364,7 @@ describe("interactionGuardMiddleware", () => {
     const ctx = createCallbackContext("question:select:0:1");
     const next: NextFunction = vi.fn().mockResolvedValue(undefined);
 
-    await interactionGuardMiddleware(ctx, next);
+    await sut.interactionGuardMiddleware(ctx, next);
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(ctx.answerCallbackQuery).not.toHaveBeenCalled();
@@ -369,7 +380,7 @@ describe("interactionGuardMiddleware", () => {
     const ctx = createCallbackContext("permission:allow:1");
     const next: NextFunction = vi.fn().mockResolvedValue(undefined);
 
-    await interactionGuardMiddleware(ctx, next);
+    await sut.interactionGuardMiddleware(ctx, next);
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(ctx.answerCallbackQuery).not.toHaveBeenCalled();

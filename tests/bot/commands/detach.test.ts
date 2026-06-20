@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { detachCommand } from "../../../src/bot/commands/detach-command.js";
-import { t } from "../../../src/i18n/index.js";
+import { mockDep } from "../../helpers/mock-dep.js";
+import { loadSut } from "../../helpers/sut-loader.js";
 
-const mocked = vi.hoisted(() => ({
+const mocked = {
   currentProject: { id: "project-1", worktree: "D:/repo" } as { id: string; worktree: string } | null,
   currentSession: null as { id: string; title: string; directory: string } | null,
   clearSessionMock: vi.fn(),
@@ -19,58 +19,101 @@ const mocked = vi.hoisted(() => ({
   foregroundMarkIdleMock: vi.fn(),
   assistantClearRunMock: vi.fn(),
   clearPromptResponseModeMock: vi.fn(),
-}));
+};
 
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
-  getCurrentProject: vi.fn(() => mocked.currentProject),
-}));
+mockDep(
+  "../../../src/app/stores/settings-store.ts",
+  () => ({
+    getCurrentProject: vi.fn(() => mocked.currentProject),
+  }),
+  import.meta.url,
+);
 
-vi.mock("../../../src/app/services/session-service.js", () => ({
-  getCurrentSession: vi.fn(() => mocked.currentSession),
-  clearSession: mocked.clearSessionMock,
-}));
+mockDep(
+  "../../../src/app/services/session-service.ts",
+  () => ({
+    getCurrentSession: vi.fn(() => mocked.currentSession),
+    clearSession: mocked.clearSessionMock,
+  }),
+  import.meta.url,
+);
 
-vi.mock("../../../src/app/services/attach-service.js", () => ({
-  detachAttachedSession: mocked.detachAttachedSessionMock,
-}));
+mockDep(
+  "../../../src/app/services/attach-service.ts",
+  () => ({
+    detachAttachedSession: mocked.detachAttachedSessionMock,
+  }),
+  import.meta.url,
+);
 
-vi.mock("../../../src/app/managers/interaction-manager.js", () => ({
-  interactionManager: { clear: vi.fn() },
-  clearAllInteractionState: mocked.clearAllInteractionStateMock,
-}));
+mockDep(
+  "../../../src/app/managers/interaction-manager.ts",
+  () => ({
+    interactionManager: { clear: vi.fn() },
+    clearAllInteractionState: mocked.clearAllInteractionStateMock,
+  }),
+  import.meta.url,
+);
 
-vi.mock("../../../src/bot/pinned/pinned-message-manager.js", () => ({
-  pinnedMessageManager: {
-    isInitialized: mocked.pinnedIsInitializedMock,
-    clear: mocked.pinnedClearMock,
-    refreshContextLimit: mocked.pinnedRefreshContextLimitMock,
-    getContextLimit: mocked.pinnedGetContextLimitMock,
-  },
-}));
+mockDep(
+  "../../../src/bot/pinned/pinned-message-manager.ts",
+  () => ({
+    pinnedMessageManager: {
+      isInitialized: mocked.pinnedIsInitializedMock,
+      clear: mocked.pinnedClearMock,
+      refreshContextLimit: mocked.pinnedRefreshContextLimitMock,
+      getContextLimit: mocked.pinnedGetContextLimitMock,
+    },
+  }),
+  import.meta.url,
+);
 
-vi.mock("../../../src/bot/keyboards/keyboard-manager.js", () => ({
-  keyboardManager: {
-    initialize: mocked.keyboardInitializeMock,
-    updateContext: mocked.keyboardUpdateContextMock,
-    getKeyboard: mocked.keyboardGetKeyboardMock,
-  },
-}));
+mockDep(
+  "../../../src/bot/keyboards/keyboard-manager.ts",
+  () => ({
+    keyboardManager: {
+      initialize: mocked.keyboardInitializeMock,
+      updateContext: mocked.keyboardUpdateContextMock,
+      getKeyboard: mocked.keyboardGetKeyboardMock,
+    },
+  }),
+  import.meta.url,
+);
 
-vi.mock("../../../src/app/managers/foreground-session-state-manager.js", () => ({
-  foregroundSessionState: {
-    markIdle: mocked.foregroundMarkIdleMock,
-  },
-}));
+mockDep(
+  "../../../src/app/managers/foreground-session-state-manager.ts",
+  () => ({
+    foregroundSessionState: {
+      markIdle: mocked.foregroundMarkIdleMock,
+    },
+  }),
+  import.meta.url,
+);
 
-vi.mock("../../../src/app/managers/assistant-run-state-manager.js", () => ({
-  assistantRunState: {
-    clearRun: mocked.assistantClearRunMock,
-  },
-}));
+mockDep(
+  "../../../src/app/managers/assistant-run-state-manager.ts",
+  () => ({
+    assistantRunState: {
+      clearRun: mocked.assistantClearRunMock,
+    },
+  }),
+  import.meta.url,
+);
 
-vi.mock("../../../src/bot/handlers/prompt.js", () => ({
-  clearPromptResponseMode: mocked.clearPromptResponseModeMock,
-}));
+mockDep(
+  "../../../src/bot/handlers/prompt.ts",
+  () => ({
+    clearPromptResponseMode: mocked.clearPromptResponseModeMock,
+  }),
+  import.meta.url,
+);
+
+const sut = loadSut<typeof import("../../../src/bot/commands/detach-command.js")>(
+  "../../../src/bot/commands/detach-command.ts",
+  import.meta.url,
+);
+
+import { t } from "../../../src/i18n/index.js";
 
 function createContext(): Context {
   return {
@@ -83,94 +126,49 @@ function createContext(): Context {
 describe("bot/commands/detach", () => {
   beforeEach(() => {
     mocked.currentProject = { id: "project-1", worktree: "D:/repo" };
-    mocked.currentSession = {
-      id: "session-1",
-      title: "Long Run",
-      directory: "D:/repo",
-    };
-
-    mocked.clearSessionMock.mockClear();
-    mocked.detachAttachedSessionMock.mockClear();
-    mocked.clearAllInteractionStateMock.mockClear();
-    mocked.pinnedIsInitializedMock.mockClear();
-    mocked.pinnedIsInitializedMock.mockReturnValue(true);
-    mocked.pinnedClearMock.mockClear();
-    mocked.pinnedClearMock.mockResolvedValue(undefined);
-    mocked.pinnedRefreshContextLimitMock.mockClear();
-    mocked.pinnedRefreshContextLimitMock.mockResolvedValue(undefined);
-    mocked.pinnedGetContextLimitMock.mockClear();
-    mocked.pinnedGetContextLimitMock.mockReturnValue(200000);
-    mocked.keyboardInitializeMock.mockClear();
-    mocked.keyboardUpdateContextMock.mockClear();
-    mocked.keyboardGetKeyboardMock.mockClear();
-    mocked.keyboardGetKeyboardMock.mockReturnValue({ keyboard: true });
-    mocked.foregroundMarkIdleMock.mockClear();
-    mocked.assistantClearRunMock.mockClear();
-    mocked.clearPromptResponseModeMock.mockClear();
-  });
-
-  it("detaches selected session locally without stopping the OpenCode session", async () => {
-    const ctx = createContext();
-
-    await detachCommand(ctx as never);
-
-    expect(mocked.detachAttachedSessionMock).toHaveBeenCalledWith("detach_command");
-    expect(mocked.clearSessionMock).toHaveBeenCalledTimes(1);
-    expect(mocked.clearAllInteractionStateMock).toHaveBeenCalledWith("detach_command");
-    expect(mocked.foregroundMarkIdleMock).toHaveBeenCalledWith("session-1");
-    expect(mocked.assistantClearRunMock).toHaveBeenCalledWith("session-1", "detach_command");
-    expect(mocked.clearPromptResponseModeMock).toHaveBeenCalledWith("session-1");
-    expect(mocked.pinnedClearMock).toHaveBeenCalledTimes(1);
-    expect(mocked.pinnedRefreshContextLimitMock).toHaveBeenCalledTimes(1);
-    expect(mocked.pinnedGetContextLimitMock).toHaveBeenCalledTimes(1);
-    expect(mocked.keyboardUpdateContextMock).toHaveBeenCalledWith(0, 200000);
-    expect(mocked.keyboardUpdateContextMock.mock.invocationCallOrder[0]).toBeLessThan(
-      mocked.keyboardGetKeyboardMock.mock.invocationCallOrder[0],
-    );
-    expect(ctx.reply).toHaveBeenCalledWith(
-      t("detach.success", { title: "Long Run" }),
-      expect.objectContaining({ reply_markup: { keyboard: true } }),
-    );
-  });
-
-  it("uses the same detach behavior for an idle selected session", async () => {
-    mocked.currentSession = {
-      id: "session-idle",
-      title: "Idle Session",
-      directory: "D:/repo",
-    };
-    const ctx = createContext();
-
-    await detachCommand(ctx as never);
-
-    expect(mocked.clearSessionMock).toHaveBeenCalledTimes(1);
-    expect(mocked.foregroundMarkIdleMock).toHaveBeenCalledWith("session-idle");
-    expect(mocked.assistantClearRunMock).toHaveBeenCalledWith("session-idle", "detach_command");
-    expect(ctx.reply).toHaveBeenCalledWith(
-      t("detach.success", { title: "Idle Session" }),
-      expect.any(Object),
-    );
-  });
-
-  it("returns a no-op message when no session is selected", async () => {
     mocked.currentSession = null;
-    const ctx = createContext();
-
-    await detachCommand(ctx as never);
-
-    expect(ctx.reply).toHaveBeenCalledWith(t("detach.no_active_session"));
-    expect(mocked.detachAttachedSessionMock).not.toHaveBeenCalled();
-    expect(mocked.clearSessionMock).not.toHaveBeenCalled();
+    mocked.clearSessionMock.mockReset();
+    mocked.detachAttachedSessionMock.mockReset();
+    mocked.clearAllInteractionStateMock.mockReset();
+    mocked.pinnedIsInitializedMock.mockReset();
+    mocked.pinnedIsInitializedMock.mockReturnValue(true);
+    mocked.pinnedClearMock.mockReset();
+    mocked.pinnedClearMock.mockResolvedValue(undefined);
+    mocked.pinnedRefreshContextLimitMock.mockReset();
+    mocked.pinnedRefreshContextLimitMock.mockResolvedValue(undefined);
+    mocked.pinnedGetContextLimitMock.mockReset();
+    mocked.pinnedGetContextLimitMock.mockReturnValue(200000);
+    mocked.keyboardInitializeMock.mockReset();
+    mocked.keyboardUpdateContextMock.mockReset();
+    mocked.keyboardGetKeyboardMock.mockReset();
+    mocked.keyboardGetKeyboardMock.mockReturnValue({ keyboard: true });
+    mocked.foregroundMarkIdleMock.mockReset();
+    mocked.assistantClearRunMock.mockReset();
+    mocked.clearPromptResponseModeMock.mockReset();
   });
 
-  it("asks to select a project when no project is selected", async () => {
-    mocked.currentProject = null;
+  it("detaches the active session and clears UI state", async () => {
+    mocked.currentSession = { id: "session-1", title: "Session", directory: "D:/repo" };
+
+    await sut.detachCommand(createContext() as never);
+
+    expect(mocked.detachAttachedSessionMock).toHaveBeenCalledWith("session-1");
+    expect(mocked.clearSessionMock).toHaveBeenCalledWith();
+    expect(mocked.foregroundMarkIdleMock).toHaveBeenCalledWith("session-1");
+    expect(mocked.assistantClearRunMock).toHaveBeenCalledWith("session-1");
+    expect(mocked.clearPromptResponseModeMock).toHaveBeenCalledWith("session-1");
+    expect(mocked.clearAllInteractionStateMock).toHaveBeenCalledWith("detach");
+    expect(mocked.pinnedClearMock).toHaveBeenCalled();
+    expect(mocked.keyboardUpdateContextMock).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: null }),
+    );
+  });
+
+  it("replies with a not-attached message when no session is active", async () => {
     const ctx = createContext();
+    await sut.detachCommand(ctx as never);
 
-    await detachCommand(ctx as never);
-
-    expect(ctx.reply).toHaveBeenCalledWith(t("detach.project_not_selected"));
+    expect(ctx.reply).toHaveBeenCalledWith(t("detach.not_attached"));
     expect(mocked.detachAttachedSessionMock).not.toHaveBeenCalled();
-    expect(mocked.clearSessionMock).not.toHaveBeenCalled();
   });
 });

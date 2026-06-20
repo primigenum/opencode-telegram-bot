@@ -1,85 +1,99 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
+import * as actualSettingsStore from "../../../src/app/stores/settings-store.js";
+import { mockDep } from "../../helpers/mock-dep.js";
+import { loadSut } from "../../helpers/sut-loader.js";
 
-const mocked = vi.hoisted(() => {
-  let currentProject:
-    | {
-        id: string;
-        worktree: string;
-        name: string;
-      }
-    | undefined;
-  let currentSession:
-    | {
-        id: string;
-        directory: string;
-        title: string;
-      }
-    | undefined;
-  let currentAgent: string | undefined;
+let currentProject:
+  | {
+      id: string;
+      worktree: string;
+      name: string;
+    }
+  | undefined;
+let currentSession:
+  | {
+      id: string;
+      directory: string;
+      title: string;
+    }
+  | undefined;
+let currentAgent: string | undefined;
 
-  const appAgentsMock = vi.fn();
-  const sessionMessagesMock = vi.fn();
-  const getCurrentProjectMock = vi.fn(() => currentProject);
-  const getCurrentSessionMock = vi.fn(() => currentSession);
-  const getCurrentAgentMock = vi.fn(() => currentAgent);
-  const setCurrentAgentMock = vi.fn((agentName: string) => {
+const mocked = {
+  appAgentsMock: vi.fn(),
+  sessionMessagesMock: vi.fn(),
+  getCurrentProjectMock: vi.fn(() => currentProject),
+  getCurrentSessionMock: vi.fn(() => currentSession),
+  getCurrentAgentMock: vi.fn(() => currentAgent),
+  setCurrentAgentMock: vi.fn((agentName: string) => {
     currentAgent = agentName;
-  });
-
-  return {
-    appAgentsMock,
-    sessionMessagesMock,
-    getCurrentProjectMock,
-    getCurrentSessionMock,
-    getCurrentAgentMock,
-    setCurrentAgentMock,
-    loggerDebugMock: vi.fn(),
-    loggerErrorMock: vi.fn(),
-    loggerInfoMock: vi.fn(),
-    loggerWarnMock: vi.fn(),
-    setCurrentProject: (project?: { id: string; worktree: string; name: string }) => {
-      currentProject = project;
-    },
-    setCurrentSession: (session?: { id: string; directory: string; title: string }) => {
-      currentSession = session;
-    },
-    setCurrentAgent: (agentName?: string) => {
-      currentAgent = agentName;
-    },
-  };
-});
-
-vi.mock("../../../src/opencode/client.js", () => ({
-  opencodeClient: {
-    app: {
-      agents: mocked.appAgentsMock,
-    },
-    session: {
-      messages: mocked.sessionMessagesMock,
-    },
+  }),
+  loggerDebugMock: vi.fn(),
+  loggerErrorMock: vi.fn(),
+  loggerInfoMock: vi.fn(),
+  loggerWarnMock: vi.fn(),
+  setCurrentProject: (project?: { id: string; worktree: string; name: string }) => {
+    currentProject = project;
   },
-}));
-
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
-  getCurrentProject: mocked.getCurrentProjectMock,
-  getCurrentAgent: mocked.getCurrentAgentMock,
-  setCurrentAgent: mocked.setCurrentAgentMock,
-}));
-
-vi.mock("../../../src/app/services/session-service.js", () => ({
-  getCurrentSession: mocked.getCurrentSessionMock,
-}));
-
-vi.mock("../../../src/utils/logger.js", () => ({
-  logger: {
-    debug: mocked.loggerDebugMock,
-    error: mocked.loggerErrorMock,
-    info: mocked.loggerInfoMock,
-    warn: mocked.loggerWarnMock,
+  setCurrentSession: (session?: { id: string; directory: string; title: string }) => {
+    currentSession = session;
   },
-}));
+  setCurrentAgent: (agentName?: string) => {
+    currentAgent = agentName;
+  },
+};
 
-import { fetchCurrentAgent, getAvailableAgents, resolveProjectAgent } from "../../../src/app/services/agent-selection-service.js";
+mockDep(
+  "../../../src/opencode/client.ts",
+  () => ({
+    opencodeClient: {
+      app: {
+        agents: mocked.appAgentsMock,
+      },
+      session: {
+        messages: mocked.sessionMessagesMock,
+      },
+    },
+  }),
+  import.meta.url,
+);
+
+mockDep(
+  "../../../src/app/stores/settings-store.ts",
+  () => ({
+    ...actualSettingsStore,
+    getCurrentProject: mocked.getCurrentProjectMock,
+    getCurrentAgent: mocked.getCurrentAgentMock,
+    setCurrentAgent: mocked.setCurrentAgentMock,
+  }),
+  import.meta.url,
+);
+
+mockDep(
+  "../../../src/app/services/session-service.ts",
+  () => ({
+    getCurrentSession: mocked.getCurrentSessionMock,
+  }),
+  import.meta.url,
+);
+
+mockDep(
+  "../../../src/utils/logger.ts",
+  () => ({
+    logger: {
+      debug: mocked.loggerDebugMock,
+      error: mocked.loggerErrorMock,
+      info: mocked.loggerInfoMock,
+      warn: mocked.loggerWarnMock,
+    },
+  }),
+  import.meta.url,
+);
+
+const sut = loadSut<typeof import("../../../src/app/services/agent-selection-service.js")>(
+  "../../../src/app/services/agent-selection-service.ts",
+  import.meta.url,
+);
 
 function createAgentResponse(
   agents: Array<{ name: string; mode: "primary" | "all" | "subagent"; hidden?: boolean }>,
@@ -122,7 +136,7 @@ describe("agent/manager", () => {
       ]),
     );
 
-    const result = await getAvailableAgents();
+    const result = await sut.getAvailableAgents();
 
     expect(result).toEqual([
       { name: "orchestrator", mode: "primary" },
@@ -144,7 +158,7 @@ describe("agent/manager", () => {
       ]),
     );
 
-    const result = await resolveProjectAgent("orchestrator");
+    const result = await sut.resolveProjectAgent("orchestrator");
 
     expect(result).toBe("build");
     expect(mocked.setCurrentAgentMock).toHaveBeenCalledWith("build");
@@ -164,7 +178,7 @@ describe("agent/manager", () => {
       ]),
     );
 
-    const result = await resolveProjectAgent("build");
+    const result = await sut.resolveProjectAgent("build");
 
     expect(result).toBe("plan");
     expect(mocked.setCurrentAgentMock).toHaveBeenCalledWith("plan");
@@ -184,7 +198,7 @@ describe("agent/manager", () => {
       ]),
     );
 
-    const result = await fetchCurrentAgent();
+    const result = await sut.fetchCurrentAgent();
 
     expect(result).toBe("build");
     expect(mocked.setCurrentAgentMock).toHaveBeenCalledWith("build");

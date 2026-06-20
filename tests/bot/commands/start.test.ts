@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { startCommand } from "../../../src/bot/commands/start-command.js";
-import { t } from "../../../src/i18n/index.js";
+import { mockDep } from "../../helpers/mock-dep.js";
+import { loadSut } from "../../helpers/sut-loader.js";
 
-const mocked = vi.hoisted(() => ({
+const mocked = {
   abortCurrentOperationMock: vi.fn(),
   clearSessionMock: vi.fn(),
   clearProjectMock: vi.fn(),
@@ -26,56 +26,99 @@ const mocked = vi.hoisted(() => ({
   keyboardUpdateModelMock: vi.fn(),
   keyboardUpdateContextMock: vi.fn(),
   keyboardClearContextMock: vi.fn(),
-}));
+};
 
-vi.mock("../../../src/bot/commands/abort-command.js", () => ({
-  abortCurrentOperation: mocked.abortCurrentOperationMock,
-}));
+mockDep(
+  "../../../src/bot/commands/abort-command.ts",
+  () => ({
+    abortCurrentOperation: mocked.abortCurrentOperationMock,
+  }),
+  import.meta.url,
+);
 
-vi.mock("../../../src/app/services/session-service.js", () => ({
-  clearSession: mocked.clearSessionMock,
-}));
+mockDep(
+  "../../../src/app/services/session-service.ts",
+  () => ({
+    clearSession: mocked.clearSessionMock,
+  }),
+  import.meta.url,
+);
 
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
-  clearProject: mocked.clearProjectMock,
-}));
+mockDep(
+  "../../../src/app/stores/settings-store.ts",
+  () => ({
+    clearProject: mocked.clearProjectMock,
+  }),
+  import.meta.url,
+);
 
-vi.mock("../../../src/bot/keyboards/main-reply-keyboard.js", () => ({
-  createMainKeyboard: mocked.createMainKeyboardMock,
-}));
+mockDep(
+  "../../../src/bot/keyboards/main-reply-keyboard.ts",
+  () => ({
+    createMainKeyboard: mocked.createMainKeyboardMock,
+  }),
+  import.meta.url,
+);
 
-vi.mock("../../../src/app/services/agent-selection-service.js", () => ({
-  getStoredAgent: mocked.getStoredAgentMock,
-}));
+mockDep(
+  "../../../src/app/services/agent-selection-service.ts",
+  () => ({
+    getStoredAgent: mocked.getStoredAgentMock,
+  }),
+  import.meta.url,
+);
 
-vi.mock("../../../src/app/services/model-selection-service.js", () => ({
-  getStoredModel: mocked.getStoredModelMock,
-}));
+mockDep(
+  "../../../src/app/services/model-selection-service.ts",
+  () => ({
+    getStoredModel: mocked.getStoredModelMock,
+  }),
+  import.meta.url,
+);
 
-vi.mock("../../../src/app/services/variant-selection-service.js", () => ({
-  formatVariantForButton: mocked.formatVariantForButtonMock,
-}));
+mockDep(
+  "../../../src/app/services/variant-selection-service.ts",
+  () => ({
+    formatVariantForButton: mocked.formatVariantForButtonMock,
+  }),
+  import.meta.url,
+);
 
-vi.mock("../../../src/bot/pinned/pinned-message-manager.js", () => ({
-  pinnedMessageManager: {
-    isInitialized: mocked.pinnedIsInitializedMock,
-    initialize: mocked.pinnedInitializeMock,
-    getContextLimit: mocked.pinnedGetContextLimitMock,
-    refreshContextLimit: mocked.pinnedRefreshContextLimitMock,
-    getContextInfo: mocked.pinnedGetContextInfoMock,
-    clear: mocked.pinnedClearMock,
-  },
-}));
+mockDep(
+  "../../../src/bot/pinned/pinned-message-manager.ts",
+  () => ({
+    pinnedMessageManager: {
+      isInitialized: mocked.pinnedIsInitializedMock,
+      initialize: mocked.pinnedInitializeMock,
+      getContextLimit: mocked.pinnedGetContextLimitMock,
+      refreshContextLimit: mocked.pinnedRefreshContextLimitMock,
+      getContextInfo: mocked.pinnedGetContextInfoMock,
+      clear: mocked.pinnedClearMock,
+    },
+  }),
+  import.meta.url,
+);
 
-vi.mock("../../../src/bot/keyboards/keyboard-manager.js", () => ({
-  keyboardManager: {
-    initialize: mocked.keyboardInitializeMock,
-    updateAgent: mocked.keyboardUpdateAgentMock,
-    updateModel: mocked.keyboardUpdateModelMock,
-    updateContext: mocked.keyboardUpdateContextMock,
-    clearContext: mocked.keyboardClearContextMock,
-  },
-}));
+mockDep(
+  "../../../src/bot/keyboards/keyboard-manager.ts",
+  () => ({
+    keyboardManager: {
+      initialize: mocked.keyboardInitializeMock,
+      updateAgent: mocked.keyboardUpdateAgentMock,
+      updateModel: mocked.keyboardUpdateModelMock,
+      updateContext: mocked.keyboardUpdateContextMock,
+      clearContext: mocked.keyboardClearContextMock,
+    },
+  }),
+  import.meta.url,
+);
+
+const sut = loadSut<typeof import("../../../src/bot/commands/start-command.js")>(
+  "../../../src/bot/commands/start-command.ts",
+  import.meta.url,
+);
+
+import { t } from "../../../src/i18n/index.js";
 
 function createStartContext(): Context {
   return {
@@ -131,7 +174,7 @@ describe("bot/commands/start-command", () => {
   it("stops active flow, resets project/session, and sends welcome message", async () => {
     const ctx = createStartContext();
 
-    await startCommand(ctx);
+    await sut.startCommand(ctx);
 
     expect(mocked.abortCurrentOperationMock).toHaveBeenCalledWith(ctx, { notifyUser: false });
     expect(mocked.clearSessionMock).toHaveBeenCalledTimes(1);
