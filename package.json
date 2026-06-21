@@ -38,9 +38,10 @@
     "release:notes:preview": "bun run scripts/release-notes-preview.mjs",
     "lint": "eslint src --ext .ts --max-warnings=0",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
-    "test": "bun test",
+    "test": "bash scripts/run-tests.sh",
+    "test:all": "bun test",
     "test:coverage": "bun test --coverage",
-    "check": "bun run lint && bun run build && bun test"
+    "check": "bun run lint && bun run build && bash scripts/run-tests.sh"
   },
   "repository": {
     "type": "git",

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
 import { loadSut } from "#helpers/sut-loader.js";
+import { createSettingsStoreMock } from "#helpers/settings-store-mock.js";
 const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
   "#src/i18n/index.ts",
   import.meta.url,
@@ -36,9 +37,9 @@ vi.mock("#src/bot/messages/busy-blocked-renderer.ts", () => ({
   replyBusyBlocked: mocked.replyBusyBlockedMock,
 }));
 
-vi.mock("#src/app/stores/settings-store.ts", () => ({
-  getCurrentProject: mocked.getCurrentProjectMock,
-}));
+const settingsStoreMock = createSettingsStoreMock();
+settingsStoreMock.getCurrentProject = mocked.getCurrentProjectMock;
+vi.mock("#src/app/stores/settings-store.ts", () => settingsStoreMock);
 
 vi.mock("#src/bot/menus/inline-menu.ts", () => ({
   appendInlineMenuCancelButton: vi.fn((kb: unknown) => kb),
@@ -52,6 +53,7 @@ vi.mock("#src/app/managers/interaction-manager.ts", () => ({
     getSnapshot: vi.fn(() => null),
     clear: mocked.interactionClearMock,
   },
+  clearAllInteractionState: vi.fn(),
 }));
 
 vi.mock("#src/bot/messages/send-downloaded-file.ts", () => ({

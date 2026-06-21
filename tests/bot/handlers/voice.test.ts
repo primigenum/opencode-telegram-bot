@@ -3,6 +3,7 @@ import { EventEmitter } from "node:events";
 import type { Context } from "grammy";
 import type { VoiceMessageDeps } from "#src/bot/handlers/voice-handler.js";
 import { loadSut } from "#helpers/sut-loader.js";
+import { createSettingsStoreMock } from "#helpers/settings-store-mock.js";
 const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
   "#src/i18n/index.ts",
   import.meta.url,
@@ -10,10 +11,17 @@ const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
 
 const mocked = vi.hoisted(() => ({
   getTtsModeMock: vi.fn(),
+  httpsGetMock: vi.fn() as ReturnType<typeof vi.fn>,
 }));
 
-vi.mock("#src/app/stores/settings-store.ts", () => ({
-  getTtsMode: mocked.getTtsModeMock,
+const settingsStoreMock = createSettingsStoreMock();
+settingsStoreMock.getTtsMode = mocked.getTtsModeMock;
+vi.mock("#src/app/stores/settings-store.ts", () => settingsStoreMock);
+
+vi.mock("https", () => ({
+  Agent: vi.fn(),
+  get: mocked.httpsGetMock,
+  default: { get: mocked.httpsGetMock },
 }));
 
 vi.mock("#src/utils/logger.ts", () => ({
@@ -80,8 +88,8 @@ function createVoiceDeps(overrides: Record<string, unknown> = {}): {
   return { deps, processPromptMock, downloadMock, transcribeMock };
 }
 
-function mockHttpsDownload(): ReturnType<typeof vi.fn> {
-  const httpsGetMock = vi.fn(
+function setupHttpsMock(): void {
+  mocked.httpsGetMock.mockImplementation(
     (
       _url: unknown,
       _options: unknown,
@@ -122,19 +130,13 @@ function mockHttpsDownload(): ReturnType<typeof vi.fn> {
       return request;
     },
   );
-
-  vi.doMock("node:https", () => ({
-    default: { get: httpsGetMock },
-  }));
-
-  return httpsGetMock;
 }
 
 describe("bot/handlers/voice-handler", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocked.getTtsModeMock.mockReturnValue("off");
-    vi.doUnmock("node:https");
+    mocked.httpsGetMock.mockReset();
     vi.stubEnv("TELEGRAM_BOT_TOKEN", "test-telegram-token");
     vi.stubEnv("TELEGRAM_ALLOWED_USER_ID", "123456789");
     vi.stubEnv("OPENCODE_MODEL_PROVIDER", "test-provider");
@@ -241,7 +243,7 @@ describe("bot/handlers/voice-handler", () => {
   );
 
   it("downloads voice files from the default Telegram file URL when TELEGRAM_API_ROOT is unset", async () => {
-    const httpsGetMock = mockHttpsDownload();
+    setupHttpsMock();
     const { handleVoiceMessage } = await loadVoiceModule();
     const { ctx } = createVoiceContext();
     const getFileMock = vi.fn().mockResolvedValue({
@@ -256,7 +258,7 @@ describe("bot/handlers/voice-handler", () => {
 
     await handleVoiceMessage(ctx, deps);
 
-    const [url] = httpsGetMock.mock.calls[0];
+    const [url] = mocked.httpsGetMock.mock.calls[0];
     expect(String(url)).toBe(
       "https://api.telegram.org/file/bottest-telegram-token/voice/file_123.oga",
     );
@@ -267,7 +269,7 @@ describe("bot/handlers/voice-handler", () => {
 
   it("downloads voice files from TELEGRAM_API_ROOT without a double slash", async () => {
     vi.stubEnv("TELEGRAM_API_ROOT", "https://tg-proxy.example.com/");
-    const httpsGetMock = mockHttpsDownload();
+    setupHttpsMock();
     const { handleVoiceMessage } = await loadVoiceModule();
     const { ctx } = createVoiceContext();
     const getFileMock = vi.fn().mockResolvedValue({
@@ -281,7 +283,7 @@ describe("bot/handlers/voice-handler", () => {
 
     await handleVoiceMessage(ctx, deps);
 
-    const [url] = httpsGetMock.mock.calls[0];
+    const [url] = mocked.httpsGetMock.mock.calls[0];
     expect(String(url)).toBe(
       "https://tg-proxy.example.com/file/bottest-telegram-token/voice/file_123.oga",
     );

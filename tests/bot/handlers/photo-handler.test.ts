@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
 import { loadSut } from "#helpers/sut-loader.js";
-const { handlePhotoMessage, type PhotoHandlerDeps } = await loadSut<typeof import("#src/bot/handlers/photo-handler.js")>(
+const { handlePhotoMessage } = await loadSut<typeof import("#src/bot/handlers/photo-handler.js")>(
   "#src/bot/handlers/photo-handler.ts",
   import.meta.url,
 );

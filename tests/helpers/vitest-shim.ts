@@ -103,8 +103,12 @@ export function fn<TArgs extends unknown[] = unknown[], TReturn = unknown>(
   const initialImpl = implementation ?? (() => undefined);
   const bunMock = bunTest.mock(initialImpl as (...args: unknown[]) => unknown);
   const wrapped = bunMock as unknown as AnyMock;
+  // bun's mock.mockRestore() resets the implementation to a no-op instead
+  // of restoring the original. We override restore to call mockReset() (keeps
+  // implementation, clears call tracking) + re-apply the initial impl explicitly.
   attachRestore(wrapped, () => {
-    bunMock.mockRestore();
+    bunMock.mockReset();
+    bunMock.mockImplementation(initialImpl as (...args: unknown[]) => unknown);
   });
   return wrapped;
 }

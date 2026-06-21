@@ -24,9 +24,31 @@ vi.mock("#src/app/services/session-service.ts", () => ({
 }));
 vi.mock("#src/app/stores/settings-store.ts", () => ({
   getCurrentProject: mocked.getCurrentProject,
+  setCurrentProject: vi.fn(),
+  clearProject: vi.fn(),
+  getCurrentSession: vi.fn(),
+  setCurrentSession: vi.fn(),
+  clearSession: vi.fn(),
+  getTtsMode: vi.fn(),
+  setTtsMode: vi.fn(),
+  getCurrentAgent: vi.fn(),
+  setCurrentAgent: vi.fn(),
+  clearCurrentAgent: vi.fn(),
+  getCurrentModel: vi.fn(),
+  setCurrentModel: vi.fn(),
+  clearCurrentModel: vi.fn(),
   getPinnedMessageId: mocked.getPinnedMessageId,
   setPinnedMessageId: mocked.setPinnedMessageId,
   clearPinnedMessageId: mocked.clearPinnedMessageId,
+  getSessionDirectoryCache: vi.fn(),
+  setSessionDirectoryCache: vi.fn(),
+  clearSessionDirectoryCache: vi.fn(),
+  getScheduledTasks: vi.fn(),
+  setScheduledTasks: vi.fn(),
+  getScheduledTaskSessionIgnores: vi.fn(),
+  setScheduledTaskSessionIgnores: vi.fn(),
+  __resetSettingsForTests: vi.fn(),
+  loadSettings: vi.fn(),
 }));
 vi.mock("#src/app/services/model-selection-service.ts", () => ({ getStoredModel: mocked.getStoredModel }));
 vi.mock("#src/app/services/model-context-limit-service.ts", () => ({
@@ -151,7 +173,7 @@ describe("pinned/manager", () => {
 
     it("does not throw when no pinned message exists", async () => {
       // No pinned message was created → refresh should be a no-op
-      await expect(pinnedMessageManager.refresh()).resolves.not.toThrow();
+      await pinnedMessageManager.refresh();
     });
 
     it("refreshes git branch in the pinned project line", async () => {

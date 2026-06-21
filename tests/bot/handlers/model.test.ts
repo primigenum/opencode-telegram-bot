@@ -20,6 +20,10 @@ mockDep(
     searchModels: mocked.searchModelsMock,
     selectModel: vi.fn(),
     fetchCurrentModel: vi.fn(),
+    getStoredModel: vi.fn(),
+    reconcileStoredModelSelection: vi.fn(),
+    getFavoriteModels: vi.fn(),
+    __resetModelCatalogCacheForTests: vi.fn(),
   }),
   import.meta.url,
 );
@@ -47,12 +51,12 @@ mockDep(
   import.meta.url,
 );
 
-const menuSut = loadSut<typeof import("#src/bot/menus/model-selection-menu.js")>(
+const menuSut = await loadSut<typeof import("#src/bot/menus/model-selection-menu.js")>(
   "#src/bot/menus/model-selection-menu.ts",
   import.meta.url,
 );
 
-const callbackSut = loadSut<
+const callbackSut = await loadSut<
   typeof import("#src/bot/callbacks/model-selection-callback-handler.js")
 >(
   "#src/bot/callbacks/model-selection-callback-handler.ts",

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
 import { loadSut } from "#helpers/sut-loader.js";
+import { createSettingsStoreMock } from "#helpers/settings-store-mock.js";
 const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
   "#src/i18n/index.ts",
   import.meta.url,
@@ -23,9 +24,9 @@ const mocked = vi.hoisted(() => ({
   clearAllInteractionStateMock: vi.fn(),
 }));
 
-vi.mock("#src/app/stores/settings-store.ts", () => ({
-  getCurrentProject: vi.fn(() => mocked.currentProject),
-}));
+const settingsStoreMock = createSettingsStoreMock();
+settingsStoreMock.getCurrentProject = vi.fn(() => mocked.currentProject);
+vi.mock("#src/app/stores/settings-store.ts", () => settingsStoreMock);
 
 vi.mock("#src/app/services/worktree-service.ts", () => ({
   getGitWorktreeContext: mocked.getGitWorktreeContextMock,

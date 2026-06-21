@@ -45,7 +45,9 @@ vi.mock("#src/bot/messages/telegram-text.ts", () => ({
 
 vi.mock("#src/utils/logger.ts", () => ({
   logger: {
+    debug: vi.fn(),
     info: mocked.loggerInfoMock,
+    warn: vi.fn(),
     error: mocked.loggerErrorMock,
   },
 }));

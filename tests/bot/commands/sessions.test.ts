@@ -1,34 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Bot, Context } from "grammy";
 import { loadSut } from "#helpers/sut-loader.js";
-const { handleBackgroundSessionOpen, handleSessionSelect } = await loadSut<typeof import("#src/bot/callbacks/session-callback-handler.js")>(
-  "#src/bot/callbacks/session-callback-handler.ts",
-  import.meta.url,
-);
-const { sessionsCommand } = await loadSut<typeof import("#src/bot/commands/sessions-command.js")>(
-  "#src/bot/commands/sessions-command.ts",
-  import.meta.url,
-);
-const { buildBackgroundSessionOpenKeyboard } = await loadSut<typeof import("#src/bot/menus/session-selection-menu.js")>(
-  "#src/bot/menus/session-selection-menu.ts",
-  import.meta.url,
-);
-const { interactionManager } = await loadSut<typeof import("#src/app/managers/interaction-manager.js")>(
-  "#src/app/managers/interaction-manager.ts",
-  import.meta.url,
-);
-const { foregroundSessionState } = await loadSut<typeof import("#src/app/managers/foreground-session-state-manager.js")>(
-  "#src/app/managers/foreground-session-state-manager.ts",
-  import.meta.url,
-);
-const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
-  "#src/i18n/index.ts",
-  import.meta.url,
-);
-const { safeBackgroundTask } = await loadSut<typeof import("#src/utils/safe-background-task.js")>(
-  "#src/utils/safe-background-task.ts",
-  import.meta.url,
-);
+import { createSettingsStoreMock } from "#helpers/settings-store-mock.js";
 
 const mocked = vi.hoisted(() => ({
   currentProject: {
@@ -66,9 +39,9 @@ vi.mock("#src/opencode/client.ts", () => ({
   },
 }));
 
-vi.mock("#src/app/stores/settings-store.ts", () => ({
-  getCurrentProject: vi.fn(() => mocked.currentProject),
-}));
+const settingsStoreMock = createSettingsStoreMock();
+settingsStoreMock.getCurrentProject = vi.fn(() => mocked.currentProject);
+vi.mock("#src/app/stores/settings-store.ts", () => settingsStoreMock);
 
 vi.mock("#src/app/services/session-service.ts", () => ({
   setCurrentSession: mocked.setCurrentSessionMock,
@@ -80,11 +53,12 @@ vi.mock("#src/app/managers/summary-aggregation-manager.ts", () => ({
   },
 }));
 
+const interactionState: { current: object | null } = { current: null };
 vi.mock("#src/app/managers/interaction-manager.ts", () => ({
   interactionManager: {
-    start: vi.fn(),
-    getSnapshot: vi.fn(),
-    clear: vi.fn(),
+    start: vi.fn((snapshot: object) => { interactionState.current = snapshot; }),
+    getSnapshot: vi.fn(() => interactionState.current),
+    clear: vi.fn(() => { interactionState.current = null; }),
     transition: vi.fn(),
   },
   clearAllInteractionState: mocked.clearInteractionMock,
@@ -117,11 +91,45 @@ vi.mock("#src/bot/pinned/pinned-message-manager.ts", () => ({
 
 vi.mock("#src/app/services/attach-service.ts", () => ({
   attachToSession: mocked.attachToSessionMock,
+  markAttachedSessionBusy: vi.fn(),
+  markAttachedSessionIdle: vi.fn(),
+  restoreAttachedCurrentSession: vi.fn(),
+  detachAttachedSession: vi.fn(),
+  configureAttachPresentation: vi.fn(),
 }));
 
 vi.mock("#src/utils/safe-background-task.ts", () => ({
   safeBackgroundTask: vi.fn(),
 }));
+
+const { handleBackgroundSessionOpen, handleSessionSelect } = await loadSut<typeof import("#src/bot/callbacks/session-callback-handler.js")>(
+  "#src/bot/callbacks/session-callback-handler.ts",
+  import.meta.url,
+);
+const { sessionsCommand } = await loadSut<typeof import("#src/bot/commands/sessions-command.js")>(
+  "#src/bot/commands/sessions-command.ts",
+  import.meta.url,
+);
+const { buildBackgroundSessionOpenKeyboard } = await loadSut<typeof import("#src/bot/menus/session-selection-menu.js")>(
+  "#src/bot/menus/session-selection-menu.ts",
+  import.meta.url,
+);
+const { interactionManager } = await loadSut<typeof import("#src/app/managers/interaction-manager.js")>(
+  "#src/app/managers/interaction-manager.ts",
+  import.meta.url,
+);
+const { foregroundSessionState } = await loadSut<typeof import("#src/app/managers/foreground-session-state-manager.js")>(
+  "#src/app/managers/foreground-session-state-manager.ts",
+  import.meta.url,
+);
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
+const { safeBackgroundTask } = await loadSut<typeof import("#src/utils/safe-background-task.js")>(
+  "#src/utils/safe-background-task.ts",
+  import.meta.url,
+);
 
 const safeBackgroundTaskMock = vi.mocked(safeBackgroundTask);
 

@@ -14,7 +14,7 @@ mockDep(
   import.meta.url,
 );
 
-const serviceSut = loadSut<
+const serviceSut = await loadSut<
   typeof import("#src/app/services/external-user-input-service.js")
 >(
   "#src/app/services/external-user-input-service.ts",

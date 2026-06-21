@@ -2,8 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
 import { mockDep } from "#helpers/mock-dep.js";
 import { loadSut } from "#helpers/sut-loader.js";
-
-import { loadSut } from "#helpers/sut-loader.js";
+import { createSettingsStoreMock } from "#helpers/settings-store-mock.js";
 const mocked = {
   abortCurrentOperationMock: vi.fn(),
   clearSessionMock: vi.fn(),
@@ -41,15 +40,16 @@ mockDep(
   "#src/app/services/session-service.ts",
   () => ({
     clearSession: mocked.clearSessionMock,
+    getCurrentSession: vi.fn(),
   }),
   import.meta.url,
 );
 
+const settingsStoreMock = createSettingsStoreMock();
+settingsStoreMock.clearProject = mocked.clearProjectMock;
 mockDep(
   "#src/app/stores/settings-store.ts",
-  () => ({
-    clearProject: mocked.clearProjectMock,
-  }),
+  () => settingsStoreMock,
   import.meta.url,
 );
 
@@ -73,6 +73,7 @@ mockDep(
   "#src/app/services/model-selection-service.ts",
   () => ({
     getStoredModel: mocked.getStoredModelMock,
+    reconcileStoredModelSelection: vi.fn(),
   }),
   import.meta.url,
 );

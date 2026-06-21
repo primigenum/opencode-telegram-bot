@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 
 import { loadSut } from "#helpers/sut-loader.js";
+import { createSettingsStoreMock } from "#helpers/settings-store-mock.js";
 const mocked = vi.hoisted(() => ({
   createBotMock: vi.fn(),
   cleanupBotRuntimeMock: vi.fn(),
@@ -52,9 +53,9 @@ vi.mock("#src/opencode/ready-refresh.ts", () => ({
   registerOpenCodeReadyRefreshHandler: mocked.registerOpenCodeReadyRefreshHandlerMock,
 }));
 
-vi.mock("#src/app/stores/settings-store.ts", () => ({
-  loadSettings: mocked.loadSettingsMock,
-}));
+const settingsStoreMock = createSettingsStoreMock();
+settingsStoreMock.loadSettings = mocked.loadSettingsMock;
+vi.mock("#src/app/stores/settings-store.ts", () => settingsStoreMock);
 
 vi.mock("#src/app/services/scheduled-task-runtime-service.ts", () => ({
   scheduledTaskRuntime: {
@@ -65,6 +66,9 @@ vi.mock("#src/app/services/scheduled-task-runtime-service.ts", () => ({
 
 vi.mock("#src/app/services/model-selection-service.ts", () => ({
   reconcileStoredModelSelection: mocked.reconcileStoredModelSelectionMock,
+  getStoredModel: vi.fn(),
+  fetchCurrentModel: vi.fn(),
+  selectModel: vi.fn(),
 }));
 
 vi.mock("#src/runtime/mode.ts", () => ({

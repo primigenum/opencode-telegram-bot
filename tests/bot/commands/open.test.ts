@@ -46,11 +46,28 @@ vi.mock("#src/app/services/file-browser-service.ts", () => ({
   getBrowserRoots: mocked.getBrowserRootsMock,
   isWithinAllowedRoot: mocked.isWithinAllowedRootMock,
   isAllowedRoot: mocked.isAllowedRootMock,
+  scanLsDirectory: vi.fn(),
+  getFileDetails: vi.fn(),
+  getHomeDirectory: vi.fn(),
+  joinPath: vi.fn(),
+  getBaseName: vi.fn(),
+  getParentPath: vi.fn(),
+  isWithinAllowedRootSafe: vi.fn(),
+  initBrowserRoots: vi.fn(),
+  getBrowserRootPaths: vi.fn(),
+  __resetBrowserRootsForTests: vi.fn(),
+  isPathWithinDirectory: vi.fn(),
+  getProjectRoot: vi.fn(),
+  isWithinProjectRoot: vi.fn(),
+  isProjectRoot: vi.fn(),
 }));
 
 vi.mock("#src/bot/menus/inline-menu.ts", () => ({
   appendInlineMenuCancelButton: vi.fn((kb: unknown) => kb),
   ensureActiveInlineMenu: mocked.ensureActiveInlineMenuMock,
+  clearActiveInlineMenu: vi.fn(),
+  replyWithInlineMenu: vi.fn(),
+  isInlineMenuKind: vi.fn(() => false),
 }));
 
 vi.mock("#src/app/managers/interaction-manager.ts", () => ({
