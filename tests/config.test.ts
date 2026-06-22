@@ -130,7 +130,7 @@ describe("config boolean env parsing", () => {
   it("disables compact output mode by default", async () => {
     vi.stubEnv("COMPACT_OUTPUT_MODE", "");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.compactOutputMode).toBe(false);
   });
@@ -138,7 +138,7 @@ describe("config boolean env parsing", () => {
   it("parses compact output mode as a boolean", async () => {
     vi.stubEnv("COMPACT_OUTPUT_MODE", "true");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.compactOutputMode).toBe(true);
   });
@@ -146,7 +146,7 @@ describe("config boolean env parsing", () => {
   it("falls back to disabled compact output mode on invalid value", async () => {
     vi.stubEnv("COMPACT_OUTPUT_MODE", "compact");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.compactOutputMode).toBe(false);
   });
