@@ -5,6 +5,10 @@ const stubbedGlobals = new Map<string, unknown>();
 const originalGlobalDescriptors = new Map<string, PropertyDescriptor | undefined>();
 const trackedMocks: { mockRestore(): void; mockClear?(): void }[] = [];
 
+/** Reference to the real setTimeout, captured at module load, so vi.waitFor
+ *  always uses a real timer for polling even when fake timers are active. */
+const _shimRealSetTimeout = globalThis.setTimeout;
+
 function captureOriginalGlobal(key: string): void {
   if (originalGlobalDescriptors.has(key)) return;
   originalGlobalDescriptors.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
@@ -202,17 +206,6 @@ export function useRealTimers(): void {
   bunTest.jest.useRealTimers();
 }
 
-export function advanceTimersByTime(ms: number): void {
-  const currentMocked = resolveCurrentMockedTime();
-  bunTest.setSystemTime(new Date(currentMocked + ms));
-}
-
-export async function advanceTimersByTimeAsync(ms: number): Promise<void> {
-  const currentMocked = resolveCurrentMockedTime();
-  bunTest.setSystemTime(new Date(currentMocked + ms));
-  await flushMicrotasks();
-}
-
 function resolveCurrentMockedTime(): number {
   try {
     return bunTest.jest.now();
@@ -221,12 +214,24 @@ function resolveCurrentMockedTime(): number {
   }
 }
 
+export function advanceTimersByTime(ms: number): void {
+  const currentMocked = resolveCurrentMockedTime();
+  bunTest.setSystemTime(new Date(currentMocked + ms));
+}
+
+export async function advanceTimersByTimeAsync(ms: number): Promise<void> {
+  const currentMocked = resolveCurrentMockedTime();
+  bunTest.setSystemTime(new Date(currentMocked + ms));
+  for (let i = 0; i < 3; i += 1) {
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+}
+
 export async function runAllTimersAsync(): Promise<void> {
-  // bun 1.3.0's jest has no getTimerCount / advanceTimersByTimeAsync /
-  // runAllTimers. Advance the fake clock by 10 minutes; that covers
-  // the timeout bounds the tests that call this function use.
   bunTest.jest.setSystemTime(new Date(Date.now() + 600_000));
-  await flushMicrotasks();
+  for (let i = 0; i < 3; i += 1) {
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
 }
 
 async function flushMicrotasks(): Promise<void> {
@@ -245,6 +250,9 @@ export async function waitFor<T>(
 ): Promise<T> {
   const timeout = options?.timeout ?? 5000;
   const interval = options?.interval ?? 50;
+  // Use the real setTimeout captured at module load so polling works
+  // even when fake timers are active.
+  const timerFn = _shimRealSetTimeout;
   const start = Date.now();
   let lastError: unknown;
   while (Date.now() - start < timeout) {
@@ -252,7 +260,7 @@ export async function waitFor<T>(
       return await callback();
     } catch (error) {
       lastError = error;
-      await new Promise((resolve) => setTimeout(resolve, interval));
+      await new Promise<void>((resolve) => timerFn(resolve, interval));
     }
   }
   throw lastError ?? new Error("vi.waitFor timed out");

@@ -170,16 +170,30 @@ describe("bot/commands/opencode-start-command", () => {
   });
 
   it("reports started_not_ready when the server does not answer in time", async () => {
-    vi.useFakeTimers();
-
     const ctx = createContext();
     const childProcess = createChildProcess(321);
     mocked.startLocalOpencodeServerMock.mockReturnValue(childProcess);
+    // Health check always fails — the command eventually times out internally.
     mocked.healthMock.mockRejectedValue(new Error("offline"));
 
-    const commandPromise = opencodeStartCommand(ctx as never);
-    await vi.advanceTimersByTimeAsync(10_500);
-    await commandPromise;
+    // Override setTimeout + Date.now to simulate time passing without
+    // actually waiting: fire every timeout callback on the next tick,
+    // and advance a fake clock by the requested ms.
+    const origSetTimeout = globalThis.setTimeout;
+    const origDateNow = Date.now;
+    let fakeTime = 0;
+    Date.now = () => fakeTime;
+    globalThis.setTimeout = ((cb: (...args: unknown[]) => void, ms?: number, ...args: unknown[]) => {
+      if ((ms ?? 0) > 0) {
+        fakeTime += ms!;
+      }
+      return origSetTimeout(cb, 0, ...args);
+    }) as typeof globalThis.setTimeout;
+
+    await opencodeStartCommand(ctx as never);
+
+    globalThis.setTimeout = origSetTimeout;
+    Date.now = origDateNow;
 
     expect(mocked.editBotTextMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -190,16 +204,28 @@ describe("bot/commands/opencode-start-command", () => {
   });
 
   it("does not hang indefinitely when health checks never resolve", async () => {
-    vi.useFakeTimers();
-
     const ctx = createContext();
     const childProcess = createChildProcess(456);
     mocked.startLocalOpencodeServerMock.mockReturnValue(childProcess);
+    // Health check never resolves (stays pending forever).
     mocked.healthMock.mockReturnValue(new Promise(() => {}));
 
-    const commandPromise = opencodeStartCommand(ctx as never);
-    await vi.advanceTimersByTimeAsync(20_000);
-    await commandPromise;
+    // Same override: fire setTimeout on next tick, advance fake clock.
+    const origSetTimeout = globalThis.setTimeout;
+    const origDateNow = Date.now;
+    let fakeTime = 0;
+    Date.now = () => fakeTime;
+    globalThis.setTimeout = ((cb: (...args: unknown[]) => void, ms?: number, ...args: unknown[]) => {
+      if ((ms ?? 0) > 0) {
+        fakeTime += ms!;
+      }
+      return origSetTimeout(cb, 0, ...args);
+    }) as typeof globalThis.setTimeout;
+
+    await opencodeStartCommand(ctx as never);
+
+    globalThis.setTimeout = origSetTimeout;
+    Date.now = origDateNow;
 
     expect(mocked.startLocalOpencodeServerMock).toHaveBeenCalledWith({
       host: "localhost",

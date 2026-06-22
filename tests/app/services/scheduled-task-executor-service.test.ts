@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
 import type { ScheduledOnceTask } from "#src/app/types/scheduled-task.js";
 
+// Capture real timers at module level — before any vi.useFakeTimers() call
+// modifies the global. Tests that accelerate time use these references.
+const _realTimerRefs = {
+  setTimeout: globalThis.setTimeout,
+  dateNow: Date.now,
+};
+
 const mocked = vi.hoisted(() => ({
   createMock: vi.fn(),
   promptAsyncMock: vi.fn(),
@@ -316,19 +323,31 @@ describe("app/services/scheduled-task-executor-service", () => {
       error: null,
     });
 
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-03-16T10:00:00.000Z"));
+    // Accelerate time: fire setTimeout callbacks on next microtask (queueMicrotask
+    // avoids the ~1ms minimum delay of setTimeout(fn, 0)), advance fake clock by delay.
+    const _origSt = globalThis.setTimeout;
+    const _origDn = Date.now;
+    let _ft = new Date("2026-03-16T10:00:00.000Z").getTime();
+    Date.now = () => _ft;
+    globalThis.setTimeout = ((cb: (...args: unknown[]) => void, _ms?: number, ...args: unknown[]) => {
+      if ((_ms ?? 0) > 0) _ft += _ms!;
+      queueMicrotask(() => { cb(...args); });
+      return 0;
+    }) as typeof globalThis.setTimeout;
 
-    const resultPromise = executeScheduledTask(createTask());
+    try {
+      const result = await executeScheduledTask(createTask());
 
-    await vi.advanceTimersByTimeAsync(2 * 60 * 60 * 1000 + 2000);
-
-    await expect(resultPromise).resolves.toMatchObject({
-      status: "error",
-      resultText: null,
-      errorMessage: "Scheduled task exceeded bot execution timeout after 120 minutes.",
-    });
-    expect(mocked.deleteMock).toHaveBeenCalledWith({ sessionID: "session-1" });
+      expect(result).toMatchObject({
+        status: "error",
+        resultText: null,
+        errorMessage: "Scheduled task exceeded bot execution timeout after 120 minutes.",
+      });
+      expect(mocked.deleteMock).toHaveBeenCalledWith({ sessionID: "session-1" });
+    } finally {
+      globalThis.setTimeout = _origSt;
+      Date.now = _origDn;
+    }
   });
 
   it("treats an empty completed assistant reply as an execution error", async () => {
@@ -344,37 +363,48 @@ describe("app/services/scheduled-task-executor-service", () => {
       error: null,
     });
 
-    vi.useFakeTimers();
+    const _origSt = globalThis.setTimeout;
+    const _origDn = Date.now;
+    let _ft = Date.now();
+    Date.now = () => _ft;
+    globalThis.setTimeout = ((cb: (...args: unknown[]) => void, _ms?: number, ...args: unknown[]) => {
+      if ((_ms ?? 0) > 0) _ft += _ms!;
+      queueMicrotask(() => { cb(...args); });
+      return 0;
+    }) as typeof globalThis.setTimeout;
 
-    const resultPromise = executeScheduledTask(createTask());
+    try {
+      const result = await executeScheduledTask(createTask());
 
-    await vi.advanceTimersByTimeAsync(1500);
-
-    await expect(resultPromise).resolves.toMatchObject({
-      status: "error",
-      resultText: null,
-      errorMessage: "Scheduled task returned an empty assistant response",
-    });
-    expect(mocked.messagesMock).toHaveBeenCalledTimes(4);
-    expect(mocked.deleteMock).not.toHaveBeenCalled();
-    expect(mocked.loggerWarnMock).toHaveBeenCalledWith(
-      "[ScheduledTaskExecutor] Empty completed assistant response diagnostics",
-      expect.objectContaining({
-        taskId: "task-1",
-        sessionId: "session-1",
-        directory: "D:\\Projects\\Repo",
-        readCount: 4,
-        assistantMessage: expect.objectContaining({
-          completed: true,
-          summary: false,
-          finish: "stop",
-          parts: [expect.objectContaining({ type: "step-finish", reason: "stop" })],
+      expect(result).toMatchObject({
+        status: "error",
+        resultText: null,
+        errorMessage: "Scheduled task returned an empty assistant response",
+      });
+      expect(mocked.messagesMock).toHaveBeenCalledTimes(4);
+      expect(mocked.deleteMock).not.toHaveBeenCalled();
+      expect(mocked.loggerWarnMock).toHaveBeenCalledWith(
+        "[ScheduledTaskExecutor] Empty completed assistant response diagnostics",
+        expect.objectContaining({
+          taskId: "task-1",
+          sessionId: "session-1",
+          directory: "D:\\Projects\\Repo",
+          readCount: 4,
+          assistantMessage: expect.objectContaining({
+            completed: true,
+            summary: false,
+            finish: "stop",
+            parts: [expect.objectContaining({ type: "step-finish", reason: "stop" })],
+          }),
         }),
-      }),
-    );
-    expect(mocked.loggerWarnMock).toHaveBeenCalledWith(
-      expect.stringContaining("Keeping temporary session for inspection"),
-    );
+      );
+      expect(mocked.loggerWarnMock).toHaveBeenCalledWith(
+        expect.stringContaining("Keeping temporary session for inspection"),
+      );
+    } finally {
+      globalThis.setTimeout = _origSt;
+      Date.now = _origDn;
+    }
   });
 
   it("re-reads an empty completed assistant reply before accepting late text", async () => {
@@ -403,19 +433,30 @@ describe("app/services/scheduled-task-executor-service", () => {
         error: null,
       });
 
-    vi.useFakeTimers();
+    const _origSt = globalThis.setTimeout;
+    const _origDn = Date.now;
+    let _ft = Date.now();
+    Date.now = () => _ft;
+    globalThis.setTimeout = ((cb: (...args: unknown[]) => void, _ms?: number, ...args: unknown[]) => {
+      if ((_ms ?? 0) > 0) _ft += _ms!;
+      queueMicrotask(() => { cb(...args); });
+      return 0;
+    }) as typeof globalThis.setTimeout;
 
-    const resultPromise = executeScheduledTask(createTask());
+    try {
+      const result = await executeScheduledTask(createTask());
 
-    await vi.advanceTimersByTimeAsync(1500);
-
-    await expect(resultPromise).resolves.toMatchObject({
-      status: "success",
-      resultText: "Late completed output",
-      errorMessage: null,
-    });
-    expect(mocked.messagesMock).toHaveBeenCalledTimes(4);
-    expect(mocked.deleteMock).toHaveBeenCalledWith({ sessionID: "session-1" });
+      expect(result).toMatchObject({
+        status: "success",
+        resultText: "Late completed output",
+        errorMessage: null,
+      });
+      expect(mocked.messagesMock).toHaveBeenCalledTimes(4);
+      expect(mocked.deleteMock).toHaveBeenCalledWith({ sessionID: "session-1" });
+    } finally {
+      globalThis.setTimeout = _origSt;
+      Date.now = _origDn;
+    }
   });
 
   it("waits for the final assistant response after completed tool-call turns", async () => {
@@ -451,24 +492,35 @@ describe("app/services/scheduled-task-executor-service", () => {
       error: null,
     });
 
-    vi.useFakeTimers();
+    const _origSt = globalThis.setTimeout;
+    const _origDn = Date.now;
+    let _ft = Date.now();
+    Date.now = () => _ft;
+    globalThis.setTimeout = ((cb: (...args: unknown[]) => void, _ms?: number, ...args: unknown[]) => {
+      if ((_ms ?? 0) > 0) _ft += _ms!;
+      queueMicrotask(() => { cb(...args); });
+      return 0;
+    }) as typeof globalThis.setTimeout;
 
-    const resultPromise = executeScheduledTask(createTask());
+    try {
+      const result = await executeScheduledTask(createTask());
 
-    await vi.advanceTimersByTimeAsync(8000);
-
-    await expect(resultPromise).resolves.toMatchObject({
-      status: "success",
-      resultText: "SCHEDULED_TASK_FINAL_OK",
-      errorMessage: null,
-    });
-    expect(mocked.messagesMock).toHaveBeenCalledTimes(5);
-    expect(mocked.statusMock).toHaveBeenCalledTimes(4);
-    expect(mocked.deleteMock).toHaveBeenCalledWith({ sessionID: "session-1" });
-    expect(mocked.loggerWarnMock).not.toHaveBeenCalledWith(
-      "[ScheduledTaskExecutor] Empty completed assistant response diagnostics",
-      expect.anything(),
-    );
+      expect(result).toMatchObject({
+        status: "success",
+        resultText: "SCHEDULED_TASK_FINAL_OK",
+        errorMessage: null,
+      });
+      expect(mocked.messagesMock).toHaveBeenCalledTimes(5);
+      expect(mocked.statusMock).toHaveBeenCalledTimes(4);
+      expect(mocked.deleteMock).toHaveBeenCalledWith({ sessionID: "session-1" });
+      expect(mocked.loggerWarnMock).not.toHaveBeenCalledWith(
+        "[ScheduledTaskExecutor] Empty completed assistant response diagnostics",
+        expect.anything(),
+      );
+    } finally {
+      globalThis.setTimeout = _origSt;
+      Date.now = _origDn;
+    }
   });
 
   it("ignores technical summary assistant messages when finding the scheduled task result", async () => {

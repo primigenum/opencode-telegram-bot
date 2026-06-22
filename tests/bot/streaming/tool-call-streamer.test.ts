@@ -1,9 +1,37 @@
 import { afterEach, describe, expect, it, vi } from "#vitest";
 import { loadSut } from "#helpers/sut-loader.js";
+
+// Capture real timer refs at module level (before vi.useFakeTimers can override).
+const _$rt = globalThis.setTimeout;
+
 const { ToolCallStreamer } = await loadSut<typeof import("#src/bot/streaming/tool-call-streamer.js")>(
   "#src/bot/streaming/tool-call-streamer.ts",
   import.meta.url,
 );
+
+/**
+ * Patch setTimeout to fire on the next microtask (0 real delay) while
+ * advancing a fake Date.now clock by the requested delay. Returns a
+ * restore() function callable in `finally` to revert globals.
+ * Uses the module-level real setTimeout reference so it works regardless
+ * of bun's useFakeTimers state.
+ */
+function accelerateTime(): { restore: () => void } {
+  const _rt = _$rt;
+  const _origDn = Date.now;
+  let _ft = _origDn();
+  Date.now = () => _ft;
+  globalThis.setTimeout = ((cb: (...args: unknown[]) => void, ms?: number, ...args: unknown[]) => {
+    if ((ms ?? 0) > 0) _ft += ms!;
+    return _rt(cb, 0, ...args);
+  }) as typeof globalThis.setTimeout;
+  return {
+    restore() {
+      globalThis.setTimeout = _rt;
+      Date.now = _origDn;
+    },
+  };
+}
 
 describe("bot/streaming/tool-call-streamer", () => {
   afterEach(() => {
@@ -11,28 +39,30 @@ describe("bot/streaming/tool-call-streamer", () => {
   });
 
   it("throttles tool updates and sends the combined latest text", async () => {
-    vi.useFakeTimers();
+    const { restore } = accelerateTime();
+    try {
+      let nextMessageId = 1;
+      const sendText = vi.fn(async () => nextMessageId++);
+      const editText = vi.fn().mockResolvedValue(undefined);
+      const deleteText = vi.fn().mockResolvedValue(undefined);
+      const streamer = new ToolCallStreamer({
+        throttleMs: 200,
+        sendText,
+        editText,
+        deleteText,
+      });
 
-    let nextMessageId = 1;
-    const sendText = vi.fn(async () => nextMessageId++);
-    const editText = vi.fn().mockResolvedValue(undefined);
-    const deleteText = vi.fn().mockResolvedValue(undefined);
-    const streamer = new ToolCallStreamer({
-      throttleMs: 200,
-      sendText,
-      editText,
-      deleteText,
-    });
+      streamer.append("s1", "first");
+      streamer.append("s1", "second");
 
-    streamer.append("s1", "first");
-    streamer.append("s1", "second");
+      await vi.waitFor(() => expect(sendText).toHaveBeenCalledTimes(1), { timeout: 1000 });
 
-    await vi.advanceTimersByTimeAsync(200);
-
-    expect(sendText).toHaveBeenCalledTimes(1);
-    expect(sendText).toHaveBeenCalledWith("s1", "first\n\nsecond");
-    expect(editText).not.toHaveBeenCalled();
-    expect(deleteText).not.toHaveBeenCalled();
+      expect(sendText).toHaveBeenCalledWith("s1", "first\n\nsecond");
+      expect(editText).not.toHaveBeenCalled();
+      expect(deleteText).not.toHaveBeenCalled();
+    } finally {
+      restore();
+    }
   });
 
   it("edits the existing streamed message when new tool lines arrive", async () => {

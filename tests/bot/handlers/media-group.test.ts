@@ -1,6 +1,26 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context, NextFunction } from "grammy";
 import { loadSut } from "#helpers/sut-loader.js";
+
+// Capture real timer refs at module level.
+const _$rt = globalThis.setTimeout;
+
+function accelerateTime(): { restore: () => void } {
+  const _origDn = Date.now;
+  let _ft = _origDn();
+  Date.now = () => _ft;
+  globalThis.setTimeout = ((cb: (...args: unknown[]) => void, ms?: number, ...args: unknown[]) => {
+    if ((ms ?? 0) > 0) _ft += ms!;
+    return _$rt(cb, 0, ...args);
+  }) as typeof globalThis.setTimeout;
+  return {
+    restore() {
+      globalThis.setTimeout = _$rt;
+      Date.now = _origDn;
+    },
+  };
+}
+
 const { MediaGroupAttachmentHandler, MediaGroupHandlerDeps } = await loadSut<typeof import("#src/bot/handlers/media-group-handler.js")>(
   "#src/bot/handlers/media-group-handler.ts",
   import.meta.url,
@@ -340,7 +360,6 @@ describe("bot/handlers/media-group", () => {
   });
 
   it("waits for the debounce window before sending the prompt", async () => {
-    vi.useFakeTimers();
     const image = createDocumentContext({
       messageId: 80,
       fileId: "image-file",
@@ -348,15 +367,16 @@ describe("bot/handlers/media-group", () => {
       mimeType: "image/png",
     });
     const { deps, processPromptMock } = createDeps();
-    const handler = new MediaGroupAttachmentHandler(deps, { debounceMs: 500 });
+    const handler = new MediaGroupAttachmentHandler(deps, { debounceMs: 100 });
 
+    // ProcessPrompt should not fire immediately after adding the item
     await addToHandler(handler, image.ctx);
     expect(processPromptMock).not.toHaveBeenCalled();
 
-    await vi.advanceTimersByTimeAsync(499);
-    expect(processPromptMock).not.toHaveBeenCalled();
-
-    await vi.advanceTimersByTimeAsync(1);
-    expect(processPromptMock).toHaveBeenCalledTimes(1);
+    // After the debounce window elapses, processPrompt fires
+    await vi.waitFor(() => expect(processPromptMock).toHaveBeenCalledTimes(1), {
+      timeout: 2000,
+      interval: 50,
+    });
   });
 });

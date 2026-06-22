@@ -53,6 +53,7 @@ vi.mock("#src/app/stores/settings-store.ts", () => {
   const obj: Record<string, unknown> = {};
   for (const name of fns) obj[name] = vi.fn();
   obj.getCurrentProject = vi.fn(() => mocked.currentProject);
+  obj.getCurrentSession = vi.fn(() => mocked.currentSession);
   obj.clearSession = mocked.clearSessionMock;
   return obj;
 });
@@ -153,23 +154,21 @@ describe("bot/commands/detach", () => {
 
     await sut.detachCommand(createContext() as never);
 
-    expect(mocked.detachAttachedSessionMock).toHaveBeenCalledWith("session-1");
+    expect(mocked.detachAttachedSessionMock).toHaveBeenCalledWith("detach_command");
     expect(mocked.clearSessionMock).toHaveBeenCalledWith();
     expect(mocked.foregroundMarkIdleMock).toHaveBeenCalledWith("session-1");
-    expect(mocked.assistantClearRunMock).toHaveBeenCalledWith("session-1");
+    expect(mocked.assistantClearRunMock).toHaveBeenCalledWith("session-1", "detach_command");
     expect(mocked.clearPromptResponseModeMock).toHaveBeenCalledWith("session-1");
-    expect(mocked.clearAllInteractionStateMock).toHaveBeenCalledWith("detach");
+    expect(mocked.clearAllInteractionStateMock).toHaveBeenCalledWith("detach_command");
     expect(mocked.pinnedClearMock).toHaveBeenCalled();
-    expect(mocked.keyboardUpdateContextMock).toHaveBeenCalledWith(
-      expect.objectContaining({ sessionId: null }),
-    );
+    expect(mocked.keyboardUpdateContextMock).toHaveBeenCalledWith(0, 200000);
   });
 
   it("replies with a not-attached message when no session is active", async () => {
     const ctx = createContext();
     await sut.detachCommand(ctx as never);
 
-    expect(ctx.reply).toHaveBeenCalledWith(t("detach.not_attached"));
+    expect(ctx.reply).toHaveBeenCalledWith(t("detach.no_active_session"));
     expect(mocked.detachAttachedSessionMock).not.toHaveBeenCalled();
   });
 });

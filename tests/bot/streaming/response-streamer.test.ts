@@ -1,9 +1,29 @@
 import { afterEach, describe, expect, it, vi } from "#vitest";
 import { loadSut } from "#helpers/sut-loader.js";
+
+// Capture real timer refs at module level.
+const _$rt = globalThis.setTimeout;
+
 const { ResponseStreamer } = await loadSut<typeof import("#src/bot/streaming/response-streamer.js")>(
   "#src/bot/streaming/response-streamer.ts",
   import.meta.url,
 );
+
+function accelerateTime(): { restore: () => void } {
+  const _origDn = Date.now;
+  let _ft = _origDn();
+  Date.now = () => _ft;
+  globalThis.setTimeout = ((cb: (...args: unknown[]) => void, ms?: number, ...args: unknown[]) => {
+    if ((ms ?? 0) > 0) _ft += ms!;
+    return _$rt(cb, 0, ...args);
+  }) as typeof globalThis.setTimeout;
+  return {
+    restore() {
+      globalThis.setTimeout = _$rt;
+      Date.now = _origDn;
+    },
+  };
+}
 
 function plainPart(text: string) {
   return {
@@ -35,31 +55,33 @@ describe("bot/streaming/response-streamer", () => {
   });
 
   it("throttles updates and sends only the latest payload", async () => {
-    vi.useFakeTimers();
+    const { restore } = accelerateTime();
+    try {
+      let nextMessageId = 1;
+      const sendPart = vi.fn(async (part) => ({
+        messageId: nextMessageId++,
+        deliveredSignature: signature(part),
+      }));
+      const editPart = vi.fn(async (messageId, part) => ({ deliveredSignature: signature(part) }));
+      const deleteText = vi.fn().mockResolvedValue(undefined);
+      const streamer = new ResponseStreamer({
+        throttleMs: 500,
+        sendPart,
+        editPart,
+        deleteText,
+      });
 
-    let nextMessageId = 1;
-    const sendPart = vi.fn(async (part) => ({
-      messageId: nextMessageId++,
-      deliveredSignature: signature(part),
-    }));
-    const editPart = vi.fn(async (messageId, part) => ({ deliveredSignature: signature(part) }));
-    const deleteText = vi.fn().mockResolvedValue(undefined);
-    const streamer = new ResponseStreamer({
-      throttleMs: 500,
-      sendPart,
-      editPart,
-      deleteText,
-    });
+      streamer.enqueue("s1", "m1", { parts: [plainPart("first")] });
+      streamer.enqueue("s1", "m1", { parts: [plainPart("second")] });
 
-    streamer.enqueue("s1", "m1", { parts: [plainPart("first")] });
-    streamer.enqueue("s1", "m1", { parts: [plainPart("second")] });
+      await vi.waitFor(() => expect(sendPart).toHaveBeenCalledTimes(1), { timeout: 1000 });
 
-    await vi.advanceTimersByTimeAsync(500);
-
-    expect(sendPart).toHaveBeenCalledTimes(1);
-    expect(sendPart).toHaveBeenCalledWith(plainPart("second"), undefined);
-    expect(editPart).not.toHaveBeenCalled();
-    expect(deleteText).not.toHaveBeenCalled();
+      expect(sendPart).toHaveBeenCalledWith(plainPart("second"), undefined);
+      expect(editPart).not.toHaveBeenCalled();
+      expect(deleteText).not.toHaveBeenCalled();
+    } finally {
+      restore();
+    }
   });
 
   it("streams into a second Telegram message when parts grow", async () => {
@@ -99,33 +121,36 @@ describe("bot/streaming/response-streamer", () => {
   });
 
   it("flushes final payload on complete after streaming started", async () => {
-    vi.useFakeTimers();
+    const { restore } = accelerateTime();
+    try {
+      let nextMessageId = 1;
+      const sendPart = vi.fn(async (part) => ({
+        messageId: nextMessageId++,
+        deliveredSignature: signature(part),
+      }));
+      const editPart = vi.fn(async (messageId, part) => ({ deliveredSignature: signature(part) }));
+      const deleteText = vi.fn().mockResolvedValue(undefined);
+      const streamer = new ResponseStreamer({
+        throttleMs: 500,
+        sendPart,
+        editPart,
+        deleteText,
+      });
 
-    let nextMessageId = 1;
-    const sendPart = vi.fn(async (part) => ({
-      messageId: nextMessageId++,
-      deliveredSignature: signature(part),
-    }));
-    const editPart = vi.fn(async (messageId, part) => ({ deliveredSignature: signature(part) }));
-    const deleteText = vi.fn().mockResolvedValue(undefined);
-    const streamer = new ResponseStreamer({
-      throttleMs: 500,
-      sendPart,
-      editPart,
-      deleteText,
-    });
+      streamer.enqueue("s1", "m1", { parts: [plainPart("partial")] });
+      await vi.waitFor(() => expect(sendPart).toHaveBeenCalledTimes(1), { timeout: 1000 });
 
-    streamer.enqueue("s1", "m1", { parts: [plainPart("partial")] });
-    await vi.advanceTimersByTimeAsync(500);
+      const result = await streamer.complete("s1", "m1", { parts: [plainPart("final")] });
 
-    const result = await streamer.complete("s1", "m1", { parts: [plainPart("final")] });
-
-    expect(result.streamed).toBe(true);
-    expect(result.telegramMessageIds).toEqual([1]);
-    expect(sendPart).toHaveBeenCalledTimes(1);
-    expect(editPart).toHaveBeenCalledTimes(1);
-    expect(editPart).toHaveBeenCalledWith(1, plainPart("final"), undefined);
-    expect(deleteText).not.toHaveBeenCalled();
+      expect(result.streamed).toBe(true);
+      expect(result.telegramMessageIds).toEqual([1]);
+      expect(sendPart).toHaveBeenCalledTimes(1);
+      expect(editPart).toHaveBeenCalledTimes(1);
+      expect(editPart).toHaveBeenCalledWith(1, plainPart("final"), undefined);
+      expect(deleteText).not.toHaveBeenCalled();
+    } finally {
+      restore();
+    }
   });
 
   it("removes extra Telegram messages when payload shrinks", async () => {
@@ -159,8 +184,6 @@ describe("bot/streaming/response-streamer", () => {
   });
 
   it("retries after Telegram rate limits", async () => {
-    vi.useFakeTimers();
-
     const sendPart = vi
       .fn()
       .mockRejectedValueOnce(new Error("429: retry after 1"))
@@ -179,11 +202,12 @@ describe("bot/streaming/response-streamer", () => {
 
     streamer.enqueue("s1", "m1", { parts: [plainPart("hello")] });
 
-    await vi.advanceTimersByTimeAsync(1000);
-
-    await vi.waitFor(() => {
-      expect(sendPart).toHaveBeenCalledTimes(2);
-    });
+    await vi.waitFor(
+      () => {
+        expect(sendPart).toHaveBeenCalledTimes(2);
+      },
+      { timeout: 3000, interval: 100 },
+    );
   });
 
   it("marks a stream as broken after fatal edit error and cleans up partial messages on complete", async () => {

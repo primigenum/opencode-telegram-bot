@@ -9,33 +9,94 @@ const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
   import.meta.url,
 );
 
+// ---- Mutable mocks (registered BEFORE any SUT load) ----
+
 const mocked = vi.hoisted(() => ({
   getTtsModeMock: vi.fn(),
-  httpsGetMock: vi.fn() as ReturnType<typeof vi.fn>,
+  fetchMock: vi.fn(),
+  loggerDebugMock: vi.fn(),
+  loggerInfoMock: vi.fn(),
+  loggerWarnMock: vi.fn(),
+  loggerErrorMock: vi.fn(),
+}));
+
+const configMock = vi.hoisted(() => ({
+  telegram: {
+    token: "test-telegram-token",
+    allowedUserId: 123456789,
+    apiRoot: "",
+    proxyUrl: "",
+    proxySecret: "",
+    forceIpv4: false,
+  },
+  opencode: {
+    apiUrl: "http://localhost:4096",
+    username: "opencode",
+    password: "",
+    autoRestartEnabled: false,
+    monitorIntervalSec: 300,
+    model: { provider: "test-provider", modelId: "test-model" },
+  },
+  server: { logLevel: "info" },
+  bot: {
+    sessionsListLimit: 10,
+    messagesListLimit: 10,
+    projectsListLimit: 10,
+    commandsListLimit: 10,
+    taskLimit: 10,
+    scheduledTaskExecutionTimeoutMinutes: 120,
+    scheduledTaskNotificationsSilent: false,
+    responseStreamThrottleMs: 1000,
+    responseStreamingMode: "edit",
+    bashToolDisplayMaxLength: 128,
+    locale: "en",
+    hideThinkingMessages: false,
+    hideToolCallMessages: false,
+    hideToolFileMessages: false,
+    trackBackgroundSessions: true,
+    messageFormatMode: "markdown",
+  },
+  files: { maxFileSizeKb: 100 },
+  open: { browserRoots: "" },
+  stt: {
+    apiUrl: "",
+    apiKey: "",
+    model: "whisper-large-v3-turbo",
+    language: "",
+    notePrompt: "",
+  },
+  tts: {
+    apiUrl: "",
+    apiKey: "",
+    provider: "openai",
+    model: "gpt-4o-mini-tts",
+    voice: "alloy",
+  },
 }));
 
 const settingsStoreMock = createSettingsStoreMock();
 settingsStoreMock.getTtsMode = mocked.getTtsModeMock;
-vi.mock("#src/app/stores/settings-store.ts", () => settingsStoreMock);
 
-vi.mock("https", () => ({
-  Agent: vi.fn(),
-  get: mocked.httpsGetMock,
-  default: { get: mocked.httpsGetMock },
+vi.mock("#src/config.ts", () => ({
+  config: configMock,
 }));
+
+vi.mock("#src/app/stores/settings-store.ts", () => settingsStoreMock);
 
 vi.mock("#src/utils/logger.ts", () => ({
   logger: {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
+    debug: mocked.loggerDebugMock,
+    info: mocked.loggerInfoMock,
+    warn: mocked.loggerWarnMock,
+    error: mocked.loggerErrorMock,
   },
 }));
 
-async function loadVoiceModule() {
-  vi.resetModules();
-  return import("#src/bot/handlers/voice-handler.js");
+async function getSut() {
+  return loadSut<typeof import("#src/bot/handlers/voice-handler.js")>(
+    "#src/bot/handlers/voice-handler.ts",
+    import.meta.url,
+  );
 }
 
 function createVoiceContext(): {
@@ -56,6 +117,10 @@ function createVoiceContext(): {
     reply: replyMock,
     api: {
       editMessageText: editMessageTextMock,
+      getFile: vi.fn().mockResolvedValue({
+        file_path: "voice/sample.ogg",
+        file_size: 1024,
+      }),
     },
   } as unknown as Context;
 
@@ -71,7 +136,7 @@ function createVoiceDeps(overrides: Record<string, unknown> = {}): {
   const processPromptMock = vi.fn().mockResolvedValue(true);
   const downloadMock = vi.fn().mockResolvedValue({
     buffer: Buffer.from("audio"),
-    filename: "file_1.oga",
+    filename: "file_1.ogg",
   });
   const transcribeMock = vi.fn().mockResolvedValue({ text: "run tests" });
 
@@ -88,65 +153,22 @@ function createVoiceDeps(overrides: Record<string, unknown> = {}): {
   return { deps, processPromptMock, downloadMock, transcribeMock };
 }
 
-function setupHttpsMock(): void {
-  mocked.httpsGetMock.mockImplementation(
-    (
-      _url: unknown,
-      _options: unknown,
-      callback: (
-        response: EventEmitter & {
-          statusCode: number;
-          headers: Record<string, string>;
-          resume: () => void;
-        },
-      ) => void,
-    ) => {
-      const response = new EventEmitter() as EventEmitter & {
-        statusCode: number;
-        headers: Record<string, string>;
-        resume: () => void;
-      };
-      response.statusCode = 200;
-      response.headers = {};
-      response.resume = vi.fn();
-
-      const request = new EventEmitter() as EventEmitter & {
-        setTimeout: (timeout: number, callback: () => void) => void;
-        destroy: (error?: Error) => void;
-      };
-      request.setTimeout = vi.fn();
-      request.destroy = vi.fn((error?: Error) => {
-        if (error) {
-          request.emit("error", error);
-        }
-      });
-
-      setTimeout(() => {
-        callback(response);
-        response.emit("data", Buffer.from("audio"));
-        response.emit("end");
-      }, 0);
-
-      return request;
-    },
-  );
-}
-
 describe("bot/handlers/voice-handler", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocked.getTtsModeMock.mockReturnValue("off");
-    mocked.httpsGetMock.mockReset();
-    vi.stubEnv("TELEGRAM_BOT_TOKEN", "test-telegram-token");
-    vi.stubEnv("TELEGRAM_ALLOWED_USER_ID", "123456789");
-    vi.stubEnv("OPENCODE_MODEL_PROVIDER", "test-provider");
-    vi.stubEnv("OPENCODE_MODEL_ID", "test-model");
-    vi.stubEnv("TELEGRAM_API_ROOT", "");
-    vi.stubEnv("STT_NOTE_PROMPT", "");
+    mocked.fetchMock.mockReset();
+    configMock.stt.notePrompt = "";
+    configMock.telegram.token = "test-telegram-token";
+    configMock.telegram.apiRoot = "";
+    configMock.telegram.proxyUrl = "";
+    configMock.telegram.proxySecret = "";
+    configMock.stt.apiUrl = "";
+    configMock.stt.apiKey = "";
   });
 
   it("continues with prompt processing when recognized text message edit fails", async () => {
-    const { handleVoiceMessage } = await loadVoiceModule();
+    const { handleVoiceMessage } = await getSut();
     const { ctx, replyMock, editMessageTextMock } = createVoiceContext();
     const { deps, processPromptMock } = createVoiceDeps();
 
@@ -161,7 +183,7 @@ describe("bot/handlers/voice-handler", () => {
   });
 
   it("returns not-configured message and does not process prompt", async () => {
-    const { handleVoiceMessage } = await loadVoiceModule();
+    const { handleVoiceMessage } = await getSut();
     const { ctx, replyMock } = createVoiceContext();
     const { deps, processPromptMock, downloadMock } = createVoiceDeps({
       isSttConfigured: () => false,
@@ -175,7 +197,7 @@ describe("bot/handlers/voice-handler", () => {
   });
 
   it("shows empty-result message and skips prompt processing", async () => {
-    const { handleVoiceMessage } = await loadVoiceModule();
+    const { handleVoiceMessage } = await getSut();
     const { ctx, editMessageTextMock } = createVoiceContext();
     const { deps, processPromptMock } = createVoiceDeps({
       transcribeAudio: vi.fn().mockResolvedValue({ text: "   " }),
@@ -188,13 +210,10 @@ describe("bot/handlers/voice-handler", () => {
   });
 
   it("adds STT note to the LLM prompt when STT_NOTE_PROMPT is set", async () => {
-    vi.stubEnv(
-      "STT_NOTE_PROMPT",
-      "The following text is transcribed from voice. It may contain phonetic errors. Infer the intended meaning from context.",
-    );
+    configMock.stt.notePrompt =
+      "The following text is transcribed from voice. It may contain phonetic errors. Infer the intended meaning from context.";
 
-    const { handleVoiceMessage } = await loadVoiceModule();
-    const { logger } = await import("#src/utils/logger.js");
+    const { handleVoiceMessage } = await getSut();
     const { ctx } = createVoiceContext();
     const { deps, processPromptMock } = createVoiceDeps();
     const note =
@@ -202,17 +221,21 @@ describe("bot/handlers/voice-handler", () => {
 
     await handleVoiceMessage(ctx, deps);
 
-    expect(processPromptMock).toHaveBeenCalledWith(ctx, `[Note: ${note}]\nrun tests`, deps, [], {
-      responseMode: "text_only",
-    });
-    expect(logger.debug).toHaveBeenCalledWith(
+    expect(processPromptMock).toHaveBeenCalledWith(
+      ctx,
+      `[Note: ${note}]\nrun tests`,
+      deps,
+      [],
+      { responseMode: "text_only" },
+    );
+    expect(mocked.loggerDebugMock).toHaveBeenCalledWith(
       `[Voice] Added STT note to LLM prompt: [Note: ${note}]`,
     );
   });
 
   it("requests an audio reply for voice prompts when TTS mode is auto", async () => {
     mocked.getTtsModeMock.mockReturnValue("auto");
-    const { handleVoiceMessage } = await loadVoiceModule();
+    const { handleVoiceMessage } = await getSut();
     const { ctx } = createVoiceContext();
     const { deps, processPromptMock } = createVoiceDeps();
 
@@ -226,10 +249,9 @@ describe("bot/handlers/voice-handler", () => {
   it.each(["", "false", "0", "   "])(
     "does not add STT note when STT_NOTE_PROMPT is %j",
     async (notePrompt) => {
-      vi.stubEnv("STT_NOTE_PROMPT", notePrompt);
+      configMock.stt.notePrompt = notePrompt;
 
-      const { handleVoiceMessage } = await loadVoiceModule();
-      const { logger } = await import("#src/utils/logger.js");
+      const { handleVoiceMessage } = await getSut();
       const { ctx } = createVoiceContext();
       const { deps, processPromptMock } = createVoiceDeps();
 
@@ -238,27 +260,34 @@ describe("bot/handlers/voice-handler", () => {
       expect(processPromptMock).toHaveBeenCalledWith(ctx, "run tests", deps, [], {
         responseMode: "text_only",
       });
-      expect(logger.debug).not.toHaveBeenCalled();
+      // The prompt text must NOT contain the note prefix if STT_NOTE_PROMPT is falsy.
+      const callArg = processPromptMock.mock.calls[0]?.[1];
+      expect(callArg).not.toContain("[Note:");
     },
   );
 
   it("downloads voice files from the default Telegram file URL when TELEGRAM_API_ROOT is unset", async () => {
-    setupHttpsMock();
-    const { handleVoiceMessage } = await loadVoiceModule();
-    const { ctx } = createVoiceContext();
-    const getFileMock = vi.fn().mockResolvedValue({
-      file_path: "voice/file_123.oga",
-      file_size: 5,
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
     });
-    (ctx.api as unknown as { getFile: typeof getFileMock }).getFile = getFileMock;
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { handleVoiceMessage } = await getSut();
+    const { ctx } = createVoiceContext();
+    const transcribeMock = vi.fn().mockResolvedValue({ text: "hello" });
     const { deps, processPromptMock } = createVoiceDeps({
       downloadTelegramFile: undefined,
-      transcribeAudio: vi.fn().mockResolvedValue({ text: "hello" }),
+      transcribeAudio: transcribeMock,
     });
+    // Clear the default getFile mock and set our own
+    (ctx.api as { getFile: ReturnType<typeof vi.fn> }).getFile = vi
+      .fn()
+      .mockResolvedValue({ file_path: "voice/file_123.oga", file_size: 5 });
 
     await handleVoiceMessage(ctx, deps);
 
-    const [url] = mocked.httpsGetMock.mock.calls[0];
+    const [url] = fetchMock.mock.calls[0];
     expect(String(url)).toBe(
       "https://api.telegram.org/file/bottest-telegram-token/voice/file_123.oga",
     );
@@ -268,24 +297,32 @@ describe("bot/handlers/voice-handler", () => {
   });
 
   it("downloads voice files from TELEGRAM_API_ROOT without a double slash", async () => {
-    vi.stubEnv("TELEGRAM_API_ROOT", "https://tg-proxy.example.com/");
-    setupHttpsMock();
-    const { handleVoiceMessage } = await loadVoiceModule();
+    configMock.telegram.apiRoot = "https://tg-proxy.example.com/";
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { handleVoiceMessage } = await getSut();
     const { ctx } = createVoiceContext();
-    const getFileMock = vi.fn().mockResolvedValue({
-      file_path: "voice/file_123.oga",
-      file_size: 5,
-    });
-    (ctx.api as unknown as { getFile: typeof getFileMock }).getFile = getFileMock;
-    const { deps } = createVoiceDeps({
+    const transcribeMock = vi.fn().mockResolvedValue({ text: "hello" });
+    const { deps, processPromptMock } = createVoiceDeps({
       downloadTelegramFile: undefined,
+      transcribeAudio: transcribeMock,
     });
+    (ctx.api as { getFile: ReturnType<typeof vi.fn> }).getFile = vi
+      .fn()
+      .mockResolvedValue({ file_path: "voice/file_123.oga", file_size: 5 });
 
     await handleVoiceMessage(ctx, deps);
 
-    const [url] = mocked.httpsGetMock.mock.calls[0];
+    const [url] = fetchMock.mock.calls[0];
     expect(String(url)).toBe(
       "https://tg-proxy.example.com/file/bottest-telegram-token/voice/file_123.oga",
     );
+    expect(processPromptMock).toHaveBeenCalledWith(ctx, "hello", deps, [], {
+      responseMode: "text_only",
+    });
   });
 });
