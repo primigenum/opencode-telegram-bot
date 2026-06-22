@@ -1,5 +1,4 @@
-import os from "node:os";
-import path from "node:path";
+import path from "bun:path";
 import { getRuntimeMode, type RuntimeMode } from "./mode.js";
 
 export interface RuntimePaths {
@@ -13,17 +12,21 @@ export interface RuntimePaths {
 
 const APP_DIR_NAME = "opencode-telegram-bot";
 
+function getHomeDirectory(): string {
+  return process.env.HOME ?? process.env.USERPROFILE ?? "";
+}
+
 function getInstalledAppHome(): string {
   if (process.platform === "win32") {
-    const appData = process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming");
+    const appData = process.env.APPDATA || path.join(getHomeDirectory(), "AppData", "Roaming");
     return path.join(appData, APP_DIR_NAME);
   }
 
   if (process.platform === "darwin") {
-    return path.join(os.homedir(), "Library", "Application Support", APP_DIR_NAME);
+    return path.join(getHomeDirectory(), "Library", "Application Support", APP_DIR_NAME);
   }
 
-  const xdgConfigHome = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
+  const xdgConfigHome = process.env.XDG_CONFIG_HOME || path.join(getHomeDirectory(), ".config");
   return path.join(xdgConfigHome, APP_DIR_NAME);
 }
 

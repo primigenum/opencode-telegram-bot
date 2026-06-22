@@ -1,6 +1,5 @@
-import { createHash } from "node:crypto";
-import path from "node:path";
-import Database from "better-sqlite3";
+import path from "bun:path";
+import { Database } from "bun:sqlite";
 import { opencodeClient } from "../../opencode/client.js";
 import { getSessionDirectoryCache, setSessionDirectoryCache } from "../stores/settings-store.js";
 import { logger } from "../../utils/logger.js";
@@ -194,7 +193,9 @@ function buildListParams(options?: {
 }
 
 function createVirtualProjectId(worktree: string): string {
-  const hash = createHash("sha1").update(worktree).digest("hex").slice(0, 16);
+  const hasher = new Bun.CryptoHasher("sha1");
+  hasher.update(worktree);
+  const hash = Buffer.from(hasher.digest()).toString("hex").slice(0, 16);
   return `dir_${hash}`;
 }
 
@@ -378,10 +379,7 @@ async function querySessionDirectoriesFromSqlite(
   dbPath: string,
 ): Promise<CachedSessionDirectory[] | null> {
   try {
-    const db = new Database(dbPath, {
-      readonly: true,
-      fileMustExist: true,
-    });
+    const db = new Database(dbPath, { readonly: true });
 
     try {
       const rows = db

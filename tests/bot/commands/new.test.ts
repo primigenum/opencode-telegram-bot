@@ -1,8 +1,18 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Bot, Context } from "grammy";
-import { newCommand } from "../../../src/bot/commands/new-command.js";
-import { foregroundSessionState } from "../../../src/app/managers/foreground-session-state-manager.js";
-import { t } from "../../../src/i18n/index.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { newCommand } = await loadSut<typeof import("#src/bot/commands/new-command.js")>(
+  "#src/bot/commands/new-command.ts",
+  import.meta.url,
+);
+const { foregroundSessionState } = await loadSut<typeof import("#src/app/managers/foreground-session-state-manager.js")>(
+  "#src/app/managers/foreground-session-state-manager.ts",
+  import.meta.url,
+);
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   sessionCreateMock: vi.fn(),
@@ -11,7 +21,7 @@ const mocked = vi.hoisted(() => ({
   ensureEventSubscriptionMock: vi.fn(),
 }));
 
-vi.mock("../../../src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.ts", () => ({
   opencodeClient: {
     session: {
       create: mocked.sessionCreateMock,
@@ -19,29 +29,29 @@ vi.mock("../../../src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.ts", () => ({
   getCurrentProject: mocked.getCurrentProjectMock,
 }));
 
-vi.mock("../../../src/app/services/session-service.js", () => ({
+vi.mock("#src/app/services/session-service.ts", () => ({
   setCurrentSession: vi.fn(),
 }));
 
-vi.mock("../../../src/app/services/session-cache-service.js", () => ({
+vi.mock("#src/app/services/session-cache-service.ts", () => ({
   ingestSessionInfoForCache: vi.fn().mockResolvedValue(undefined),
   __resetSessionDirectoryCacheForTests: vi.fn(),
 }));
 
-vi.mock("../../../src/app/managers/interaction-manager.js", () => ({
+vi.mock("#src/app/managers/interaction-manager.ts", () => ({
   interactionManager: { clear: vi.fn() },
   clearAllInteractionState: vi.fn(),
 }));
 
-vi.mock("../../../src/app/managers/summary-aggregation-manager.js", () => ({
+vi.mock("#src/app/managers/summary-aggregation-manager.ts", () => ({
   summaryAggregator: { clear: vi.fn() },
 }));
 
-vi.mock("../../../src/bot/pinned/pinned-message-manager.js", () => ({
+vi.mock("#src/bot/pinned/pinned-message-manager.ts", () => ({
   pinnedMessageManager: {
     isInitialized: vi.fn(() => false),
     initialize: vi.fn(),
@@ -49,7 +59,7 @@ vi.mock("../../../src/bot/pinned/pinned-message-manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/bot/keyboards/keyboard-manager.js", () => ({
+vi.mock("#src/bot/keyboards/keyboard-manager.ts", () => ({
   keyboardManager: {
     initialize: vi.fn(),
     updateAgent: vi.fn(),
@@ -57,24 +67,24 @@ vi.mock("../../../src/bot/keyboards/keyboard-manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/app/services/agent-selection-service.js", () => ({
+vi.mock("#src/app/services/agent-selection-service.ts", () => ({
   getStoredAgent: vi.fn(() => "build"),
   resolveProjectAgent: vi.fn(async (agentName?: string) => agentName ?? "build"),
 }));
 
-vi.mock("../../../src/app/services/model-selection-service.js", () => ({
+vi.mock("#src/app/services/model-selection-service.ts", () => ({
   getStoredModel: vi.fn(() => ({ providerID: "openai", modelID: "gpt-5", variant: "default" })),
 }));
 
-vi.mock("../../../src/app/services/variant-selection-service.js", () => ({
+vi.mock("#src/app/services/variant-selection-service.ts", () => ({
   formatVariantForButton: vi.fn(() => "Default"),
 }));
 
-vi.mock("../../../src/bot/keyboards/main-reply-keyboard.js", () => ({
+vi.mock("#src/bot/keyboards/main-reply-keyboard.ts", () => ({
   createMainKeyboard: vi.fn(() => ({ keyboard: true })),
 }));
 
-vi.mock("../../../src/app/services/attach-service.js", () => ({
+vi.mock("#src/app/services/attach-service.ts", () => ({
   attachToSession: mocked.attachToSessionMock,
 }));
 

@@ -1,7 +1,14 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { helpCommand } from "../../../src/bot/commands/help-command.js";
-import { getLocalizedBotCommands } from "../../../src/bot/commands/definitions.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { helpCommand } = await loadSut<typeof import("#src/bot/commands/help-command.js")>(
+  "#src/bot/commands/help-command.ts",
+  import.meta.url,
+);
+const { getLocalizedBotCommands } = await loadSut<typeof import("#src/bot/commands/definitions.js")>(
+  "#src/bot/commands/definitions.ts",
+  import.meta.url,
+);
 
 describe("bot/commands/help-command", () => {
   it("returns full commands list from centralized definitions", async () => {

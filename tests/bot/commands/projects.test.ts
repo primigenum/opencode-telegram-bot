@@ -1,10 +1,9 @@
-import { describe, expect, it } from "vitest";
-import {
-  calculateProjectsPaginationRange,
-  buildProjectButtonLabel,
-  getProjectFolderName,
-  parseProjectPageCallback,
-} from "../../../src/bot/menus/project-selection-menu.js";
+import { describe, expect, it } from "#vitest";
+import { loadSut } from "#helpers/sut-loader.js";
+const { calculateProjectsPaginationRange, buildProjectButtonLabel, getProjectFolderName, parseProjectPageCallback } = await loadSut<typeof import("#src/bot/menus/project-selection-menu.js")>(
+  "#src/bot/menus/project-selection-menu.ts",
+  import.meta.url,
+);
 
 describe("bot/commands/projects", () => {
   describe("getProjectFolderName", () => {

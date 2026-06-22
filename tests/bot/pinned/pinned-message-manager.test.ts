@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 
 const mocked = vi.hoisted(() => ({
   opencodeClient: {
@@ -15,41 +15,66 @@ const mocked = vi.hoisted(() => ({
   getGitWorktreeContext: vi.fn(),
 }));
 
-vi.mock("../../../src/opencode/client.js", () => ({ opencodeClient: mocked.opencodeClient }));
-vi.mock("../../../src/app/services/worktree-service.js", () => ({
+vi.mock("#src/opencode/client.ts", () => ({ opencodeClient: mocked.opencodeClient }));
+vi.mock("#src/app/services/worktree-service.ts", () => ({
   getGitWorktreeContext: mocked.getGitWorktreeContext,
 }));
-vi.mock("../../../src/app/services/session-service.js", () => ({
+vi.mock("#src/app/services/session-service.ts", () => ({
   getCurrentSession: mocked.getCurrentSession,
 }));
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.ts", () => ({
   getCurrentProject: mocked.getCurrentProject,
+  setCurrentProject: vi.fn(),
+  clearProject: vi.fn(),
+  getCurrentSession: vi.fn(),
+  setCurrentSession: vi.fn(),
+  clearSession: vi.fn(),
+  getTtsMode: vi.fn(),
+  setTtsMode: vi.fn(),
+  getCurrentAgent: vi.fn(),
+  setCurrentAgent: vi.fn(),
+  clearCurrentAgent: vi.fn(),
+  getCurrentModel: vi.fn(),
+  setCurrentModel: vi.fn(),
+  clearCurrentModel: vi.fn(),
   getPinnedMessageId: mocked.getPinnedMessageId,
   setPinnedMessageId: mocked.setPinnedMessageId,
   clearPinnedMessageId: mocked.clearPinnedMessageId,
+  getSessionDirectoryCache: vi.fn(),
+  setSessionDirectoryCache: vi.fn(),
+  clearSessionDirectoryCache: vi.fn(),
+  getScheduledTasks: vi.fn(),
+  setScheduledTasks: vi.fn(),
+  getScheduledTaskSessionIgnores: vi.fn(),
+  setScheduledTaskSessionIgnores: vi.fn(),
+  __resetSettingsForTests: vi.fn(),
+  loadSettings: vi.fn(),
 }));
-vi.mock("../../../src/app/services/model-selection-service.js", () => ({ getStoredModel: mocked.getStoredModel }));
-vi.mock("../../../src/app/services/model-context-limit-service.js", () => ({
+vi.mock("#src/app/services/model-selection-service.ts", () => ({ getStoredModel: mocked.getStoredModel }));
+vi.mock("#src/app/services/model-context-limit-service.ts", () => ({
   getModelContextLimit: mocked.getModelContextLimit,
+  DEFAULT_CONTEXT_LIMIT: 200000,
 }));
-vi.mock("../../../src/i18n/index.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../src/i18n/index.js")>();
-  return {
-    ...actual,
-    t: (key: string, params?: Record<string, string | number>) => {
-      if (key === "pinned.default_session_title") return "new session";
-      if (key === "pinned.unknown") return "Unknown";
-      if (key === "pinned.line.project") return `Project: ${params?.project ?? ""}`;
-      if (key === "pinned.line.worktree") return `Worktree: ${params?.worktree ?? ""}`;
-      if (key === "pinned.line.model") return `Model: ${params?.model ?? ""}`;
-      if (key === "pinned.files.title") return `Files (${params?.count ?? 0}):`;
-      if (key === "pinned.files.item") return `  ${params?.path ?? ""}${params?.diff ?? ""}`;
-      if (key === "pinned.files.more") return `  ... and ${params?.count ?? 0} more`;
-      return key;
-    },
-  };
-});
-vi.mock("../../../src/bot/pinned/pinned-message-format.js", () => ({
+vi.mock("#src/i18n/index.ts", () => ({
+  t: (key: string, params?: Record<string, string | number>) => {
+    if (key === "pinned.default_session_title") return "new session";
+    if (key === "pinned.unknown") return "Unknown";
+    if (key === "pinned.line.project") return `Project: ${params?.project ?? ""}`;
+    if (key === "pinned.line.worktree") return `Worktree: ${params?.worktree ?? ""}`;
+    if (key === "pinned.line.model") return `Model: ${params?.model ?? ""}`;
+    return key;
+  },
+  SUPPORTED_LOCALES: ["en", "es"],
+  getDateLocale: vi.fn(),
+  getLocale: vi.fn(() => "en"),
+  getLocaleOptions: vi.fn(),
+  isSupportedLocale: vi.fn(() => true),
+  normalizeLocale: vi.fn((l: string) => l),
+  resetRuntimeLocale: vi.fn(),
+  resolveSupportedLocale: vi.fn(() => "en"),
+  setRuntimeLocale: vi.fn(),
+}));
+vi.mock("#src/bot/pinned/pinned-message-format.ts", () => ({
   DEFAULT_CONTEXT_LIMIT: 204800,
   formatContextLine: (used: number, limit: number) => `${used}/${limit}`,
   formatCostLine: (cost: number) => `$${cost.toFixed(2)}`,
@@ -57,7 +82,7 @@ vi.mock("../../../src/bot/pinned/pinned-message-format.js", () => ({
 }));
 
 // Must import AFTER vi.mock calls
-const { pinnedMessageManager } = await import("../../../src/bot/pinned/pinned-message-manager.js");
+const { pinnedMessageManager } = await import("#src/bot/pinned/pinned-message-manager.js");
 
 describe("pinned/manager", () => {
   let fakeApi: {
@@ -148,7 +173,7 @@ describe("pinned/manager", () => {
 
     it("does not throw when no pinned message exists", async () => {
       // No pinned message was created → refresh should be a no-op
-      await expect(pinnedMessageManager.refresh()).resolves.not.toThrow();
+      await pinnedMessageManager.refresh();
     });
 
     it("refreshes git branch in the pinned project line", async () => {

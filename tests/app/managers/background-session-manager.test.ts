@@ -1,14 +1,24 @@
 import type { Event } from "@opencode-ai/sdk/v2";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { BackgroundSessionTracker } from "../../../src/app/managers/background-session-manager.js";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
+import { mockDep } from "#helpers/mock-dep.js";
+import { loadSut } from "#helpers/sut-loader.js";
 
-const mocked = vi.hoisted(() => ({
+const mocked = {
   isScheduledTaskSessionIgnoredMock: vi.fn(() => false),
-}));
+};
 
-vi.mock("../../../src/app/services/scheduled-task-session-ignore-service.js", () => ({
-  isScheduledTaskSessionIgnored: mocked.isScheduledTaskSessionIgnoredMock,
-}));
+mockDep(
+  "#src/app/services/scheduled-task-session-ignore-service.ts",
+  () => ({
+    isScheduledTaskSessionIgnored: mocked.isScheduledTaskSessionIgnoredMock,
+  }),
+  import.meta.url,
+);
+
+const sut = await loadSut<typeof import("#src/app/managers/background-session-manager.js")>(
+  "#src/app/managers/background-session-manager.ts",
+  import.meta.url,
+);
 
 function event(value: unknown): Event {
   return value as Event;
@@ -25,7 +35,7 @@ describe("BackgroundSessionTracker", () => {
   });
 
   it("notifies once when a background session becomes idle after an assistant message completes", async () => {
-    const tracker = new BackgroundSessionTracker();
+    const tracker = new sut.BackgroundSessionTracker();
     const onNotification = vi.fn();
     tracker.setOnNotification(onNotification);
 
@@ -74,7 +84,7 @@ describe("BackgroundSessionTracker", () => {
   });
 
   it("does not notify for the current session", async () => {
-    const tracker = new BackgroundSessionTracker();
+    const tracker = new sut.BackgroundSessionTracker();
     const onNotification = vi.fn();
     tracker.setOnNotification(onNotification);
 
@@ -106,7 +116,7 @@ describe("BackgroundSessionTracker", () => {
   });
 
   it("coalesces multiple completed assistant messages into one idle notification", async () => {
-    const tracker = new BackgroundSessionTracker();
+    const tracker = new sut.BackgroundSessionTracker();
     const onNotification = vi.fn();
     tracker.setOnNotification(onNotification);
     const firstCompletedEvent = event({
@@ -152,7 +162,7 @@ describe("BackgroundSessionTracker", () => {
   });
 
   it("notifies about background questions and permissions", async () => {
-    const tracker = new BackgroundSessionTracker();
+    const tracker = new sut.BackgroundSessionTracker();
     const onNotification = vi.fn();
     tracker.setOnNotification(onNotification);
 
@@ -188,7 +198,7 @@ describe("BackgroundSessionTracker", () => {
   });
 
   it("deduplicates question and permission request ids", async () => {
-    const tracker = new BackgroundSessionTracker();
+    const tracker = new sut.BackgroundSessionTracker();
     const onNotification = vi.fn();
     tracker.setOnNotification(onNotification);
     const questionEvent = event({
@@ -211,7 +221,7 @@ describe("BackgroundSessionTracker", () => {
   });
 
   it("ignores child sessions to avoid duplicate subagent notifications", async () => {
-    const tracker = new BackgroundSessionTracker();
+    const tracker = new sut.BackgroundSessionTracker();
     const onNotification = vi.fn();
     tracker.setOnNotification(onNotification);
 
@@ -250,7 +260,7 @@ describe("BackgroundSessionTracker", () => {
   });
 
   it("ignores scheduled task sessions", async () => {
-    const tracker = new BackgroundSessionTracker();
+    const tracker = new sut.BackgroundSessionTracker();
     const onNotification = vi.fn();
     tracker.setOnNotification(onNotification);
     mocked.isScheduledTaskSessionIgnoredMock.mockImplementation(
@@ -285,7 +295,7 @@ describe("BackgroundSessionTracker", () => {
   });
 
   it("clears dedupe state when the directory changes", async () => {
-    const tracker = new BackgroundSessionTracker();
+    const tracker = new sut.BackgroundSessionTracker();
     const onNotification = vi.fn();
     tracker.setOnNotification(onNotification);
     const completedEvent = event({

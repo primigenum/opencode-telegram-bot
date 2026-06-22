@@ -1,7 +1,14 @@
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { setRuntimeMode } from "../../src/runtime/mode.js";
-import { getRuntimePaths } from "../../src/runtime/paths.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
+import { loadSut } from "#helpers/sut-loader.js";
+const { setRuntimeMode } = await loadSut<typeof import("#src/runtime/mode.js")>(
+  "#src/runtime/mode.ts",
+  import.meta.url,
+);
+const { getRuntimePaths } = await loadSut<typeof import("#src/runtime/paths.js")>(
+  "#src/runtime/paths.ts",
+  import.meta.url,
+);
 
 function setPlatform(platform: NodeJS.Platform): () => void {
   const originalPlatform = process.platform;

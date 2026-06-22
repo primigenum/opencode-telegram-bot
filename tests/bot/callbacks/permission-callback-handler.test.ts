@@ -1,11 +1,27 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context, InlineKeyboard } from "grammy";
-import type { PermissionRequest } from "../../../src/app/types/permission.js";
-import { permissionManager } from "../../../src/app/managers/permission-manager.js";
-import { interactionManager } from "../../../src/app/managers/interaction-manager.js";
-import { showPermissionRequest } from "../../../src/bot/menus/permission-menu.js";
-import { handlePermissionCallback } from "../../../src/bot/callbacks/permission-callback-handler.js";
-import { t } from "../../../src/i18n/index.js";
+import type { PermissionRequest } from "#src/app/types/permission.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { permissionManager } = await loadSut<typeof import("#src/app/managers/permission-manager.js")>(
+  "#src/app/managers/permission-manager.ts",
+  import.meta.url,
+);
+const { interactionManager } = await loadSut<typeof import("#src/app/managers/interaction-manager.js")>(
+  "#src/app/managers/interaction-manager.ts",
+  import.meta.url,
+);
+const { showPermissionRequest } = await loadSut<typeof import("#src/bot/menus/permission-menu.js")>(
+  "#src/bot/menus/permission-menu.ts",
+  import.meta.url,
+);
+const { handlePermissionCallback } = await loadSut<typeof import("#src/bot/callbacks/permission-callback-handler.js")>(
+  "#src/bot/callbacks/permission-callback-handler.ts",
+  import.meta.url,
+);
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   permissionReplyMock: vi.fn(),
@@ -16,7 +32,7 @@ const mocked = vi.hoisted(() => ({
   currentSession: null as { id: string; title: string; directory: string } | null,
 }));
 
-vi.mock("../../../src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.ts", () => ({
   opencodeClient: {
     permission: {
       reply: mocked.permissionReplyMock,
@@ -24,15 +40,15 @@ vi.mock("../../../src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.ts", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
 }));
 
-vi.mock("../../../src/app/services/session-service.js", () => ({
+vi.mock("#src/app/services/session-service.ts", () => ({
   getCurrentSession: vi.fn(() => mocked.currentSession),
 }));
 
-vi.mock("../../../src/utils/safe-background-task.js", () => ({
+vi.mock("#src/utils/safe-background-task.ts", () => ({
   safeBackgroundTask: ({
     task,
     onSuccess,

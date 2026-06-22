@@ -1,6 +1,9 @@
-import { Agent as HttpsAgent } from "https";
-import { describe, expect, it } from "vitest";
-import { createTelegramBotOptions } from "../../src/bot/telegram-client-options.js";
+import { describe, expect, it } from "#vitest";
+import { loadSut } from "#helpers/sut-loader.js";
+const { createTelegramBotOptions } = await loadSut<typeof import("#src/bot/telegram-client-options.js")>(
+  "#src/bot/telegram-client-options.ts",
+  import.meta.url,
+);
 
 function makeTelegramConfig(overrides: Partial<Parameters<typeof createTelegramBotOptions>[0]> = {}) {
   return {
@@ -19,13 +22,12 @@ describe("createTelegramBotOptions", () => {
     expect(options.client).toBeUndefined();
   });
 
-  it("configures an IPv4 HTTPS agent for direct Telegram API requests when enabled", () => {
+  it("sets compress flag when IPv4 mode is enabled (Bun has no agent-level IPv4 pinning)", () => {
     const options = createTelegramBotOptions(makeTelegramConfig({ forceIpv4: true }));
-    const agent = options.client?.baseFetchConfig?.agent;
 
-    expect(agent).toBeInstanceOf(HttpsAgent);
-    expect((agent as HttpsAgent).options.family).toBe(4);
     expect(options.client?.baseFetchConfig?.compress).toBe(true);
+    // Bun's native fetch doesn't expose agent-level IPv4 enforcement
+    expect(options.client?.baseFetchConfig?.agent).toBeUndefined();
   });
 
   it("keeps reverse-proxy options when IPv4 mode is enabled", () => {
@@ -39,7 +41,8 @@ describe("createTelegramBotOptions", () => {
 
     expect(options.client?.apiRoot).toBe("https://tg-proxy.example.com");
     expect(options.client?.fetch).toBeTypeOf("function");
-    expect(options.client?.baseFetchConfig?.agent).toBeInstanceOf(HttpsAgent);
+    expect(options.client?.baseFetchConfig?.compress).toBe(true);
+    expect(options.client?.baseFetchConfig?.agent).toBeUndefined();
   });
 
   it("keeps forward proxy wiring when IPv4 mode is also enabled", () => {
@@ -50,7 +53,7 @@ describe("createTelegramBotOptions", () => {
       }),
     );
 
-    expect(options.client?.baseFetchConfig?.agent).not.toBeInstanceOf(HttpsAgent);
+    expect(options.client?.baseFetchConfig?.proxy).toBe("https://proxy.example.com:8443");
     expect(options.client?.baseFetchConfig?.compress).toBe(true);
   });
 });

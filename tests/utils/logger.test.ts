@@ -1,8 +1,12 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it, vi } from "vitest";
-import { setRuntimeMode } from "../../src/runtime/mode.js";
+import { describe, expect, it, vi } from "#vitest";
+import { loadSut } from "#helpers/sut-loader.js";
+const { setRuntimeMode } = await loadSut<typeof import("#src/runtime/mode.js")>(
+  "#src/runtime/mode.ts",
+  import.meta.url,
+);
 
 async function createTempHome(): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), "opencode-telegram-bot-logger-"));
@@ -10,7 +14,7 @@ async function createTempHome(): Promise<string> {
 
 async function loadLoggerModule() {
   vi.resetModules();
-  return import("../../src/utils/logger.js");
+  return import("#src/utils/logger.js");
 }
 
 describe("utils/logger", () => {
@@ -56,7 +60,7 @@ describe("utils/logger", () => {
     expect(getLogFilePath()).toBe(expectedPath);
 
     const content = await fs.readFile(expectedPath, "utf-8");
-    expect(content).toContain("[INFO] sources log { scope: 'test' }");
+    expect(content).toContain('[INFO] sources log { scope: "test" }');
     expect(consoleLogMock).toHaveBeenCalledOnce();
 
     __resetLoggerForTests();

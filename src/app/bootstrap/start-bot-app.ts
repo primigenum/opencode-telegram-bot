@@ -1,6 +1,3 @@
-import fs from "node:fs/promises";
-import { readFile } from "node:fs/promises";
-
 import { cleanupBotRuntime, createBot } from "../../bot/index.js";
 import { createScheduledTaskDeliverySender } from "../../bot/messages/scheduled-task-delivery.js";
 import { config } from "../../config.js";
@@ -24,8 +21,7 @@ const SHUTDOWN_TIMEOUT_MS = 5000;
 async function getBotVersion(): Promise<string> {
   try {
     const packageJsonPath = new URL("../../../package.json", import.meta.url);
-    const packageJsonContent = await readFile(packageJsonPath, "utf-8");
-    const packageJson = JSON.parse(packageJsonContent) as { version?: string };
+    const packageJson = (await Bun.file(packageJsonPath).json()) as { version?: string };
 
     return packageJson.version ?? "unknown";
   } catch (error) {
@@ -81,13 +77,12 @@ export async function startBotApp(): Promise<void> {
     }
 
     try {
-      await fs.access(stateFilePath);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      const exists = await Bun.file(stateFilePath).exists();
+      if (!exists) {
         serviceStateCleared = true;
         return;
       }
-
+    } catch (error) {
       throw error;
     }
 
@@ -95,7 +90,7 @@ export async function startBotApp(): Promise<void> {
     serviceStateCleared = true;
   };
 
-  const shutdown = (signal: NodeJS.Signals): void => {
+  const shutdown = (signal: string): void => {
     if (shutdownStarted) {
       return;
     }

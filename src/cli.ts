@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import type { RuntimeMode } from "./runtime/mode.js";
 import { parseCliArgs } from "./cli/args.js";

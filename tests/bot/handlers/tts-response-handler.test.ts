@@ -1,16 +1,31 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "#vitest";
 import { InputFile } from "grammy";
-import { sendTtsResponseForSession } from "../../../src/bot/handlers/tts-response-handler.js";
-import { t } from "../../../src/i18n/index.js";
+import { mockDep } from "#helpers/mock-dep.js";
+import { loadSut } from "#helpers/sut-loader.js";
 
-vi.mock("../../../src/utils/logger.js", () => ({
-  logger: {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  },
-}));
+import { loadSut } from "#helpers/sut-loader.js";
+mockDep(
+  "#src/utils/logger.ts",
+  () => ({
+    logger: {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    },
+  }),
+  import.meta.url,
+);
+
+const sut = await loadSut<typeof import("#src/bot/handlers/tts-response-handler.js")>(
+  "#src/bot/handlers/tts-response-handler.ts",
+  import.meta.url,
+);
+
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 describe("bot/handlers/tts-response-handler", () => {
   it("sends audio when the session response mode requires TTS", async () => {
@@ -22,7 +37,7 @@ describe("bot/handlers/tts-response-handler", () => {
       mimeType: "audio/mpeg",
     });
 
-    const result = await sendTtsResponseForSession({
+    const result = await sut.sendTtsResponseForSession({
       api: { sendAudio: sendAudioMock, sendMessage: sendMessageMock },
       sessionId: "session-1",
       chatId: 123,
@@ -46,7 +61,7 @@ describe("bot/handlers/tts-response-handler", () => {
     const sendMessageMock = vi.fn().mockResolvedValue(undefined);
     const synthesizeSpeechMock = vi.fn();
 
-    const result = await sendTtsResponseForSession({
+    const result = await sut.sendTtsResponseForSession({
       api: { sendAudio: sendAudioMock, sendMessage: sendMessageMock },
       sessionId: "session-1",
       chatId: 123,
@@ -67,7 +82,7 @@ describe("bot/handlers/tts-response-handler", () => {
     const sendMessageMock = vi.fn().mockResolvedValue(undefined);
     const synthesizeSpeechMock = vi.fn();
 
-    const result = await sendTtsResponseForSession({
+    const result = await sut.sendTtsResponseForSession({
       api: { sendAudio: sendAudioMock, sendMessage: sendMessageMock },
       sessionId: "session-1",
       chatId: 123,
@@ -92,7 +107,7 @@ describe("bot/handlers/tts-response-handler", () => {
       mimeType: "audio/mpeg",
     });
 
-    const result = await sendTtsResponseForSession({
+    const result = await sut.sendTtsResponseForSession({
       api: { sendAudio: sendAudioMock, sendMessage: sendMessageMock },
       sessionId: "session-1",
       chatId: 123,

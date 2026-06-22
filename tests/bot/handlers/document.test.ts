@@ -1,10 +1,14 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import {
-  handleDocumentMessage,
-  type DocumentHandlerDeps,
-} from "../../../src/bot/handlers/document-handler.js";
-import { t } from "../../../src/i18n/index.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { handleDocumentMessage, DocumentHandlerDeps } = await loadSut<typeof import("#src/bot/handlers/document-handler.js")>(
+  "#src/bot/handlers/document-handler.ts",
+  import.meta.url,
+);
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 function createDocumentContext(overrides: Partial<Context["message"]> = {}): {
   ctx: Context;

@@ -1,6 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "#vitest";
 import type { Context } from "grammy";
 
+import { loadSut } from "#helpers/sut-loader.js";
+import { createSettingsStoreMock } from "#helpers/settings-store-mock.js";
 const mocked = vi.hoisted(() => ({
   setCurrentProjectMock: vi.fn(),
   clearSessionMock: vi.fn(),
@@ -23,52 +25,61 @@ const mocked = vi.hoisted(() => ({
   createMainKeyboardMock: vi.fn(() => ({ keyboard: [[{ text: "mock" }]] })),
 }));
 
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
-  setCurrentProject: mocked.setCurrentProjectMock,
-}));
-vi.mock("../../../src/app/services/session-service.js", () => ({
+const settingsStoreMock = createSettingsStoreMock();
+settingsStoreMock.setCurrentProject = mocked.setCurrentProjectMock;
+vi.mock("#src/app/stores/settings-store.ts", () => settingsStoreMock);
+vi.mock("#src/app/services/session-service.ts", () => ({
   clearSession: mocked.clearSessionMock,
+  getCurrentSession: vi.fn(),
+  setCurrentSession: vi.fn(),
 }));
-vi.mock("../../../src/app/managers/summary-aggregation-manager.js", () => ({
+vi.mock("#src/app/managers/summary-aggregation-manager.ts", () => ({
   summaryAggregator: { clear: mocked.summaryAggregatorClearMock },
 }));
-vi.mock("../../../src/app/managers/interaction-manager.js", () => ({
+vi.mock("#src/app/managers/interaction-manager.ts", () => ({
   interactionManager: { clear: vi.fn() },
   clearAllInteractionState: mocked.clearAllInteractionStateMock,
 }));
-vi.mock("../../../src/bot/pinned/pinned-message-manager.js", () => ({
+vi.mock("#src/bot/pinned/pinned-message-manager.ts", () => ({
   pinnedMessageManager: {
     clear: mocked.pinnedClearMock,
     refreshContextLimit: mocked.pinnedRefreshMock,
     getContextLimit: mocked.pinnedGetLimitMock,
   },
 }));
-vi.mock("../../../src/bot/keyboards/keyboard-manager.js", () => ({
+vi.mock("#src/bot/keyboards/keyboard-manager.ts", () => ({
   keyboardManager: {
     initialize: mocked.keyboardInitMock,
     updateContext: mocked.keyboardUpdateMock,
     updateAgent: mocked.keyboardUpdateAgentMock,
   },
 }));
-vi.mock("../../../src/app/services/agent-selection-service.js", () => ({
+vi.mock("#src/app/services/agent-selection-service.ts", () => ({
   getStoredAgent: mocked.getStoredAgentMock,
   resolveProjectAgent: mocked.resolveProjectAgentMock,
 }));
-vi.mock("../../../src/app/services/model-selection-service.js", () => ({
+vi.mock("#src/app/services/model-selection-service.ts", () => ({
   getStoredModel: mocked.getStoredModelMock,
+  reconcileStoredModelSelection: vi.fn(),
 }));
-vi.mock("../../../src/app/services/variant-selection-service.js", () => ({
+vi.mock("#src/app/services/variant-selection-service.ts", () => ({
   formatVariantForButton: mocked.formatVariantMock,
 }));
-vi.mock("../../../src/bot/keyboards/main-reply-keyboard.js", () => ({
+vi.mock("#src/bot/keyboards/main-reply-keyboard.ts", () => ({
   createMainKeyboard: mocked.createMainKeyboardMock,
 }));
-vi.mock("../../../src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.ts", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-import { switchToProject } from "../../../src/app/services/project-switch-service.js";
-import { createProjectSwitchPresentation } from "../../../src/bot/services/project-switch-presentation.js";
+const { switchToProject } = await loadSut<typeof import("#src/app/services/project-switch-service.js")>(
+  "#src/app/services/project-switch-service.ts",
+  import.meta.url,
+);
+const { createProjectSwitchPresentation } = await loadSut<typeof import("#src/bot/services/project-switch-presentation.js")>(
+  "#src/bot/services/project-switch-presentation.ts",
+  import.meta.url,
+);
 
 function createCtx(chatId: number = 123): Context {
   return {
@@ -87,6 +98,10 @@ function switchTestProject(ctx: Context) {
 
 describe("app/services/project-switch-service", () => {
   beforeEach(() => {
+    mocked.setCurrentProjectMock.mockReset();
+    mocked.clearSessionMock.mockReset();
+    mocked.summaryAggregatorClearMock.mockReset();
+    mocked.clearAllInteractionStateMock.mockReset();
     mocked.pinnedClearMock.mockReset().mockResolvedValue(undefined);
     mocked.pinnedRefreshMock.mockReset().mockResolvedValue(undefined);
     mocked.pinnedGetLimitMock.mockReset().mockReturnValue(128000);
@@ -98,6 +113,9 @@ describe("app/services/project-switch-service", () => {
     });
     mocked.formatVariantMock.mockReset().mockReturnValue("Default");
     mocked.createMainKeyboardMock.mockReset().mockReturnValue({ keyboard: [[{ text: "mock" }]] });
+    mocked.keyboardInitMock.mockReset();
+    mocked.keyboardUpdateMock.mockReset();
+    mocked.resolveProjectAgentMock.mockReset().mockImplementation(async (agent: string) => agent);
   });
 
   it("should call state-clearing functions with correct arguments", async () => {

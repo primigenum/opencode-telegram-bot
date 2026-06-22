@@ -1,5 +1,5 @@
 import { InlineKeyboard } from "grammy";
-import path from "node:path";
+import path from "bun:path";
 import { formatFileSize } from "../../app/services/file-download-service.js";
 import {
   buildEntryLabel,

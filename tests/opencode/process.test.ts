@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "#vitest";
 
-import {
-  createOpencodeServeSpawnCommand,
-  findUnixListeningPidInSs,
-  findWindowsListeningPidInNetstat,
-} from "../../src/opencode/process.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { createOpencodeServeSpawnCommand, findUnixListeningPidInSs, findWindowsListeningPidInNetstat } = await loadSut<typeof import("#src/opencode/process.js")>(
+  "#src/opencode/process.ts",
+  import.meta.url,
+);
 
 describe("opencode/process", () => {
   it("matches the exact local port on Windows netstat output", async () => {

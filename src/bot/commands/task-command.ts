@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+// randomUUID is provided by the global Web Crypto API; no import needed in Bun.
 import { CommandContext, Context } from "grammy";
 import { config } from "../../config.js";
 import { getDateLocale, t } from "../../i18n/index.js";
@@ -236,7 +236,7 @@ function buildScheduledTask(
   prompt: string,
 ): ScheduledTask {
   const baseTask = {
-    id: randomUUID(),
+    id: crypto.randomUUID(),
     projectId,
     projectWorktree,
     model,

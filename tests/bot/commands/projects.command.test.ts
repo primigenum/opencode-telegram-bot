@@ -1,8 +1,18 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { projectsCommand } from "../../../src/bot/commands/projects-command.js";
-import { foregroundSessionState } from "../../../src/app/managers/foreground-session-state-manager.js";
-import { t } from "../../../src/i18n/index.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { projectsCommand } = await loadSut<typeof import("#src/bot/commands/projects-command.js")>(
+  "#src/bot/commands/projects-command.ts",
+  import.meta.url,
+);
+const { foregroundSessionState } = await loadSut<typeof import("#src/app/managers/foreground-session-state-manager.js")>(
+  "#src/app/managers/foreground-session-state-manager.ts",
+  import.meta.url,
+);
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   currentProject: null as { id: string; worktree: string; name?: string } | null,
@@ -12,33 +22,33 @@ const mocked = vi.hoisted(() => ({
   replyWithInlineMenuMock: vi.fn(),
 }));
 
-vi.mock("../../../src/app/services/session-cache-service.js", () => ({
+vi.mock("#src/app/services/session-cache-service.ts", () => ({
   syncSessionDirectoryCache: mocked.syncSessionDirectoryCacheMock,
   __resetSessionDirectoryCacheForTests: vi.fn(),
 }));
 
-vi.mock("../../../src/app/services/project-service.js", () => ({
+vi.mock("#src/app/services/project-service.ts", () => ({
   getProjects: mocked.getProjectsMock,
 }));
 
-vi.mock("../../../src/app/services/worktree-service.js", () => ({
+vi.mock("#src/app/services/worktree-service.ts", () => ({
   getGitWorktreeContext: mocked.getGitWorktreeContextMock,
 }));
 
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.ts", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
   setCurrentProject: vi.fn(),
 }));
 
-vi.mock("../../../src/app/services/session-service.js", () => ({
+vi.mock("#src/app/services/session-service.ts", () => ({
   clearSession: vi.fn(),
 }));
 
-vi.mock("../../../src/app/managers/summary-aggregation-manager.js", () => ({
+vi.mock("#src/app/managers/summary-aggregation-manager.ts", () => ({
   summaryAggregator: { clear: vi.fn() },
 }));
 
-vi.mock("../../../src/bot/pinned/pinned-message-manager.js", () => ({
+vi.mock("#src/bot/pinned/pinned-message-manager.ts", () => ({
   pinnedMessageManager: {
     clear: vi.fn().mockResolvedValue(undefined),
     refreshContextLimit: vi.fn().mockResolvedValue(undefined),
@@ -46,35 +56,35 @@ vi.mock("../../../src/bot/pinned/pinned-message-manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/bot/keyboards/keyboard-manager.js", () => ({
+vi.mock("#src/bot/keyboards/keyboard-manager.ts", () => ({
   keyboardManager: {
     initialize: vi.fn(),
     updateContext: vi.fn(),
   },
 }));
 
-vi.mock("../../../src/app/services/agent-selection-service.js", () => ({
+vi.mock("#src/app/services/agent-selection-service.ts", () => ({
   getStoredAgent: vi.fn(() => "build"),
 }));
 
-vi.mock("../../../src/app/services/model-selection-service.js", () => ({
+vi.mock("#src/app/services/model-selection-service.ts", () => ({
   getStoredModel: vi.fn(() => ({ providerID: "openai", modelID: "gpt-5", variant: "default" })),
 }));
 
-vi.mock("../../../src/app/services/variant-selection-service.js", () => ({
+vi.mock("#src/app/services/variant-selection-service.ts", () => ({
   formatVariantForButton: vi.fn(() => "Default"),
 }));
 
-vi.mock("../../../src/app/managers/interaction-manager.js", () => ({
+vi.mock("#src/app/managers/interaction-manager.ts", () => ({
   interactionManager: { clear: vi.fn() },
   clearAllInteractionState: vi.fn(),
 }));
 
-vi.mock("../../../src/bot/keyboards/main-reply-keyboard.js", () => ({
+vi.mock("#src/bot/keyboards/main-reply-keyboard.ts", () => ({
   createMainKeyboard: vi.fn(() => ({ keyboard: true })),
 }));
 
-vi.mock("../../../src/bot/menus/inline-menu.js", () => ({
+vi.mock("#src/bot/menus/inline-menu.ts", () => ({
   appendInlineMenuCancelButton: vi.fn(),
   ensureActiveInlineMenu: vi.fn(),
   replyWithInlineMenu: mocked.replyWithInlineMenuMock,

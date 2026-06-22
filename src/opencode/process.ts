@@ -1,7 +1,3 @@
-import { exec, spawn, type ChildProcess } from "node:child_process";
-import { promisify } from "node:util";
-
-const execAsync = promisify(exec);
 const DEFAULT_OPENCODE_PORT = 4096;
 const PROCESS_EXIT_POLL_MS = 100;
 
@@ -56,10 +52,10 @@ export function createOpencodeServeSpawnCommand(
   };
 }
 
-export function startLocalOpencodeServer(target: LocalOpencodeTarget): ChildProcess {
+export function startLocalOpencodeServer(target: LocalOpencodeTarget) {
   const spawnCommand = createOpencodeServeSpawnCommand(target);
 
-  return spawn(spawnCommand.command, spawnCommand.args, {
+  return Bun.spawn([spawnCommand.command, ...spawnCommand.args], {
     detached: true,
     stdio: "ignore",
     windowsHide: spawnCommand.windowsHide,
@@ -129,9 +125,23 @@ export function findUnixListeningPidInSs(stdout: string, port: number): number |
   return null;
 }
 
+async function runShellCommand(command: string): Promise<{ stdout: string; stderr: string }> {
+  const proc = Bun.spawn(["sh", "-c", command], {
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const exitCode = await proc.exited;
+  const stdout = await proc.stdout.text();
+  const stderr = await proc.stderr.text();
+  if (exitCode !== 0) {
+    throw new Error(`Command failed (exit ${exitCode}): ${stderr || stdout}`);
+  }
+  return { stdout, stderr };
+}
+
 async function findWindowsServerPid(port: number): Promise<number | null> {
   try {
-    const { stdout } = await execAsync("netstat -ano | findstr LISTENING");
+    const { stdout } = await runShellCommand("netstat -ano | findstr LISTENING");
     return findWindowsListeningPidInNetstat(stdout, port);
   } catch {
     return null;
@@ -151,7 +161,7 @@ function parseUnixPidList(stdout: string): number | null {
 
 async function findUnixServerPid(port: number): Promise<number | null> {
   try {
-    const { stdout } = await execAsync(`lsof -nP -iTCP:${port} -sTCP:LISTEN -t`);
+    const { stdout } = await runShellCommand(`lsof -nP -iTCP:${port} -sTCP:LISTEN -t`);
     const pid = parseUnixPidList(stdout);
     if (pid !== null) {
       return pid;
@@ -161,7 +171,7 @@ async function findUnixServerPid(port: number): Promise<number | null> {
   }
 
   try {
-    const { stdout } = await execAsync("ss -ltnp");
+    const { stdout } = await runShellCommand("ss -ltnp");
     return findUnixListeningPidInSs(stdout, port);
   } catch {
     return null;
@@ -197,7 +207,7 @@ async function waitForProcessExit(pid: number, timeoutMs: number): Promise<boole
 
 async function killWindowsProcess(pid: number, timeoutMs: number): Promise<boolean> {
   try {
-    await execAsync(`taskkill /PID ${pid} /T`);
+    await runShellCommand(`taskkill /PID ${pid} /T`);
   } catch {
     // Continue with forced stop if the process is still alive.
   }
@@ -207,7 +217,7 @@ async function killWindowsProcess(pid: number, timeoutMs: number): Promise<boole
   }
 
   try {
-    await execAsync(`taskkill /F /PID ${pid} /T`);
+    await runShellCommand(`taskkill /F /PID ${pid} /T`);
   } catch {
     return !isProcessAlive(pid);
   }

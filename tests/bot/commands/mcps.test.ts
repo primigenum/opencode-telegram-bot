@@ -1,9 +1,22 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { mcpsCommand } from "../../../src/bot/commands/mcp-catalog-command.js";
-import { handleMcpsCallback } from "../../../src/bot/callbacks/mcp-catalog-callback-handler.js";
-import { interactionManager } from "../../../src/app/managers/interaction-manager.js";
-import { t } from "../../../src/i18n/index.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { mcpsCommand } = await loadSut<typeof import("#src/bot/commands/mcp-catalog-command.js")>(
+  "#src/bot/commands/mcp-catalog-command.ts",
+  import.meta.url,
+);
+const { handleMcpsCallback } = await loadSut<typeof import("#src/bot/callbacks/mcp-catalog-callback-handler.js")>(
+  "#src/bot/callbacks/mcp-catalog-callback-handler.ts",
+  import.meta.url,
+);
+const { interactionManager } = await loadSut<typeof import("#src/app/managers/interaction-manager.js")>(
+  "#src/app/managers/interaction-manager.ts",
+  import.meta.url,
+);
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   currentProject: {
@@ -15,11 +28,11 @@ const mocked = vi.hoisted(() => ({
   mcpDisconnectMock: vi.fn(),
 }));
 
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.ts", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
 }));
 
-vi.mock("../../../src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.ts", () => ({
   opencodeClient: {
     mcp: {
       status: mocked.mcpStatusMock,

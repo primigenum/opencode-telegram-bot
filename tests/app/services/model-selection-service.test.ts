@@ -1,7 +1,20 @@
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
+import { bindSut, loadSut } from "#helpers/sut-loader.js";
+
+// All test files share a single mock.module path namespace. The module
+// is loaded once; the factory creates a Proxy that reads its target
+// object from globalThis.__bunTestMocks__ on every property access.
+// Each test file sets globalThis.__bunTestMocks__ in its body, so the
+// SUT's static import of these modules sees per-test-file mocks even
+// though the module itself is cached.
+const TEST_MOCKS_KEY = "__bunTestMocks__";
+globalThis[TEST_MOCKS_KEY] ??= {};
+const setMocks = (mocks: Record<string, unknown>) => {
+  (globalThis as Record<string, Record<string, unknown>>)[TEST_MOCKS_KEY] = mocks;
+};
 
 const {
   configMock,
@@ -57,39 +70,134 @@ const {
   };
 });
 
-vi.mock("../../../src/config.js", () => ({
+// Register the per-test mocks. These run BEFORE any `loadSut` triggers
+// a module load, so the SUT's static imports see the per-test mock.
+setMocks({
   config: configMock,
-}));
-
-vi.mock("../../../src/opencode/client.js", () => ({
   opencodeClient: {
     config: {
       providers: providersMock,
     },
   },
-}));
-
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
   getCurrentModel: getCurrentModelMock,
   setCurrentModel: setCurrentModelMock,
-}));
-
-vi.mock("../../../src/utils/logger.js", () => ({
+  // Stub vi.fn() for every other settings-store export the SUT or its
+  // transitive deps might reach for. The mock factory wires each export
+  // to the corresponding entry in this state object.
+  getCurrentProject: vi.fn(),
+  setCurrentProject: vi.fn(),
+  clearProject: vi.fn(),
+  getCurrentSession: vi.fn(),
+  setCurrentSession: vi.fn(),
+  clearSession: vi.fn(),
+  getTtsMode: vi.fn(),
+  setTtsMode: vi.fn(),
+  getCurrentAgent: vi.fn(),
+  setCurrentAgent: vi.fn(),
+  clearCurrentAgent: vi.fn(),
+  clearCurrentModel: vi.fn(),
+  getPinnedMessageId: vi.fn(),
+  setPinnedMessageId: vi.fn(),
+  clearPinnedMessageId: vi.fn(),
+  getSessionDirectoryCache: vi.fn(),
+  setSessionDirectoryCache: vi.fn(),
+  clearSessionDirectoryCache: vi.fn(),
+  getScheduledTasks: vi.fn(),
+  setScheduledTasks: vi.fn(),
+  getScheduledTaskSessionIgnores: vi.fn(),
+  setScheduledTaskSessionIgnores: vi.fn(),
+  __resetSettingsForTests: vi.fn(),
+  loadSettings: vi.fn(),
   logger: {
     info: loggerInfoMock,
     warn: loggerWarnMock,
     error: loggerErrorMock,
     debug: loggerDebugMock,
   },
+});
+
+vi.mock("#src/config.ts", () => ({
+  get config() {
+    return (globalThis as Record<string, { config?: unknown }>)[TEST_MOCKS_KEY].config;
+  },
 }));
 
-import {
+vi.mock("#src/opencode/client.ts", () => ({
+  get opencodeClient() {
+    return (globalThis as Record<string, { opencodeClient?: unknown }>)[TEST_MOCKS_KEY].opencodeClient;
+  },
+}));
+
+vi.mock("#src/app/stores/settings-store.ts", () => {
+  // Provide every export as a function that reads from the per-test state
+  // object. The test controls getCurrentModel / setCurrentModel; all
+  // other exports are vi.fn() stubs (set up in setMocks, but readable
+  // through the same state pattern, and they don't need test control).
+  const exportsList = [
+    "getCurrentProject",
+    "setCurrentProject",
+    "clearProject",
+    "getCurrentSession",
+    "setCurrentSession",
+    "clearSession",
+    "getTtsMode",
+    "setTtsMode",
+    "getCurrentAgent",
+    "setCurrentAgent",
+    "clearCurrentAgent",
+    "getCurrentModel",
+    "setCurrentModel",
+    "clearCurrentModel",
+    "getPinnedMessageId",
+    "setPinnedMessageId",
+    "clearPinnedMessageId",
+    "getSessionDirectoryCache",
+    "setSessionDirectoryCache",
+    "clearSessionDirectoryCache",
+    "getScheduledTasks",
+    "setScheduledTasks",
+    "getScheduledTaskSessionIgnores",
+    "setScheduledTaskSessionIgnores",
+    "__resetSettingsForTests",
+    "loadSettings",
+  ] as const;
+  const obj: Record<string, unknown> = {};
+  for (const name of exportsList) {
+    obj[name] = (...args: unknown[]) => {
+      const state = (globalThis as Record<string, Record<string, unknown>>)[TEST_MOCKS_KEY];
+      const fn = state[name];
+      if (typeof fn === "function") {
+        return (fn as (...a: unknown[]) => unknown)(...args);
+      }
+      return fn;
+    };
+  }
+  return obj;
+});
+
+vi.mock("#src/utils/logger.ts", () => ({
+  get logger() {
+    return (globalThis as Record<string, { logger?: unknown }>)[TEST_MOCKS_KEY].logger;
+  },
+}));
+
+const sut = await loadSut<typeof import("#src/app/services/model-selection-service.js")>(
+  "#src/app/services/model-selection-service.ts",
+  import.meta.url,
+);
+const {
   __resetModelCatalogCacheForTests,
   getFavoriteModels,
   getModelSelectionLists,
   reconcileStoredModelSelection,
   searchModels,
-} from "../../../src/app/services/model-selection-service.js";
+} = bindSut(sut, [
+  "__resetModelCatalogCacheForTests",
+  "getFavoriteModels",
+  "getModelSelectionLists",
+  "reconcileStoredModelSelection",
+  "searchModels",
+] as const);
 
 function createProvidersResponse(modelsByProvider: Record<string, string[]>) {
   return {

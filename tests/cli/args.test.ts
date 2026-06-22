@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { parseCliArgs } from "../../src/cli/args.js";
+import { describe, expect, it } from "#vitest";
+import { loadSut } from "#helpers/sut-loader.js";
+const { parseCliArgs } = await loadSut<typeof import("#src/cli/args.js")>(
+  "#src/cli/args.ts",
+  import.meta.url,
+);
 
 describe("cli/args", () => {
   it("uses start command by default", () => {

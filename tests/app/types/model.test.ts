@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { formatModelForButton, formatModelForDisplay } from "../../../src/app/types/model.js";
+import { describe, expect, it } from "#vitest";
+import { loadSut } from "#helpers/sut-loader.js";
+const { formatModelForButton, formatModelForDisplay } = await loadSut<typeof import("#src/app/types/model.js")>(
+  "#src/app/types/model.ts",
+  import.meta.url,
+);
 
 describe("model/types", () => {
   it("formats model for button without truncation", () => {

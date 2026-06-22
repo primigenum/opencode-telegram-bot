@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  DEFAULT_ALLOWED_INTERACTION_COMMANDS,
-  interactionManager,
-} from "../../../src/app/managers/interaction-manager.js";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
+import { loadSut } from "#helpers/sut-loader.js";
+const { DEFAULT_ALLOWED_INTERACTION_COMMANDS, interactionManager } = await loadSut<typeof import("#src/app/managers/interaction-manager.js")>(
+  "#src/app/managers/interaction-manager.ts",
+  import.meta.url,
+);
 
 describe("interactionManager", () => {
   beforeEach(() => {

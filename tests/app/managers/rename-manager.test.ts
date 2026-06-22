@@ -1,5 +1,9 @@
-import { describe, expect, it, beforeEach } from "vitest";
-import { renameManager } from "../../../src/app/managers/rename-manager.js";
+import { describe, expect, it, beforeEach } from "#vitest";
+import { loadSut } from "#helpers/sut-loader.js";
+const { renameManager } = await loadSut<typeof import("#src/app/managers/rename-manager.js")>(
+  "#src/app/managers/rename-manager.ts",
+  import.meta.url,
+);
 
 describe("renameManager", () => {
   beforeEach(() => {

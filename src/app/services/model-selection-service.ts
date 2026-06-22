@@ -2,8 +2,9 @@ import { getCurrentModel, setCurrentModel } from "../stores/settings-store.js";
 import { config } from "../../config.js";
 import { opencodeClient } from "../../opencode/client.js";
 import { logger } from "../../utils/logger.js";
+import { getDefaultVariantFromConfig } from "./variant-selection-service.js";
 import type { ModelInfo, FavoriteModel, ModelSelectionLists } from "../types/model.js";
-import path from "node:path";
+import path from "bun:path";
 
 interface OpenCodeModelState {
   favorite?: Array<{ providerID?: string; modelID?: string }>;
@@ -374,7 +375,7 @@ export async function reconcileStoredModelSelection(options?: {
   setCurrentModel({
     providerID: envDefaultModel.providerID,
     modelID: envDefaultModel.modelID,
-    variant: "default",
+    variant: getDefaultVariantFromConfig(envDefaultModel.providerID, envDefaultModel.modelID) ?? "default",
   });
 }
 
@@ -461,9 +462,9 @@ export function getStoredModel(): ModelInfo {
   const storedModel = getCurrentModel();
 
   if (storedModel) {
-    // Ensure variant is set (default to "default")
+    // Ensure variant is set (fall back to OpenCode CLI config, then "default")
     if (!storedModel.variant) {
-      storedModel.variant = "default";
+      storedModel.variant = getDefaultVariantFromConfig(storedModel.providerID, storedModel.modelID) ?? "default";
     }
     return storedModel;
   }
@@ -471,10 +472,12 @@ export function getStoredModel(): ModelInfo {
   // Fallback to model from config (environment variables)
   if (config.opencode.model.provider && config.opencode.model.modelId) {
     logger.debug("[ModelManager] Using model from config");
+    const providerID = config.opencode.model.provider;
+    const modelID = config.opencode.model.modelId;
     return {
-      providerID: config.opencode.model.provider,
-      modelID: config.opencode.model.modelId,
-      variant: "default",
+      providerID,
+      modelID,
+      variant: getDefaultVariantFromConfig(providerID, modelID) ?? "default",
     };
   }
 

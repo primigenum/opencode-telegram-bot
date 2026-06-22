@@ -1,18 +1,30 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  buildExternalUserInputNotification,
-} from "../../../src/app/services/external-user-input-service.js";
-import {
-  deliverExternalUserInputNotification,
-} from "../../../src/bot/messages/external-user-input-notification.js";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
+import { mockDep } from "#helpers/mock-dep.js";
+import { loadSut } from "#helpers/sut-loader.js";
 
-const mocked = vi.hoisted(() => ({
+const mocked = {
   sendBotTextMock: vi.fn(),
-}));
+};
 
-vi.mock("../../../src/bot/messages/telegram-text.js", () => ({
-  sendBotText: mocked.sendBotTextMock,
-}));
+mockDep(
+  "#src/bot/messages/telegram-text.ts",
+  () => ({
+    sendBotText: mocked.sendBotTextMock,
+  }),
+  import.meta.url,
+);
+
+const serviceSut = await loadSut<
+  typeof import("#src/app/services/external-user-input-service.js")
+>(
+  "#src/app/services/external-user-input-service.ts",
+  import.meta.url,
+);
+
+const sut = await loadSut<typeof import("#src/bot/messages/external-user-input-notification.js")>(
+  "#src/bot/messages/external-user-input-notification.ts",
+  import.meta.url,
+);
 
 describe("bot/messages/external-user-input-notification", () => {
   beforeEach(() => {
@@ -21,7 +33,7 @@ describe("bot/messages/external-user-input-notification", () => {
   });
 
   it("builds a quoted notification with fallback text", () => {
-    const notification = buildExternalUserInputNotification("Line 1\nLine 2");
+    const notification = serviceSut.buildExternalUserInputNotification("Line 1\nLine 2");
 
     expect(notification).toEqual({
       text: expect.stringContaining("External user input"),
@@ -32,14 +44,14 @@ describe("bot/messages/external-user-input-notification", () => {
   it("truncates long external user input notifications", () => {
     const longText = "x".repeat(2001);
 
-    const notification = buildExternalUserInputNotification(longText);
+    const notification = serviceSut.buildExternalUserInputNotification(longText);
 
     expect(notification?.rawFallbackText).toBe(`👤 External user input\n\n> ${"x".repeat(1997)}...`);
     expect(notification?.text).toContain(`${"x".repeat(1997)}\\.\\.\\.`);
   });
 
   it("sends external user input when session matches and it is not suppressed", async () => {
-    const delivered = await deliverExternalUserInputNotification({
+    const delivered = await sut.deliverExternalUserInputNotification({
       api: { sendMessage: vi.fn() } as never,
       chatId: 777,
       currentSessionId: "session-1",
@@ -61,7 +73,7 @@ describe("bot/messages/external-user-input-notification", () => {
   it("does not send notification when input is suppressed", async () => {
     const consumeSuppressedInput = vi.fn().mockReturnValue(true);
 
-    const delivered = await deliverExternalUserInputNotification({
+    const delivered = await sut.deliverExternalUserInputNotification({
       api: { sendMessage: vi.fn() } as never,
       chatId: 777,
       currentSessionId: "session-1",
@@ -76,7 +88,7 @@ describe("bot/messages/external-user-input-notification", () => {
   });
 
   it("does not send notification when the current session differs", async () => {
-    const delivered = await deliverExternalUserInputNotification({
+    const delivered = await sut.deliverExternalUserInputNotification({
       api: { sendMessage: vi.fn() } as never,
       chatId: 777,
       currentSessionId: "session-2",

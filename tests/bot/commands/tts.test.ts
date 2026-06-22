@@ -1,9 +1,22 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { ttsCommand } from "../../../src/bot/commands/tts-command.js";
-import { handleTtsCallback } from "../../../src/bot/callbacks/tts-callback-handler.js";
-import { t } from "../../../src/i18n/index.js";
-import { TTS_CALLBACK_PREFIX } from "../../../src/bot/commands/tts-command.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { ttsCommand } = await loadSut<typeof import("#src/bot/commands/tts-command.js")>(
+  "#src/bot/commands/tts-command.ts",
+  import.meta.url,
+);
+const { handleTtsCallback } = await loadSut<typeof import("#src/bot/callbacks/tts-callback-handler.js")>(
+  "#src/bot/callbacks/tts-callback-handler.ts",
+  import.meta.url,
+);
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
+const { TTS_CALLBACK_PREFIX } = await loadSut<typeof import("#src/bot/commands/tts-command.js")>(
+  "#src/bot/commands/tts-command.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   getTtsModeMock: vi.fn(),
@@ -11,12 +24,12 @@ const mocked = vi.hoisted(() => ({
   isTtsConfiguredMock: vi.fn(),
 }));
 
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.ts", () => ({
   getTtsMode: mocked.getTtsModeMock,
   setTtsMode: mocked.setTtsModeMock,
 }));
 
-vi.mock("../../../src/app/services/tts-service.js", () => ({
+vi.mock("#src/app/services/tts-service.ts", () => ({
   isTtsConfigured: mocked.isTtsConfiguredMock,
 }));
 
