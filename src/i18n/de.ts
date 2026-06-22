@@ -64,6 +64,16 @@ export const de: I18nDictionary = {
     "📖 **Hilfe**\n\n/status - Serverstatus prüfen\n/sessions - Sitzungsliste\n/new - Neue Sitzung erstellen\n/help - Hilfe",
 
   "bot.thinking": "💭 Denke...",
+  "progress.compact.activity": "{header}\n{activity}",
+  "progress.compact.working_header": "⏳ Arbeite",
+  "progress.compact.finished_header": "✅ Arbeit abgeschlossen",
+  "progress.compact.thinking": "💭 Denke...",
+  "progress.compact.responding": "✍️ Schreibe Antwort...",
+  "progress.compact.waiting_question": "❓ Warte auf deine Antwort...",
+  "progress.compact.waiting_permission": "🔐 Warte auf Berechtigung...",
+  "progress.compact.retrying": "🔁 Wiederhole...",
+  "progress.compact.task": "🤖 Aufgabe läuft",
+  "progress.compact.done": "{header}\nTool-Aufrufe: {tools} · geänderte Dateien: {files}",
   "bot.project_not_selected":
     "🏗 Projekt ist nicht ausgewählt.\n\nWähle zuerst ein Projekt mit /projects.",
   "bot.creating_session": "🔄 Erstelle eine neue Sitzung...",

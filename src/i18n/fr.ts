@@ -64,6 +64,16 @@ export const fr: I18nDictionary = {
     "📖 **Aide**\n\n/status - Vérifier l'état du serveur\n/sessions - Liste des sessions\n/new - Créer une nouvelle session\n/help - Aide",
 
   "bot.thinking": "💭 Réflexion en cours...",
+  "progress.compact.activity": "{header}\n{activity}",
+  "progress.compact.working_header": "⏳ Travail en cours",
+  "progress.compact.finished_header": "✅ Travail terminé",
+  "progress.compact.thinking": "💭 Réflexion en cours...",
+  "progress.compact.responding": "✍️ Rédaction de la réponse...",
+  "progress.compact.waiting_question": "❓ En attente de votre réponse...",
+  "progress.compact.waiting_permission": "🔐 En attente d'autorisation...",
+  "progress.compact.retrying": "🔁 Nouvelle tentative...",
+  "progress.compact.task": "🤖 Tâche en cours",
+  "progress.compact.done": "{header}\nappels d’outils : {tools} · fichiers modifiés : {files}",
   "bot.project_not_selected":
     "🏗 Aucun projet n'est sélectionné.\n\nSélectionnez d'abord un projet avec /projects.",
   "bot.creating_session": "🔄 Création d'une nouvelle session...",

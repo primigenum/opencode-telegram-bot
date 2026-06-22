@@ -242,10 +242,12 @@ export function createConfig(env: EnvRecord) {
       bashToolDisplayMaxLength: getOptionalPositiveIntEnvVar(env, "BASH_TOOL_DISPLAY_MAX_LENGTH", 128),
       locale: getOptionalLocaleEnvVar(env, "BOT_LOCALE", "en"),
       hideThinkingMessages: getOptionalBooleanEnvVar(env, "HIDE_THINKING_MESSAGES", false),
+      showThinkingContent: getOptionalBooleanEnvVar(env, "SHOW_THINKING_CONTENT", false),
       hideToolCallMessages: getOptionalBooleanEnvVar(env, "HIDE_TOOL_CALL_MESSAGES", false),
       hideToolFileMessages: getOptionalBooleanEnvVar(env, "HIDE_TOOL_FILE_MESSAGES", false),
       trackBackgroundSessions: getOptionalBooleanEnvVar(env, "TRACK_BACKGROUND_SESSIONS", true),
       messageFormatMode: getOptionalMessageFormatModeEnvVar(env, "MESSAGE_FORMAT_MODE", "markdown"),
+      compactOutputMode: getOptionalBooleanEnvVar(env, "COMPACT_OUTPUT_MODE", false),
     },
     files: {
       maxFileSizeKb: parseInt(getEnvVar(env, "CODE_FILE_MAX_SIZE_KB", false) || "100", 10),

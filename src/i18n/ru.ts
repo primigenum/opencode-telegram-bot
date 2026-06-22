@@ -61,6 +61,16 @@ export const ru: I18nDictionary = {
     "📖 **Справка**\n\n/status - Проверить статус сервера\n/sessions - Список сессий\n/new - Создать новую сессию\n/help - Справка",
 
   "bot.thinking": "💭 Думаю...",
+  "progress.compact.activity": "{header}\n{activity}",
+  "progress.compact.working_header": "⏳ Работаю",
+  "progress.compact.finished_header": "✅ Работа завершена",
+  "progress.compact.thinking": "💭 Думаю...",
+  "progress.compact.responding": "✍️ Пишу ответ...",
+  "progress.compact.waiting_question": "❓ Жду ваш ответ...",
+  "progress.compact.waiting_permission": "🔐 Жду разрешение...",
+  "progress.compact.retrying": "🔁 Повторяю запрос...",
+  "progress.compact.task": "🤖 Выполняю задачу",
+  "progress.compact.done": "{header}\nвызовы инструментов: {tools} · изменённые файлы: {files}",
   "bot.project_not_selected": "🏗 Проект не выбран.\n\nСначала выберите проект командой /projects.",
   "bot.creating_session": "🔄 Создаю новую сессию...",
   "bot.create_session_error":

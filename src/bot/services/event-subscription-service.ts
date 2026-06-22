@@ -3,8 +3,8 @@ import { fileURLToPath } from "url";
 import { Bot, Context, InputFile } from "grammy";
 import { config } from "../../config.js";
 import { t } from "../../i18n/index.js";
-import { summaryAggregator } from "../../app/managers/summary-aggregation-manager.js";
-import { formatToolInfo } from "../../app/formatters/summary-formatter.js";
+import { summaryAggregator, type ToolInfo } from "../../app/managers/summary-aggregation-manager.js";
+import { formatCompactToolInfo, formatToolInfo } from "../../app/formatters/summary-formatter.js";
 import { renderSubagentCards } from "../../app/formatters/subagent-formatter.js";
 import { ToolMessageBatcher } from "../../app/formatters/tool-message-batcher.js";
 import { getCurrentSession } from "../../app/services/session-service.js";
@@ -37,6 +37,7 @@ import { scheduledTaskRuntime } from "../../app/services/scheduled-task-runtime-
 import { assistantRunState } from "../../app/managers/assistant-run-state-manager.js";
 import { ResponseStreamer, type StreamingMessagePayload } from "../streaming/response-streamer.js";
 import { ToolCallStreamer, type ToolStreamKey } from "../streaming/tool-call-streamer.js";
+import { CompactProgressStreamer } from "../streaming/compact-progress-streamer.js";
 import { attachManager } from "../../app/managers/attach-manager.js";
 import {
   markAttachedSessionBusy,
@@ -48,6 +49,10 @@ import {
   prepareAssistantStreamingPayload,
   renderAssistantFinalPartsSafe,
 } from "../messages/assistant-rendering.js";
+import {
+  makeThinkingPayloadExpandable,
+  prepareThinkingStreamingPayload,
+} from "../messages/thinking-rendering.js";
 import { deliverExternalUserInputNotification } from "../messages/external-user-input-notification.js";
 import {
   backgroundSessionTracker,
@@ -63,6 +68,7 @@ import { stopEventListening, subscribeToEvents } from "../../opencode/events.js"
 const TELEGRAM_DOCUMENT_CAPTION_MAX_LENGTH = 1024;
 const RESPONSE_STREAM_THROTTLE_MS = config.bot.responseStreamThrottleMs;
 const RESPONSE_STREAMING_MODE = config.bot.responseStreamingMode;
+const COMPACT_PROGRESS_MODE = config.bot.compactOutputMode;
 const RESPONSE_STREAM_TEXT_LIMIT = 3800;
 const SESSION_RETRY_PREFIX = "🔁";
 const SUBAGENT_STREAM_PREFIX = "🧩";
@@ -95,10 +101,13 @@ class EventSubscriptionService implements BotEventSubscriptionService {
   private botInstance: Bot<Context> | null = null;
   private chatIdInstance: number | null = null;
   private nextDraftId = 1;
+  private readonly thinkingStreamingPayloads = new Map<string, StreamingMessagePayload>();
   private readonly sessionCompletionTasks = new Map<string, Promise<void>>();
+  private readonly compactProgressFinalizationTasks = new Map<string, Promise<void>>();
   private readonly responseStreamer: ResponseStreamer;
   private readonly toolCallStreamer: ToolCallStreamer;
   private readonly toolMessageBatcher: ToolMessageBatcher;
+  private readonly compactProgressStreamer: CompactProgressStreamer;
 
   constructor() {
     this.toolMessageBatcher = new ToolMessageBatcher({
@@ -159,6 +168,48 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     this.responseStreamer = this.createResponseStreamer();
     setResponseStreamerForReconciliation(this.responseStreamer);
     setPromptResponseModeClearerForReconciliation(clearPromptResponseMode);
+
+    this.compactProgressStreamer = new CompactProgressStreamer({
+      throttleMs: RESPONSE_STREAM_THROTTLE_MS,
+      sendText: async (sessionId, text) => {
+        if (!this.botInstance || !this.chatIdInstance || this.chatIdInstance <= 0) {
+          throw new Error("Bot context missing for compact progress send");
+        }
+
+        const currentSession = getCurrentSession();
+        if (!currentSession || currentSession.id !== sessionId) {
+          throw new Error(`Compact progress session mismatch for send: ${sessionId}`);
+        }
+
+        const sentMessage = await this.botInstance.api.sendMessage(this.chatIdInstance, text, {
+          disable_notification: true,
+        });
+
+        return sentMessage.message_id;
+      },
+      editText: async (sessionId, messageId, text) => {
+        if (!this.botInstance || !this.chatIdInstance || this.chatIdInstance <= 0) {
+          throw new Error("Bot context missing for compact progress edit");
+        }
+
+        const currentSession = getCurrentSession();
+        if (!currentSession || currentSession.id !== sessionId) {
+          throw new Error(`Compact progress session mismatch for edit: ${sessionId}`);
+        }
+
+        try {
+          await this.botInstance.api.editMessageText(this.chatIdInstance, messageId, text);
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+          if (errorMessage.includes("message is not modified")) {
+            return;
+          }
+
+          throw error;
+        }
+      },
+    });
 
     this.toolCallStreamer = new ToolCallStreamer({
       throttleMs: RESPONSE_STREAM_THROTTLE_MS,
@@ -237,6 +288,9 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     this.responseStreamer.clearAll(reason);
     this.toolCallStreamer.clearAll(reason);
     this.toolMessageBatcher.clearAll(reason);
+    this.compactProgressStreamer.clearAll(reason);
+    this.compactProgressFinalizationTasks.clear();
+    this.thinkingStreamingPayloads.clear();
     this.sessionCompletionTasks.clear();
     assistantRunState.clearAll(reason);
   }
@@ -266,6 +320,9 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       this.toolMessageBatcher.clearAll("summary_aggregator_clear");
       this.toolCallStreamer.clearAll("summary_aggregator_clear");
       this.responseStreamer.clearAll("summary_aggregator_clear");
+      this.compactProgressStreamer.clearAll("summary_aggregator_clear");
+      this.compactProgressFinalizationTasks.clear();
+      this.thinkingStreamingPayloads.clear();
     });
 
     summaryAggregator.setOnPartial((sessionId, messageId, messageText) => {
@@ -275,6 +332,30 @@ class EventSubscriptionService implements BotEventSubscriptionService {
 
       const currentSession = getCurrentSession();
       if (!currentSession || currentSession.id !== sessionId) {
+        return;
+      }
+
+      if (COMPACT_PROGRESS_MODE) {
+        void this.finalizeCompactProgress(sessionId)
+          .then(() => {
+            const activeSession = getCurrentSession();
+            if (!activeSession || activeSession.id !== sessionId) {
+              return;
+            }
+
+            const preparedStreamPayload = this.prepareStreamingPayload(messageText);
+            if (!preparedStreamPayload) {
+              return;
+            }
+
+            preparedStreamPayload.sendOptions = { disable_notification: true };
+            preparedStreamPayload.editOptions = undefined;
+
+            this.responseStreamer.enqueue(sessionId, messageId, preparedStreamPayload);
+          })
+          .catch((error) => {
+            logger.error("[Bot] Failed to finalize compact progress before assistant stream", error);
+          });
         return;
       }
 
@@ -295,7 +376,9 @@ class EventSubscriptionService implements BotEventSubscriptionService {
           logger.error("Bot or chat ID not available for sending message");
           clearPromptResponseMode(sessionId);
           this.responseStreamer.clearMessage(sessionId, messageId, "bot_context_missing");
+          this.clearThinkingStream(sessionId, messageId, "bot_context_missing");
           this.toolCallStreamer.clearSession(sessionId, "bot_context_missing");
+          this.compactProgressStreamer.clearSession(sessionId, "bot_context_missing");
           assistantRunState.clearRun(sessionId, "bot_context_missing");
           foregroundSessionState.markIdle(sessionId);
           return;
@@ -305,7 +388,9 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         if (currentSession?.id !== sessionId) {
           clearPromptResponseMode(sessionId);
           this.responseStreamer.clearMessage(sessionId, messageId, "session_mismatch");
+          this.clearThinkingStream(sessionId, messageId, "session_mismatch");
           this.toolCallStreamer.clearSession(sessionId, "session_mismatch");
+          this.compactProgressStreamer.clearSession(sessionId, "session_mismatch");
           assistantRunState.clearRun(sessionId, "session_mismatch");
           foregroundSessionState.markIdle(sessionId);
           await scheduledTaskRuntime.flushDeferredDeliveries();
@@ -321,6 +406,12 @@ class EventSubscriptionService implements BotEventSubscriptionService {
             providerID: completionInfo.providerID,
             modelID: completionInfo.modelID,
           });
+
+          await this.completeThinkingStream(sessionId, messageId);
+
+          if (COMPACT_PROGRESS_MODE) {
+            await this.finalizeCompactProgress(sessionId);
+          }
 
           await finalizeAssistantResponse({
             sessionId,
@@ -353,6 +444,8 @@ class EventSubscriptionService implements BotEventSubscriptionService {
           });
         } catch (err) {
           clearPromptResponseMode(sessionId);
+          this.clearThinkingStream(sessionId, messageId, "assistant_finalize_failed");
+          this.compactProgressStreamer.clearSession(sessionId, "assistant_finalize_failed");
           assistantRunState.clearRun(sessionId, "assistant_finalize_failed");
           logger.error("Failed to send message to Telegram:", err);
           logger.error("[Bot] CRITICAL: Stopping event processing due to error");
@@ -386,6 +479,26 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       });
     });
 
+    summaryAggregator.setOnRootToolUpdate((toolInfo) => {
+      if (!COMPACT_PROGRESS_MODE) {
+        return;
+      }
+
+      const currentSession = getCurrentSession();
+      if (!currentSession || currentSession.id !== toolInfo.sessionId) {
+        return;
+      }
+
+      const activity = this.getCompactToolActivity(toolInfo);
+      if (activity) {
+        this.compactProgressStreamer.updateActivity(toolInfo.sessionId, activity);
+      }
+
+      if ("status" in toolInfo.state && toolInfo.state.status === "completed") {
+        this.compactProgressStreamer.addToolCall(toolInfo.sessionId, toolInfo.callId);
+      }
+    });
+
     summaryAggregator.setOnTool(async (toolInfo) => {
       if (!this.botInstance || !this.chatIdInstance) {
         logger.error("Bot or chat ID not available for sending tool notification");
@@ -394,6 +507,10 @@ class EventSubscriptionService implements BotEventSubscriptionService {
 
       const currentSession = getCurrentSession();
       if (!currentSession || currentSession.id !== toolInfo.sessionId) {
+        return;
+      }
+
+      if (COMPACT_PROGRESS_MODE) {
         return;
       }
 
@@ -425,6 +542,10 @@ class EventSubscriptionService implements BotEventSubscriptionService {
 
     summaryAggregator.setOnSubagent(async (sessionId, subagents) => {
       if (!this.botInstance || !this.chatIdInstance) {
+        return;
+      }
+
+      if (COMPACT_PROGRESS_MODE) {
         return;
       }
 
@@ -465,6 +586,10 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         return;
       }
 
+      if (COMPACT_PROGRESS_MODE) {
+        return;
+      }
+
       if (config.bot.hideToolFileMessages) {
         return;
       }
@@ -493,6 +618,10 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       const currentSession = getCurrentSession();
       if (!currentSession || currentSession.id !== sessionId) {
         return;
+      }
+
+      if (COMPACT_PROGRESS_MODE) {
+        this.compactProgressStreamer.updateWaitingForQuestion(sessionId);
       }
 
       await Promise.all([
@@ -544,6 +673,10 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         return;
       }
 
+      if (COMPACT_PROGRESS_MODE) {
+        this.compactProgressStreamer.updateWaitingForPermission(currentSession.id);
+      }
+
       await Promise.all([
         this.toolMessageBatcher.flushSession(request.sessionID, "permission_asked"),
         this.toolCallStreamer.flushSession(request.sessionID, "permission_asked"),
@@ -555,7 +688,68 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       await showPermissionRequest(this.botInstance.api, this.chatIdInstance, request);
     });
 
-    summaryAggregator.setOnThinking(async (sessionId) => {
+    summaryAggregator.setOnThinking(async (update) => {
+      if (!this.botInstance || !this.chatIdInstance) {
+        return;
+      }
+
+      const currentSession = getCurrentSession();
+      if (!currentSession || currentSession.id !== update.sessionId) {
+        return;
+      }
+
+      logger.debug("[Bot] Agent thinking update", {
+        sessionId: update.sessionId,
+        messageId: update.messageId,
+        sectionCount: update.sections.length,
+        isFirstUpdate: update.isFirstUpdate,
+      });
+
+      if (COMPACT_PROGRESS_MODE) {
+        this.compactProgressStreamer.updateThinking(update.sessionId);
+
+        if (update.isFirstUpdate && pinnedMessageManager.isInitialized()) {
+          await pinnedMessageManager.refresh();
+        }
+        return;
+      }
+
+      if (update.isFirstUpdate) {
+        void this.toolCallStreamer.breakSession(update.sessionId, "thinking_started").catch((error) => {
+          logger.error("[Bot] Failed to break tool stream before thinking message", error);
+        });
+      }
+
+      if (!config.bot.hideThinkingMessages && config.bot.showThinkingContent) {
+        const payload = prepareThinkingStreamingPayload(update.sections, RESPONSE_STREAM_TEXT_LIMIT, {
+          expandable: false,
+        });
+        if (payload) {
+          payload.sendOptions = { disable_notification: true };
+          payload.editOptions = undefined;
+
+          this.thinkingStreamingPayloads.set(
+            this.getThinkingPayloadKey(update.sessionId, update.messageId),
+            payload,
+          );
+          this.responseStreamer.enqueue(
+            update.sessionId,
+            this.getThinkingStreamId(update.messageId),
+            payload,
+          );
+        }
+      } else if (update.isFirstUpdate) {
+        deliverThinkingMessage(update.sessionId, this.toolMessageBatcher, {
+          hideThinkingMessages: config.bot.hideThinkingMessages,
+        });
+      }
+
+      if (update.isFirstUpdate && pinnedMessageManager.isInitialized()) {
+        await pinnedMessageManager.refresh();
+      }
+    });
+
+    summaryAggregator.setOnThinkingFinished((sessionId, messageId) => {
       if (!this.botInstance || !this.chatIdInstance) {
         return;
       }
@@ -565,17 +759,10 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         return;
       }
 
-      logger.debug("[Bot] Agent started thinking");
-
-      await this.toolCallStreamer.breakSession(sessionId, "thinking_started");
-
-      deliverThinkingMessage(sessionId, this.toolMessageBatcher, {
-        hideThinkingMessages: config.bot.hideThinkingMessages,
+      logger.debug("[Bot] Agent thinking finished", { sessionId, messageId });
+      void this.completeThinkingStream(sessionId, messageId).catch((error) => {
+        logger.error("[Bot] Failed to finalize thinking stream early", error);
       });
-
-      if (pinnedMessageManager.isInitialized()) {
-        await pinnedMessageManager.refresh();
-      }
     });
 
     summaryAggregator.setOnTokens(async (tokens, isCompleted) => {
@@ -693,6 +880,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       await markAttachedSessionIdle(sessionId);
       if (!this.botInstance || !this.chatIdInstance) {
         clearPromptResponseMode(sessionId);
+        this.compactProgressStreamer.clearSession(sessionId, "session_error_no_bot_context");
         assistantRunState.clearRun(sessionId, "session_error_no_bot_context");
         foregroundSessionState.markIdle(sessionId);
         return;
@@ -703,6 +891,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         clearPromptResponseMode(sessionId);
         this.responseStreamer.clearSession(sessionId, "session_error_not_current");
         this.toolCallStreamer.clearSession(sessionId, "session_error_not_current");
+        this.compactProgressStreamer.clearSession(sessionId, "session_error_not_current");
         assistantRunState.clearRun(sessionId, "session_error_not_current");
         foregroundSessionState.markIdle(sessionId);
         await scheduledTaskRuntime.flushDeferredDeliveries();
@@ -710,6 +899,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       }
 
       this.responseStreamer.clearSession(sessionId, "session_error");
+      this.compactProgressStreamer.clearSession(sessionId, "session_error");
       clearPromptResponseMode(sessionId);
       assistantRunState.clearRun(sessionId, "session_error");
       await Promise.all([
@@ -750,6 +940,11 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         return;
       }
 
+      if (COMPACT_PROGRESS_MODE) {
+        this.compactProgressStreamer.updateActivity(sessionId, t("progress.compact.retrying"));
+        return;
+      }
+
       const normalizedMessage = message.trim() || t("common.unknown_error");
       const truncatedMessage =
         normalizedMessage.length > 3500
@@ -760,7 +955,13 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       this.toolCallStreamer.replaceByPrefix(sessionId, SESSION_RETRY_PREFIX, retryMessage);
     });
 
-    summaryAggregator.setOnSessionDiff(async (_sessionId, diffs) => {
+    summaryAggregator.setOnSessionDiff(async (sessionId, diffs) => {
+      if (COMPACT_PROGRESS_MODE) {
+        for (const diff of diffs) {
+          this.compactProgressStreamer.addFileChange(sessionId, diff.file);
+        }
+      }
+
       if (!pinnedMessageManager.isInitialized()) {
         return;
       }
@@ -773,6 +974,13 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     });
 
     summaryAggregator.setOnFileChange((change) => {
+      if (COMPACT_PROGRESS_MODE) {
+        const currentSession = getCurrentSession();
+        if (currentSession) {
+          this.compactProgressStreamer.addFileChange(currentSession.id, change.file);
+        }
+      }
+
       if (!pinnedMessageManager.isInitialized()) {
         return;
       }
@@ -962,6 +1170,48 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     return prepareAssistantFinalStreamingPayload(messageText, RESPONSE_STREAM_TEXT_LIMIT);
   }
 
+  private getThinkingStreamId(messageId: string): string {
+    return `thinking:${messageId}`;
+  }
+
+  private getThinkingPayloadKey(sessionId: string, messageId: string): string {
+    return `${sessionId}:${messageId}`;
+  }
+
+  private clearThinkingStream(sessionId: string, messageId: string, reason: string): void {
+    this.responseStreamer.clearMessage(sessionId, this.getThinkingStreamId(messageId), reason);
+    this.thinkingStreamingPayloads.delete(this.getThinkingPayloadKey(sessionId, messageId));
+  }
+
+  private async completeThinkingStream(sessionId: string, messageId: string): Promise<void> {
+    const key = this.getThinkingPayloadKey(sessionId, messageId);
+    const payload = this.thinkingStreamingPayloads.get(key);
+    const finalPayload = payload ? makeThinkingPayloadExpandable(payload) : undefined;
+    const result = await this.responseStreamer.complete(
+      sessionId,
+      this.getThinkingStreamId(messageId),
+      finalPayload,
+    );
+    this.thinkingStreamingPayloads.delete(key);
+
+    if (result.streamed || !finalPayload) {
+      return;
+    }
+
+    if (!this.botInstance || !this.chatIdInstance) {
+      return;
+    }
+
+    for (const part of finalPayload.parts) {
+      await sendRenderedBotPart({
+        api: this.botInstance.api,
+        chatId: this.chatIdInstance,
+        part,
+        options: finalPayload.sendOptions as Parameters<typeof sendBotText>[0]["options"],
+      });
+    }
+  }
+
   private enqueueSessionCompletionTask(sessionId: string, task: () => Promise<void>): Promise<void> {
     const previousTask = this.sessionCompletionTasks.get(sessionId) ?? Promise.resolve();
     const nextTask = previousTask
@@ -977,6 +1227,22 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     return nextTask;
   }
 
+  private finalizeCompactProgress(sessionId: string): Promise<void> {
+    const existingTask = this.compactProgressFinalizationTasks.get(sessionId);
+    if (existingTask) {
+      return existingTask;
+    }
+
+    const nextTask = this.compactProgressStreamer.finalize(sessionId).finally(() => {
+      if (this.compactProgressFinalizationTasks.get(sessionId) === nextTask) {
+        this.compactProgressFinalizationTasks.delete(sessionId);
+      }
+    });
+
+    this.compactProgressFinalizationTasks.set(sessionId, nextTask);
+    return nextTask;
+  }
+
   private getNextDraftId(): number {
     const id = this.nextDraftId;
     this.nextDraftId += 1;
@@ -989,6 +1255,14 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     }
 
     return "default";
+  }
+
+  private getCompactToolActivity(toolInfo: ToolInfo): string {
+    if (toolInfo.tool === "task") {
+      return t("progress.compact.task");
+    }
+
+    return formatCompactToolInfo(toolInfo, 128, toolInfo.tool);
   }
 
   private formatShortSessionId(sessionId: string): string {

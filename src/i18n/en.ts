@@ -61,6 +61,16 @@ export const en = {
     "📖 **Help**\n\n/status - Check server status\n/sessions - Session list\n/new - Create new session\n/help - Help",
 
   "bot.thinking": "💭 Thinking...",
+  "progress.compact.activity": "{header}\n{activity}",
+  "progress.compact.working_header": "⏳ Working",
+  "progress.compact.finished_header": "✅ Finished Work",
+  "progress.compact.thinking": "💭 Thinking...",
+  "progress.compact.responding": "✍️ Writing answer...",
+  "progress.compact.waiting_question": "❓ Waiting for your answer...",
+  "progress.compact.waiting_permission": "🔐 Waiting for permission...",
+  "progress.compact.retrying": "🔁 Retrying...",
+  "progress.compact.task": "🤖 Running Task",
+  "progress.compact.done": "{header}\ntool calls: {tools} · changed files: {files}",
   "bot.project_not_selected":
     "🏗 Project is not selected.\n\nFirst select a project with /projects.",
   "bot.creating_session": "🔄 Creating a new session...",
