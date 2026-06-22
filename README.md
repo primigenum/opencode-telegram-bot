@@ -25,6 +25,8 @@ Platforms: macOS, Windows, Linux
 
 Everything else is identical. Same commands, same Telegram UX, same `.env` schema, same config wizard.
 
+> Looking for the full port story — runtime details, the shim, bun limitations, the `node:*` → `bun:*` mapping table, and industry research? See **[`docs/BUN_PORT.md`](./docs/BUN_PORT.md)** (the canonical reference for the port).
+
 ## Features
 
 - **Remote coding** — send prompts to OpenCode from anywhere, receive complete results with code sent as files
@@ -193,7 +195,7 @@ For this to work, the console OpenCode instance must be started on the same port
 
 ### Environment Variables
 
-When installed via npm, the configuration wizard handles the initial setup. The `.env` file is stored in your platform's app data directory:
+The first time you start the bot, the configuration wizard runs and writes `.env` to your platform's app data directory:
 
 - **macOS:** `~/Library/Application Support/opencode-telegram-bot/.env`
 - **Windows:** `%APPDATA%\opencode-telegram-bot\.env`
@@ -386,28 +388,14 @@ The lint, format, and TypeScript configs are unchanged from upstream (ESLint + P
 
 ## Test status
 
+The test suite runs on **`bun test`** through a thin vitest-compatible shim at `tests/helpers/vitest-shim.ts` — most test files are unchanged apart from `import { ... } from "vitest"` → `import { ... } from "#vitest"` (subpath alias in `package.json` `imports`).
+
 This is a partial port. Two vitest patterns have **no equivalent in bun's test runner** and are not polyfillable through the shim:
 
-1. **`vi.mock(module, factory)` for module-level mocking** — vitest's `vi.mock` is hoisted to the top of the test file (via the vitest transformer) so the mock is registered before any `import` statement. Bun's `mock.module()` does **not** hoist. Tests that rely on this pattern (60 of 118 test files) need to be rewritten to either:
-   - Use dynamic `await import("module")` after registering the mock, or
-   - Use bun's `mock.module()` from a preload file.
+1. **`vi.mock(module, factory)` for module-level mocking** — vitest hoists `vi.mock` to the top of the file via its transformer. Bun's `mock.module()` is a runtime call, so static `import` statements in the test file load the real module before the mock is registered.
+2. **`vi.resetModules()` + `await import(...)`** — bun has no public module cache reset API.
 
-2. **`vi.resetModules()` + `await import(...)` to re-evaluate a module** — vitest's `resetModules` clears the module cache so the next `import` re-executes the module. Bun has **no public module cache reset API**. Tests that rely on this (e.g. `tests/config.test.ts` re-reading env vars) currently fail.
-
-Everything else works through the shim at `tests/helpers/vitest-shim.ts`:
-
-- `vi.fn`, `vi.spyOn`, `vi.hoisted`, `vi.mocked`, `vi.importActual` → bun's `mock` / `spyOn`
-- `vi.stubEnv` / `vi.unstubAllEnvs` / `vi.stubGlobal` / `vi.unstubAllGlobals` → tracked env + global stubs
-- `vi.useFakeTimers` / `vi.useRealTimers` / `vi.setSystemTime` → bun's `jest` timer primitives
-- `vi.advanceTimersByTime` / `vi.advanceTimersByTimeAsync` / `vi.runAllTimersAsync` → advance `Date.now()` + flush microtasks
-
-Test files import from the `#vitest` subpath (defined in `package.json` `imports`) instead of `"vitest"`, which sidesteps bun's built-in vitest namespace.
-
-**Current baseline**: tests that don't use `vi.mock` or `vi.resetModules` pass. The remaining failures are concentrated in `tests/bot/commands/*`, `tests/bot/streaming/*`, `tests/bot/services/*`, `tests/bot/menus/*`, `tests/bot/middleware/*`, `tests/bot/messages/*`, `tests/bot/pinned/*`, `tests/bot/render/*`, `tests/app/services/*`, `tests/app/managers/*`, `tests/app/bootstrap/*`, `tests/runtime/*`, `tests/config*.test.ts`, and `tests/opencode/process.test.ts`.
-
-A future PR can fix this with either:
-- A custom bun loader that hoists `vi.mock` and rewrites static imports of mocked modules to `await import(...)`, or
-- A mechanical rewrite of the 60 affected test files to dynamic imports.
+Lint, build, and runtime are green. Tests that don't use the two patterns above pass. For the full breakdown of what the shim covers, the bun limitations, the affected test files, and the open follow-ups, see **[`docs/BUN_PORT.md`](./docs/BUN_PORT.md)** — that doc is the canonical reference for the port.
 
 ## License
 
