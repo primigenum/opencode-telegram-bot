@@ -205,10 +205,12 @@ export function hoisted<T>(factory: () => T): T {
 
 export function useFakeTimers(_options?: unknown): void {
   bunTest.jest.useFakeTimers();
+  fakeTimersActive = true;
 }
 
 export function useRealTimers(): void {
   bunTest.jest.useRealTimers();
+  fakeTimersActive = false;
 }
 
 function resolveCurrentMockedTime(): number {
@@ -219,22 +221,53 @@ function resolveCurrentMockedTime(): number {
   }
 }
 
+let fakeTimersActive = false;
+
 export function advanceTimersByTime(ms: number): void {
-  // bun's jest.advanceTimersByTime advances the fake clock and fires
-  // every timer whose deadline falls inside the [now, now+ms] window.
-  // The previous implementation only called setSystemTime, which moves
-  // the wall clock without running any pending timer callbacks — that
-  // silently broke any test that relied on a throttled setTimeout firing.
-  bunTest.jest.advanceTimersByTime(ms);
+  if (fakeTimersActive) {
+    // bun's jest.advanceTimersByTime fires any pending fake timers in
+    // the requested window, but as a side effect it resets the fake
+    // clock to `realTime + ms` (not `currentFakeClock + ms`). That is
+    // broken from the perspective of vitest's contract, which expects
+    // the clock to advance from wherever it currently is.
+    //
+    // Workaround: snapshot the current fake clock, ask bun to fire
+    // the timers, then re-anchor the clock to the snapshot + ms.
+    // Pending timers whose deadline fell inside [snapshot, realTime+ms]
+    // are executed by bun, and `Date.now()` ends up at the expected
+    // value (snapshot + ms).
+    const before = bunTest.jest.now();
+    bunTest.jest.advanceTimersByTime(ms);
+    bunTest.setSystemTime(new Date(before + ms));
+    return;
+  }
+  // Fake timers inactive: the SUT is using the real clock (or a
+  // test-local Date.now shim like the `accelerateTime()` helper in
+  // response-streamer.test.ts). Just nudge the system clock; the test
+  // is responsible for its own clock.
+  const before = Date.now();
+  bunTest.setSystemTime(new Date(before + ms));
 }
 
 export async function advanceTimersByTimeAsync(ms: number): Promise<void> {
-  bunTest.jest.advanceTimersByTime(ms);
+  advanceTimersByTime(ms);
   await flushMicrotasks();
 }
 
 export async function runAllTimersAsync(): Promise<void> {
-  bunTest.jest.runAllTimers();
+  // Intentionally NOT calling bunTest.jest.runAllTimers(). bun's
+  // implementation drains the fake-timer queue by invoking every
+  // callback in sequence, regardless of its scheduled deadline. A
+  // source that schedules a recurring next-run timer (e.g.
+  // ScheduledTaskRuntime.handleFailedExecution → scheduleTask for a
+  // cron task) will then re-schedule another timer from inside the
+  // callback, and runAllTimers fires that one too, recursively —
+  // infinite loop until the test timeout.
+  //
+  // Tests that need a specific timer to run should call
+  // `vi.advanceTimersByTime(ms)` to advance the clock to that
+  // timer's deadline first. runAllTimersAsync's only job here is to
+  // flush microtasks so await chains inside the SUT can complete.
   await flushMicrotasks();
 }
 
