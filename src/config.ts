@@ -1,34 +1,34 @@
+import { readFileSync } from "node:fs";
 import { getRuntimePaths } from "./runtime/paths.js";
 import { normalizeLocale, type Locale } from "./i18n/index.js";
 
 const runtimePaths = getRuntimePaths();
 
-// Load .env file — bun-native replacement for dotenv.config()
-{
-  try {
-    const envContent = await Bun.file(runtimePaths.envFilePath).text();
-    for (const line of envContent.split(/\r?\n/)) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) continue;
-      const eqIdx = trimmed.indexOf("=");
-      if (eqIdx === -1) continue;
-      const key = trimmed.slice(0, eqIdx).trim();
-      let value = trimmed.slice(eqIdx + 1).trim();
-      // Strip surrounding quotes
-      if (
-        value.length >= 2 &&
-        ((value[0] === '"' && value[value.length - 1] === '"') ||
-          (value[0] === "'" && value[value.length - 1] === "'"))
-      ) {
-        value = value.slice(1, -1);
-      }
-      if (key && process.env[key] === undefined) {
-        process.env[key] = value;
-      }
+// Load .env file — synchronous replacement for dotenv.config()
+// Uses bun's built-in node:fs compat (no npm dependency needed).
+try {
+  const envContent = readFileSync(runtimePaths.envFilePath, "utf-8");
+  for (const line of envContent.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx === -1) continue;
+    const key = trimmed.slice(0, eqIdx).trim();
+    let value = trimmed.slice(eqIdx + 1).trim();
+    // Strip surrounding quotes
+    if (
+      value.length >= 2 &&
+      ((value[0] === '"' && value[value.length - 1] === '"') ||
+        (value[0] === "'" && value[value.length - 1] === "'"))
+    ) {
+      value = value.slice(1, -1);
     }
-  } catch {
-    // .env file not found or unreadable — proceed with process.env as-is
+    if (key && process.env[key] === undefined) {
+      process.env[key] = value;
+    }
   }
+} catch {
+  // .env file not found or unreadable — proceed with process.env as-is
 }
 
 type EnvRecord = Record<string, string | undefined>;
