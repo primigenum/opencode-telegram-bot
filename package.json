@@ -30,7 +30,7 @@
   "scripts": {
     "build": "bun build ./src/cli.ts --outdir dist --target bun --format esm && bun build ./src/index.ts --outdir dist --target bun --format esm",
     "start": "bun run dist/cli.js",
-    "dev": "bun --hot run src/cli.ts start",
+    "dev": "bun --hot run src/cli.ts start --mode sources",
     "dev:index": "bun --hot run src/index.ts",
     "start:foreground": "bun run src/cli.ts start",
     "release:prepare": "bun run scripts/release-prepare.mjs",
