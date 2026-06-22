@@ -21,12 +21,55 @@ const OPENCODE_CONFIG_PATH = path.join(
 );
 
 /**
- * Strip JSONC comments (single-line // and multi-line /* * /) to get valid JSON.
+ * Strip JSONC comments (single-line // and multi-line /* * /) without
+ * touching // inside string values (e.g. https:// URLs).
  */
 function stripJsoncComments(content: string): string {
-  return content
-    .replace(/\/\/.*$/gm, "")
-    .replace(/\/\*[\s\S]*?\*\//g, "");
+  let result = "";
+  let inString = false;
+  let escape = false;
+
+  for (let i = 0; i < content.length; i++) {
+    const ch = content[i];
+    const next = content[i + 1] ?? "";
+
+    if (escape) {
+      result += ch;
+      escape = false;
+      continue;
+    }
+
+    if (inString) {
+      if (ch === "\\") { escape = true; result += ch; continue; }
+      if (ch === '"') { inString = false; }
+      result += ch;
+      continue;
+    }
+
+    if (ch === '"') { inString = true; result += ch; continue; }
+
+    // Single-line comment
+    if (ch === "/" && next === "/") {
+      while (i < content.length && content[i] !== "\n") i++;
+      result += "\n";
+      continue;
+    }
+
+    // Multi-line comment
+    if (ch === "/" && next === "*") {
+      i += 2;
+      while (i < content.length && !(content[i] === "*" && content[i + 1] === "/")) {
+        if (content[i] === "\n") result += "\n";
+        i++;
+      }
+      i++; // skip * (loop for will skip /)
+      continue;
+    }
+
+    result += ch;
+  }
+
+  return result;
 }
 
 interface OpenCodeCliProviderConfig {
