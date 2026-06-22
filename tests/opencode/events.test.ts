@@ -385,7 +385,6 @@ describe("opencode/events", () => {
   });
 
   it("reconnects when an active stream stops delivering events", async () => {
-    vi.useFakeTimers();
     sut.__setSseIdleTimeoutForTests(10);
 
     subscribeMock
@@ -402,11 +401,9 @@ describe("opencode/events", () => {
       expect(subscribeMock).toHaveBeenCalledTimes(1);
     });
 
-    await vi.advanceTimersByTimeAsync(1_010);
-
     await vi.waitFor(() => {
       expect(subscribeMock).toHaveBeenCalledTimes(2);
-    });
+    }, { timeout: 3000 });
 
     sut.stopEventListening();
     await subscription;

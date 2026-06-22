@@ -8,6 +8,25 @@ const _realTimerRefs = {
   dateNow: Date.now,
 };
 
+// Capture real setTimeout at module level for accelerateTime
+const _$rt = globalThis.setTimeout;
+
+function accelerateTime(): { restore: () => void } {
+  const _origDn = Date.now;
+  let _ft = _origDn();
+  Date.now = () => _ft;
+  globalThis.setTimeout = ((cb: (...args: unknown[]) => void, ms?: number, ...args: unknown[]) => {
+    if ((ms ?? 0) > 0) _ft += ms!;
+    return _$rt(cb, 0, ...args);
+  }) as typeof globalThis.setTimeout;
+  return {
+    restore() {
+      globalThis.setTimeout = _$rt;
+      Date.now = _origDn;
+    },
+  };
+}
+
 const mocked = vi.hoisted(() => ({
   createMock: vi.fn(),
   promptAsyncMock: vi.fn(),
@@ -190,47 +209,51 @@ describe("app/services/scheduled-task-executor-service", () => {
   });
 
   it("starts scheduled task with promptAsync and polls until the assistant reply completes", async () => {
-    const { executeScheduledTask } = await import("#src/app/services/scheduled-task-executor-service.js");
+    const { restore } = accelerateTime();
+    try {
+      const { executeScheduledTask } = await import("#src/app/services/scheduled-task-executor-service.js");
 
-    mocked.createMock.mockResolvedValueOnce({
-      data: { id: "session-1", directory: "D:\\Projects\\Repo", title: "Scheduled task run" },
-      error: null,
-    });
-    mocked.promptAsyncMock.mockResolvedValueOnce({ data: undefined, error: null });
-    mocked.messagesMock.mockResolvedValueOnce({ data: [], error: null }).mockResolvedValueOnce({
-      data: [createAssistantMessage("Finished successfully", { completed: true })],
-      error: null,
-    });
-    mocked.statusMock.mockResolvedValueOnce({
-      data: { "session-1": { type: "busy" } },
-      error: null,
-    });
+      mocked.createMock.mockResolvedValueOnce({
+        data: { id: "session-1", directory: "D:\\Projects\\Repo", title: "Scheduled task run" },
+        error: null,
+      });
+      mocked.promptAsyncMock.mockResolvedValueOnce({ data: undefined, error: null });
+      mocked.messagesMock.mockResolvedValueOnce({ data: [], error: null }).mockResolvedValueOnce({
+        data: [createAssistantMessage("Finished successfully", { completed: true })],
+        error: null,
+      });
+      mocked.statusMock.mockResolvedValueOnce({
+        data: { "session-1": { type: "busy" } },
+        error: null,
+      });
 
-    vi.useFakeTimers();
+      const resultPromise = executeScheduledTask(createTask());
 
-    const resultPromise = executeScheduledTask(createTask());
+      // Yield to let accelerated setTimeout callbacks fire
+      await new Promise(r => setTimeout(r, 0));
 
-    await vi.advanceTimersByTimeAsync(2000);
-
-    await expect(resultPromise).resolves.toMatchObject({
-      taskId: "task-1",
-      status: "success",
-      resultText: "Finished successfully",
-      errorMessage: null,
-    });
-    expect(mocked.promptAsyncMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sessionID: "session-1",
-        directory: "D:\\Projects\\Repo",
-        agent: "build",
-        variant: "default",
-      }),
-    );
-    expect(mocked.statusMock).toHaveBeenCalledTimes(1);
-    expect(mocked.messagesMock).toHaveBeenCalledTimes(2);
-    expect(mocked.cleanupIgnoresMock).toHaveBeenCalledTimes(1);
-    expect(mocked.registerIgnoreMock).toHaveBeenCalledWith("session-1");
-    expect(mocked.deleteMock).toHaveBeenCalledWith({ sessionID: "session-1" });
+      await expect(resultPromise).resolves.toMatchObject({
+        taskId: "task-1",
+        status: "success",
+        resultText: "Finished successfully",
+        errorMessage: null,
+      });
+      expect(mocked.promptAsyncMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sessionID: "session-1",
+          directory: "D:\\Projects\\Repo",
+          agent: "build",
+          variant: "default",
+        }),
+      );
+      expect(mocked.statusMock).toHaveBeenCalledTimes(1);
+      expect(mocked.messagesMock).toHaveBeenCalledTimes(2);
+      expect(mocked.cleanupIgnoresMock).toHaveBeenCalledTimes(1);
+      expect(mocked.registerIgnoreMock).toHaveBeenCalledWith("session-1");
+      expect(mocked.deleteMock).toHaveBeenCalledWith({ sessionID: "session-1" });
+    } finally {
+      restore();
+    }
   });
 
   it("re-reads messages after idle before returning the assistant result", async () => {

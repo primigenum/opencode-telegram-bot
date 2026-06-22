@@ -2,6 +2,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
 import type { ChildProcess } from "node:child_process";
 import { loadSut } from "#helpers/sut-loader.js";
 
+// Capture real setTimeout at module level for accelerateTime()
+const _$rt = globalThis.setTimeout;
+
+function accelerateTime(): { restore: () => void } {
+  const _origDn = Date.now;
+  let _ft = _origDn();
+  Date.now = () => _ft;
+  globalThis.setTimeout = ((cb: (...args: unknown[]) => void, ms?: number, ...args: unknown[]) => {
+    if ((ms ?? 0) > 0) _ft += ms!;
+    return _$rt(cb, 0, ...args);
+  }) as typeof globalThis.setTimeout;
+  return {
+    restore() {
+      globalThis.setTimeout = _$rt;
+      Date.now = _origDn;
+    },
+  };
+}
+
 const mocked = vi.hoisted(() => ({
   healthMock: vi.fn(),
   resolveLocalOpencodeTargetMock: vi.fn(),
@@ -77,8 +96,6 @@ function unhealthyResponse() {
 
 describe("opencode/auto-restart", () => {
   beforeEach(() => {
-    vi.useFakeTimers();
-
     mocked.healthMock.mockReset();
     mocked.resolveLocalOpencodeTargetMock.mockReset();
     mocked.startLocalOpencodeServerMock.mockReset();
@@ -98,7 +115,6 @@ describe("opencode/auto-restart", () => {
   });
 
   afterEach(() => {
-    vi.useRealTimers();
   });
 
   it("does nothing when auto-restart is disabled", async () => {
@@ -173,9 +189,15 @@ describe("opencode/auto-restart", () => {
       .mockResolvedValueOnce(healthyResponse());
     const service = new sut.OpencodeAutoRestartService();
 
-    const startPromise = service.start();
-    await vi.advanceTimersByTimeAsync(3000);
-    await startPromise;
+    const { restore } = accelerateTime();
+    try {
+      const startPromise = service.start();
+      // Yield once — accelerated setTimeout fires on the next macrotask
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      await startPromise;
+    } finally {
+      restore();
+    }
 
     expect(mocked.loggerWarnMock).toHaveBeenCalledWith(
       "[OpenCodeAutoRestart] Health-check timed out after 3000ms",

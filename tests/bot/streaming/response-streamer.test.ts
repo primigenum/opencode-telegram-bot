@@ -9,9 +9,9 @@ const { ResponseStreamer } = await loadSut<typeof import("#src/bot/streaming/res
   import.meta.url,
 );
 
-function accelerateTime(): { restore: () => void } {
+function accelerateTime(startTime?: number): { restore: () => void } {
   const _origDn = Date.now;
-  let _ft = _origDn();
+  let _ft = startTime ?? _origDn();
   Date.now = () => _ft;
   globalThis.setTimeout = ((cb: (...args: unknown[]) => void, ms?: number, ...args: unknown[]) => {
     if ((ms ?? 0) > 0) _ft += ms!;
@@ -85,7 +85,8 @@ describe("bot/streaming/response-streamer", () => {
   });
 
   it("streams into a second Telegram message when parts grow", async () => {
-    vi.useFakeTimers();
+    const { restore } = accelerateTime();
+    try {
 
     let nextMessageId = 101;
     const sendPart = vi.fn(async (part) => ({
@@ -118,6 +119,9 @@ describe("bot/streaming/response-streamer", () => {
     expect(sendPart).toHaveBeenNthCalledWith(2, plainPart("part-2"), undefined);
     expect(editPart).not.toHaveBeenCalled();
     expect(deleteText).not.toHaveBeenCalled();
+    } finally {
+      restore();
+    }
   });
 
   it("flushes final payload on complete after streaming started", async () => {
@@ -154,7 +158,8 @@ describe("bot/streaming/response-streamer", () => {
   });
 
   it("removes extra Telegram messages when payload shrinks", async () => {
-    vi.useFakeTimers();
+    const { restore } = accelerateTime();
+    try {
 
     let nextMessageId = 10;
     const sendPart = vi.fn(async (part) => ({
@@ -181,6 +186,9 @@ describe("bot/streaming/response-streamer", () => {
     });
 
     expect(deleteText).toHaveBeenCalledWith(11);
+    } finally {
+      restore();
+    }
   });
 
   it("retries after Telegram rate limits", async () => {
@@ -211,7 +219,8 @@ describe("bot/streaming/response-streamer", () => {
   });
 
   it("marks a stream as broken after fatal edit error and cleans up partial messages on complete", async () => {
-    vi.useFakeTimers();
+    const { restore } = accelerateTime();
+    try {
 
     const sendPart = vi.fn(async (part) => ({
       messageId: 42,
@@ -250,10 +259,14 @@ describe("bot/streaming/response-streamer", () => {
     expect(deleteText).toHaveBeenCalledTimes(1);
     expect(deleteText).toHaveBeenCalledWith(42);
     expect(sendPart).toHaveBeenCalledTimes(1);
+    } finally {
+      restore();
+    }
   });
 
   it("falls back cleanly when fatal send error happens before any partial is visible", async () => {
-    vi.useFakeTimers();
+    const { restore } = accelerateTime();
+    try {
 
     const sendPart = vi
       .fn()
@@ -283,6 +296,9 @@ describe("bot/streaming/response-streamer", () => {
     expect(result.telegramMessageIds).toEqual([]);
     expect(editPart).not.toHaveBeenCalled();
     expect(deleteText).not.toHaveBeenCalled();
+    } finally {
+      restore();
+    }
   });
 
   it("waits for an in-flight first streamed send before finalizing short responses", async () => {
@@ -327,7 +343,8 @@ describe("bot/streaming/response-streamer", () => {
   });
 
   it("keeps visible partial messages when clearing a session and stops tracking the old stream", async () => {
-    vi.useFakeTimers();
+    const { restore } = accelerateTime();
+    try {
 
     let nextMessageId = 100;
     const sendPart = vi.fn(async (part) => ({
@@ -364,10 +381,14 @@ describe("bot/streaming/response-streamer", () => {
     expect(editPart).not.toHaveBeenCalled();
     expect(deleteText).not.toHaveBeenCalled();
     expect(sendPart).toHaveBeenNthCalledWith(2, plainPart("new partial"), undefined);
+    } finally {
+      restore();
+    }
   });
 
   it("keeps visible partial messages when clearing all streams", async () => {
-    vi.useFakeTimers();
+    const { restore } = accelerateTime();
+    try {
 
     let nextMessageId = 200;
     const sendPart = vi.fn(async (part) => ({
@@ -399,10 +420,14 @@ describe("bot/streaming/response-streamer", () => {
     expect(editPart).not.toHaveBeenCalled();
     expect(deleteText).not.toHaveBeenCalled();
     expect(sendPart).toHaveBeenCalledTimes(1);
+    } finally {
+      restore();
+    }
   });
 
   it("skips final sync when stream never emitted partial update", async () => {
-    vi.useFakeTimers();
+    const { restore } = accelerateTime();
+    try {
 
     let nextMessageId = 1;
     const sendPart = vi.fn(async (part) => ({
@@ -428,10 +453,14 @@ describe("bot/streaming/response-streamer", () => {
     expect(sendPart).not.toHaveBeenCalled();
     expect(editPart).not.toHaveBeenCalled();
     expect(deleteText).not.toHaveBeenCalled();
+    } finally {
+      restore();
+    }
   });
 
   it("keeps stream healthy when a part is locally downgraded to plain", async () => {
-    vi.useFakeTimers();
+    const { restore } = accelerateTime();
+    try {
 
     let nextMessageId = 300;
     const sendPart = vi.fn(async (part) => ({
@@ -460,11 +489,15 @@ describe("bot/streaming/response-streamer", () => {
     expect(editPart).toHaveBeenCalledTimes(1);
     expect(editPart).toHaveBeenCalledWith(300, boldHello, undefined);
     expect(deleteText).not.toHaveBeenCalled();
+    } finally {
+      restore();
+    }
   });
 
   describe("draft mode (completePart)", () => {
     it("persists draft parts via completePart on complete", async () => {
-      vi.useFakeTimers();
+      const { restore } = accelerateTime();
+      try {
 
       const sendPart = vi.fn(async () => ({
         messageId: 1,
@@ -497,10 +530,14 @@ describe("bot/streaming/response-streamer", () => {
       expect(result.telegramMessageIds).toEqual([100]);
       expect(completePart).toHaveBeenCalledTimes(1);
       expect(completePart).toHaveBeenCalledWith(plainPart("final"), undefined);
+      } finally {
+        restore();
+      }
     });
 
     it("persists multi-part drafts via completePart", async () => {
-      vi.useFakeTimers();
+      const { restore } = accelerateTime();
+      try {
 
       let draftId = 10;
       const sendPart = vi.fn(async (part) => {
@@ -538,10 +575,14 @@ describe("bot/streaming/response-streamer", () => {
       expect(completePart).toHaveBeenCalledTimes(2);
       expect(completePart).toHaveBeenNthCalledWith(1, plainPart("part-1-final"), undefined);
       expect(completePart).toHaveBeenNthCalledWith(2, plainPart("part-2-final"), undefined);
+      } finally {
+        restore();
+      }
     });
 
     it("returns streamed=false when completePart fails", async () => {
-      vi.useFakeTimers();
+      const { restore } = accelerateTime();
+      try {
 
       const sendPart = vi.fn(async () => ({
         messageId: 1,
@@ -569,10 +610,14 @@ describe("bot/streaming/response-streamer", () => {
 
       expect(result.streamed).toBe(false);
       expect(completePart).toHaveBeenCalledTimes(1);
+      } finally {
+        restore();
+      }
     });
 
     it("calls completePart only for parts with text", async () => {
-      vi.useFakeTimers();
+      const { restore } = accelerateTime();
+      try {
 
       const sendPart = vi.fn(async (part) => ({
         messageId: 1,
@@ -601,6 +646,9 @@ describe("bot/streaming/response-streamer", () => {
 
       expect(result.streamed).toBe(true);
       expect(completePart).toHaveBeenCalledTimes(1);
+      } finally {
+        restore();
+      }
     });
   });
 });

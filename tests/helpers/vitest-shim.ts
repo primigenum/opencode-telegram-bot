@@ -6,8 +6,13 @@ const originalGlobalDescriptors = new Map<string, PropertyDescriptor | undefined
 const trackedMocks: { mockRestore(): void; mockClear?(): void }[] = [];
 
 /** Reference to the real setTimeout, captured at module load, so vi.waitFor
- *  always uses a real timer for polling even when fake timers are active. */
+ *  always uses a real timer for polling even when fake timers are active.
+ *
+ *  Also captures Date.now so waitFor can measure real elapsed time — with
+ *  vi.useFakeTimers() the mock Date.now would never advance, causing an
+ *  infinite loop. */
 const _shimRealSetTimeout = globalThis.setTimeout;
+const _shimRealDateNow = Date.now.bind(Date);
 
 function captureOriginalGlobal(key: string): void {
   if (originalGlobalDescriptors.has(key)) return;
@@ -250,12 +255,13 @@ export async function waitFor<T>(
 ): Promise<T> {
   const timeout = options?.timeout ?? 5000;
   const interval = options?.interval ?? 50;
-  // Use the real setTimeout captured at module load so polling works
-  // even when fake timers are active.
+  // Use real setTimeout + Date.now captured at module load so polling
+  // works even when vi.useFakeTimers() or manual Date.now overrides are
+  // active — without this, Date.now never advances and we loop forever.
   const timerFn = _shimRealSetTimeout;
-  const start = Date.now();
+  const start = _shimRealDateNow();
   let lastError: unknown;
-  while (Date.now() - start < timeout) {
+  while (_shimRealDateNow() - start < timeout) {
     try {
       return await callback();
     } catch (error) {
