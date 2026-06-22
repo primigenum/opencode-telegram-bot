@@ -158,16 +158,25 @@ export async function getAvailableVariants(
  */
 export function getCurrentVariant(): string {
   const currentModel = getCurrentModel();
-  if (currentModel?.variant) return currentModel.variant;
+  if (currentModel?.variant) {
+    // If the stored variant is "default", check if the OpenCode CLI config
+    // specifies a different one (e.g. reasoningEffort: max). This way the
+    // bot picks up the user's opencode config automatically without needing
+    // to clear settings.json.
+    if (currentModel.variant !== "default") return currentModel.variant;
+    const fromConfig = getDefaultVariantFromConfig(
+      currentModel.providerID || "",
+      currentModel.modelID || "",
+    );
+    return fromConfig ?? "default";
+  }
 
   // Fall back to the OpenCode CLI config
   const fromConfig = getDefaultVariantFromConfig(
     currentModel?.providerID || "",
     currentModel?.modelID || "",
   );
-  if (fromConfig) return fromConfig;
-
-  return "default";
+  return fromConfig ?? "default";
 }
 
 /**
