@@ -26,19 +26,19 @@ describe("summary/aggregator", () => {
   beforeEach(() => {
     mocked.getCurrentProjectMock.mockReset();
     mocked.getCurrentProjectMock.mockReturnValue({ id: "p1", worktree: "D:/repo", name: "repo" });
-    summaryAggregator.clear();
-    summaryAggregator.setOnCleared(() => {});
-    summaryAggregator.setOnTool(() => {});
-    summaryAggregator.setOnRootToolUpdate(() => {});
-    summaryAggregator.setOnToolFile(() => {});
-    summaryAggregator.setOnPartial(() => {});
-    summaryAggregator.setOnExternalUserInput(() => {});
-    summaryAggregator.setOnThinking(() => {});
-    summaryAggregator.setOnThinkingFinished(() => {});
-    summaryAggregator.setOnSubagent(() => {});
-    summaryAggregator.setOnSessionIdle(() => {});
-    summaryAggregator.setOnSessionError(() => {});
-    summaryAggregator.setOnSessionRetry(() => {});
+    sut.summaryAggregator.clear();
+    sut.summaryAggregator.setOnCleared(() => {});
+    sut.summaryAggregator.setOnTool(() => {});
+    sut.summaryAggregator.setOnRootToolUpdate(() => {});
+    sut.summaryAggregator.setOnToolFile(() => {});
+    sut.summaryAggregator.setOnPartial(() => {});
+    sut.summaryAggregator.setOnExternalUserInput(() => {});
+    sut.summaryAggregator.setOnThinking(() => {});
+    sut.summaryAggregator.setOnThinkingFinished(() => {});
+    sut.summaryAggregator.setOnSubagent(() => {});
+    sut.summaryAggregator.setOnSessionIdle(() => {});
+    sut.summaryAggregator.setOnSessionError(() => {});
+    sut.summaryAggregator.setOnSessionRetry(() => {});
   });
 
   it("invokes onCleared callback when aggregator is cleared", () => {
@@ -101,10 +101,10 @@ describe("summary/aggregator", () => {
 
   it("emits root tool updates before completion filtering", () => {
     const onRootToolUpdate = vi.fn();
-    summaryAggregator.setOnRootToolUpdate(onRootToolUpdate);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnRootToolUpdate(onRootToolUpdate);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -116,7 +116,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -150,10 +150,10 @@ describe("summary/aggregator", () => {
 
   it("does not emit root tool updates for unrelated child sessions", () => {
     const onRootToolUpdate = vi.fn();
-    summaryAggregator.setOnRootToolUpdate(onRootToolUpdate);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnRootToolUpdate(onRootToolUpdate);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -708,12 +708,12 @@ describe("summary/aggregator", () => {
     const onThinking = vi.fn();
     const onPartial = vi.fn();
     const onComplete = vi.fn();
-    summaryAggregator.setOnThinking(onThinking);
-    summaryAggregator.setOnPartial(onPartial);
-    summaryAggregator.setOnComplete(onComplete);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnThinking(onThinking);
+    sut.summaryAggregator.setOnPartial(onPartial);
+    sut.summaryAggregator.setOnComplete(onComplete);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -725,7 +725,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -739,7 +739,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.delta",
       properties: {
         part: {
@@ -752,7 +752,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -765,7 +765,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -802,10 +802,10 @@ describe("summary/aggregator", () => {
 
   it("signals thinking finished once when assistant text starts after reasoning", async () => {
     const onThinkingFinished = vi.fn();
-    summaryAggregator.setOnThinkingFinished(onThinkingFinished);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnThinkingFinished(onThinkingFinished);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -817,7 +817,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -830,7 +830,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -843,7 +843,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.delta",
       properties: {
         part: {
@@ -867,10 +867,10 @@ describe("summary/aggregator", () => {
 
   it("does not signal thinking finished for assistant text without reasoning", async () => {
     const onThinkingFinished = vi.fn();
-    summaryAggregator.setOnThinkingFinished(onThinkingFinished);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnThinkingFinished(onThinkingFinished);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -882,7 +882,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
