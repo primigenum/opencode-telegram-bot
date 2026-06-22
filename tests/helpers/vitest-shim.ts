@@ -220,23 +220,22 @@ function resolveCurrentMockedTime(): number {
 }
 
 export function advanceTimersByTime(ms: number): void {
-  const currentMocked = resolveCurrentMockedTime();
-  bunTest.setSystemTime(new Date(currentMocked + ms));
+  // bun's jest.advanceTimersByTime advances the fake clock and fires
+  // every timer whose deadline falls inside the [now, now+ms] window.
+  // The previous implementation only called setSystemTime, which moves
+  // the wall clock without running any pending timer callbacks — that
+  // silently broke any test that relied on a throttled setTimeout firing.
+  bunTest.jest.advanceTimersByTime(ms);
 }
 
 export async function advanceTimersByTimeAsync(ms: number): Promise<void> {
-  const currentMocked = resolveCurrentMockedTime();
-  bunTest.setSystemTime(new Date(currentMocked + ms));
-  for (let i = 0; i < 3; i += 1) {
-    await new Promise<void>((resolve) => setImmediate(resolve));
-  }
+  bunTest.jest.advanceTimersByTime(ms);
+  await flushMicrotasks();
 }
 
 export async function runAllTimersAsync(): Promise<void> {
-  bunTest.jest.setSystemTime(new Date(Date.now() + 600_000));
-  for (let i = 0; i < 3; i += 1) {
-    await new Promise<void>((resolve) => setImmediate(resolve));
-  }
+  bunTest.jest.runAllTimers();
+  await flushMicrotasks();
 }
 
 async function flushMicrotasks(): Promise<void> {
