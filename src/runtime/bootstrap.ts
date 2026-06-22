@@ -1,9 +1,4 @@
-import fs from "node:fs/promises";
-import path from "node:path";
-import readline from "node:readline";
-import { createInterface } from "node:readline/promises";
-import { fileURLToPath } from "node:url";
-import dotenv from "dotenv";
+import path from "bun:path";
 import { getRuntimePaths, type RuntimePaths } from "./paths.js";
 import {
   getLocale,
@@ -276,51 +271,82 @@ export function buildEnvFileContent(
   return finalizeEnvContent(renderedLines);
 }
 
+async function mkdirRecursive(dirPath: string): Promise<void> {
+  const proc = Bun.spawn(["mkdir", "-p", dirPath], { stdout: "ignore", stderr: "ignore" });
+  await proc.exited;
+}
+
+async function atomicRename(from: string, to: string): Promise<void> {
+  const proc = Bun.spawn(["mv", from, to], { stdout: "ignore", stderr: "ignore" });
+  await proc.exited;
+}
+
 async function readEnvFileIfExists(filePath: string): Promise<string | null> {
   try {
-    return await fs.readFile(filePath, "utf-8");
+    return await Bun.file(filePath).text();
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      return null;
+    if (error instanceof Error) {
+      const code = (error as Error & { code?: string }).code;
+      if (code === "ENOENT") {
+        return null;
+      }
     }
-
     throw error;
   }
 }
 
 async function writeFileAtomically(filePath: string, content: string): Promise<void> {
-  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await mkdirRecursive(path.dirname(filePath));
 
   const tempFilePath = `${filePath}.${process.pid}.tmp`;
-  await fs.writeFile(tempFilePath, content, "utf-8");
-  await fs.rename(tempFilePath, filePath);
+  await Bun.write(tempFilePath, content);
+  await atomicRename(tempFilePath, filePath);
 }
 
 async function ensureSettingsFile(settingsFilePath: string): Promise<void> {
-  try {
-    await fs.access(settingsFilePath);
+  const exists = await Bun.file(settingsFilePath).exists();
+  if (exists) {
     return;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-      throw error;
-    }
   }
 
-  await fs.mkdir(path.dirname(settingsFilePath), { recursive: true });
-  await fs.writeFile(settingsFilePath, "{}\n", "utf-8");
+  await mkdirRecursive(path.dirname(settingsFilePath));
+  await Bun.write(settingsFilePath, "{}\n");
 }
 
 function getEnvExamplePath(): string {
-  const currentFilePath = fileURLToPath(import.meta.url);
+  const currentFilePath = Bun.fileURLToPath(import.meta.url);
   return path.resolve(path.dirname(currentFilePath), "..", "..", ".env.example");
 }
 
 async function loadEnvExampleContent(): Promise<string | null> {
   try {
-    return await fs.readFile(getEnvExamplePath(), "utf-8");
+    return await Bun.file(getEnvExamplePath()).text();
   } catch {
     return null;
   }
+}
+
+function parseEnvContent(content: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const line of content.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    // Skip lines without '='
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx === -1) continue;
+    const key = trimmed.slice(0, eqIdx).trim();
+    let value = trimmed.slice(eqIdx + 1).trim();
+    // Strip surrounding quotes
+    if (
+      value.length >= 2 &&
+      ((value[0] === '"' && value[value.length - 1] === '"') ||
+        (value[0] === "'" && value[value.length - 1] === "'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (key) result[key] = value;
+  }
+  return result;
 }
 
 function loadModelDefaultsFromEnvExample(envExampleContent: string | null): ModelDefaults {
@@ -334,7 +360,7 @@ function loadModelDefaultsFromEnvExample(envExampleContent: string | null): Mode
       return fallbackDefaults;
     }
 
-    const parsed = dotenv.parse(envExampleContent);
+    const parsed = parseEnvContent(envExampleContent);
 
     const provider = parsed.OPENCODE_MODEL_PROVIDER?.trim();
     const modelId = parsed.OPENCODE_MODEL_ID?.trim();
@@ -353,59 +379,44 @@ function loadModelDefaultsFromEnvExample(envExampleContent: string | null): Mode
 }
 
 async function askVisible(question: string): Promise<string> {
-  const rl = createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  try {
-    const answer = await rl.question(question);
-    return answer.trim();
-  } finally {
-    rl.close();
+  process.stdout.write(question);
+  for await (const line of console) {
+    return line.toString().trim();
   }
+  return "";
 }
 
 async function askHidden(question: string): Promise<string> {
-  return new Promise((resolve) => {
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-      terminal: true,
-    });
+  process.stdout.write(question);
 
-    const maskedRl = rl as readline.Interface & {
-      stdoutMuted?: boolean;
-      _writeToOutput?: (value: string) => void;
-    };
+  const decoder = new TextDecoder();
+  let buffer = "";
 
-    maskedRl._writeToOutput = (value: string): void => {
-      if (maskedRl.stdoutMuted) {
-        if (value.includes("\n") || value.includes("\r")) {
-          process.stdout.write(value);
-          return;
-        }
-
-        if (value.length > 0) {
-          process.stdout.write("*");
-        }
-        return;
+  for await (const chunk of Bun.stdin.stream()) {
+    const text = decoder.decode(chunk, { stream: true });
+    for (const char of text) {
+      if (char === "\n" || char === "\r") {
+        process.stdout.write("\n");
+        return buffer.trim();
       }
+      if (char === "\u007f" || char === "\b") {
+        if (buffer.length > 0) {
+          buffer = buffer.slice(0, -1);
+          process.stdout.write("\b \b");
+        }
+        continue;
+      }
+      if (char === "\u0003") {
+        process.stdout.write("\n");
+        throw new Error("interrupted");
+      }
+      buffer += char;
+      process.stdout.write("*");
+    }
+  }
 
-      process.stdout.write(value);
-    };
-
-    maskedRl.stdoutMuted = false;
-
-    rl.question(question, (answer) => {
-      maskedRl.stdoutMuted = false;
-      process.stdout.write("\n");
-      rl.close();
-      resolve(answer.trim());
-    });
-
-    maskedRl.stdoutMuted = true;
-  });
+  process.stdout.write("\n");
+  return buffer.trim();
 }
 
 async function askToken(): Promise<string> {
@@ -567,7 +578,7 @@ async function validateExistingEnv(envFilePath: string): Promise<EnvValidationRe
     return { isValid: false, reason: "Missing .env" };
   }
 
-  const parsed = dotenv.parse(content);
+  const parsed = parseEnvContent(content);
   return validateRuntimeEnvValues(parsed);
 }
 
@@ -581,7 +592,7 @@ async function runWizardAndPersist(runtimePaths: RuntimePaths): Promise<void> {
   ]);
 
   const modelDefaults = loadModelDefaultsFromEnvExample(envExampleContent);
-  const existingParsed = existingContent ? dotenv.parse(existingContent) : {};
+  const existingParsed = existingContent ? parseEnvContent(existingContent) : {};
   const provider = existingParsed.OPENCODE_MODEL_PROVIDER || modelDefaults.provider;
   const modelId = existingParsed.OPENCODE_MODEL_ID || modelDefaults.modelId;
 

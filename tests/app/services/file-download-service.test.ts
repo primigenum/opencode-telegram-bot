@@ -1,29 +1,97 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Api } from "grammy";
-import { Agent as HttpsAgent } from "https";
-import {
-  toDataUri,
-  formatFileSize,
-  isFileSizeAllowed,
-  isTextMimeType,
-} from "../../../src/app/services/file-download-service.js";
+import { loadSut } from "#helpers/sut-loader.js";
 
-const nodeFetchMock = vi.hoisted(() => vi.fn());
+let fetchMock: ReturnType<typeof vi.fn>;
 
-vi.mock("node-fetch", () => ({
-  default: nodeFetchMock,
+const configMock = {
+  telegram: {
+    token: "bot-token-xyz",
+    allowedUserId: 123456789,
+    apiRoot: "",
+    proxyUrl: "",
+    proxySecret: "",
+    forceIpv4: false,
+  },
+  opencode: {
+    apiUrl: "http://localhost:4096",
+    username: "opencode",
+    password: "",
+    autoRestartEnabled: false,
+    monitorIntervalSec: 300,
+    model: {
+      provider: "test-provider",
+      modelId: "test-model",
+    },
+  },
+  server: {
+    logLevel: "info",
+  },
+  bot: {
+    sessionsListLimit: 10,
+    messagesListLimit: 10,
+    projectsListLimit: 10,
+    commandsListLimit: 10,
+    taskLimit: 10,
+    scheduledTaskExecutionTimeoutMinutes: 120,
+    scheduledTaskNotificationsSilent: false,
+    responseStreamThrottleMs: 1000,
+    responseStreamingMode: "edit",
+    bashToolDisplayMaxLength: 128,
+    locale: "en",
+    hideThinkingMessages: false,
+    hideToolCallMessages: false,
+    hideToolFileMessages: false,
+    trackBackgroundSessions: true,
+    messageFormatMode: "markdown",
+  },
+  files: {
+    maxFileSizeKb: 100,
+  },
+  open: {
+    browserRoots: "",
+  },
+  stt: {
+    apiUrl: "",
+    apiKey: "",
+    model: "whisper-large-v3-turbo",
+    language: "",
+    notePrompt: "",
+  },
+  tts: {
+    apiUrl: "",
+    apiKey: "",
+    provider: "openai",
+    model: "gpt-4o-mini-tts",
+    voice: "alloy",
+  },
+};
+
+vi.mock("#src/config.ts", () => ({
+  config: configMock,
 }));
+
+// ---- Load SUT (only now that config + node-fetch are mocked) ----
+
+async function getSut() {
+  return loadSut<typeof import("#src/app/services/file-download-service.js")>(
+    "#src/app/services/file-download-service.ts",
+    import.meta.url,
+  );
+}
 
 describe("app/services/file-download-service", () => {
   describe("toDataUri", () => {
-    it("converts buffer to base64 data URI with correct MIME type", () => {
+    it("converts buffer to base64 data URI with correct MIME type", async () => {
+      const { toDataUri } = await getSut();
       const buffer = Buffer.from("Hello, World!");
       const dataUri = toDataUri(buffer, "text/plain");
 
       expect(dataUri).toBe("data:text/plain;base64,SGVsbG8sIFdvcmxkIQ==");
     });
 
-    it("handles image MIME types", () => {
+    it("handles image MIME types", async () => {
+      const { toDataUri } = await getSut();
       const buffer = Buffer.from([0x89, 0x50, 0x4e, 0x47]); // PNG magic number
       const dataUri = toDataUri(buffer, "image/png");
 
@@ -31,7 +99,8 @@ describe("app/services/file-download-service", () => {
       expect(dataUri).toBe("data:image/png;base64,iVBORw==");
     });
 
-    it("handles empty buffer", () => {
+    it("handles empty buffer", async () => {
+      const { toDataUri } = await getSut();
       const buffer = Buffer.from([]);
       const dataUri = toDataUri(buffer, "application/octet-stream");
 
@@ -40,35 +109,41 @@ describe("app/services/file-download-service", () => {
   });
 
   describe("isFileSizeAllowed", () => {
-    it("returns true when file size is within limit", () => {
+    it("returns true when file size is within limit", async () => {
+      const { isFileSizeAllowed } = await getSut();
       expect(isFileSizeAllowed(100 * 1024, 200)).toBe(true); // 100KB < 200KB
       expect(isFileSizeAllowed(1024, 1)).toBe(true); // exactly at limit
     });
 
-    it("returns false when file size exceeds limit", () => {
+    it("returns false when file size exceeds limit", async () => {
+      const { isFileSizeAllowed } = await getSut();
       expect(isFileSizeAllowed(300 * 1024, 200)).toBe(false); // 300KB > 200KB
       expect(isFileSizeAllowed(1025, 1)).toBe(false); // just over limit
     });
 
-    it("returns true when file size is undefined (unknown)", () => {
+    it("returns true when file size is undefined (unknown)", async () => {
+      const { isFileSizeAllowed } = await getSut();
       expect(isFileSizeAllowed(undefined, 100)).toBe(true);
     });
   });
 
   describe("formatFileSize", () => {
-    it("formats bytes correctly", () => {
+    it("formats bytes correctly", async () => {
+      const { formatFileSize } = await getSut();
       expect(formatFileSize(0)).toBe("0B");
       expect(formatFileSize(500)).toBe("500B");
       expect(formatFileSize(1023)).toBe("1023B");
     });
 
-    it("formats kilobytes correctly", () => {
+    it("formats kilobytes correctly", async () => {
+      const { formatFileSize } = await getSut();
       expect(formatFileSize(1024)).toBe("1.0KB");
       expect(formatFileSize(1536)).toBe("1.5KB");
       expect(formatFileSize(10240)).toBe("10.0KB");
     });
 
-    it("formats megabytes correctly", () => {
+    it("formats megabytes correctly", async () => {
+      const { formatFileSize } = await getSut();
       expect(formatFileSize(1024 * 1024)).toBe("1.0MB");
       expect(formatFileSize(2.5 * 1024 * 1024)).toBe("2.5MB");
       expect(formatFileSize(10 * 1024 * 1024)).toBe("10.0MB");
@@ -76,7 +151,8 @@ describe("app/services/file-download-service", () => {
   });
 
   describe("isTextMimeType", () => {
-    it("returns true for text/* MIME types", () => {
+    it("returns true for text/* MIME types", async () => {
+      const { isTextMimeType } = await getSut();
       expect(isTextMimeType("text/plain")).toBe(true);
       expect(isTextMimeType("text/markdown")).toBe(true);
       expect(isTextMimeType("text/html")).toBe(true);
@@ -86,7 +162,8 @@ describe("app/services/file-download-service", () => {
       expect(isTextMimeType("text/csv")).toBe(true);
     });
 
-    it("returns true for whitelisted application/* types", () => {
+    it("returns true for whitelisted application/* types", async () => {
+      const { isTextMimeType } = await getSut();
       expect(isTextMimeType("application/json")).toBe(true);
       expect(isTextMimeType("application/xml")).toBe(true);
       expect(isTextMimeType("application/javascript")).toBe(true);
@@ -94,24 +171,28 @@ describe("app/services/file-download-service", () => {
       expect(isTextMimeType("application/sql")).toBe(true);
     });
 
-    it("returns false for other application/* types", () => {
+    it("returns false for other application/* types", async () => {
+      const { isTextMimeType } = await getSut();
       expect(isTextMimeType("application/pdf")).toBe(false);
       expect(isTextMimeType("application/zip")).toBe(false);
       expect(isTextMimeType("application/octet-stream")).toBe(false);
       expect(isTextMimeType("application/msword")).toBe(false);
     });
 
-    it("returns false for image/* types", () => {
+    it("returns false for image/* types", async () => {
+      const { isTextMimeType } = await getSut();
       expect(isTextMimeType("image/png")).toBe(false);
       expect(isTextMimeType("image/jpeg")).toBe(false);
       expect(isTextMimeType("image/gif")).toBe(false);
     });
 
-    it("returns false for undefined", () => {
+    it("returns false for undefined", async () => {
+      const { isTextMimeType } = await getSut();
       expect(isTextMimeType(undefined)).toBe(false);
     });
 
-    it("returns false for empty string", () => {
+    it("returns false for empty string", async () => {
+      const { isTextMimeType } = await getSut();
       expect(isTextMimeType("")).toBe(false);
     });
   });
@@ -119,15 +200,19 @@ describe("app/services/file-download-service", () => {
 
 describe("downloadTelegramFile reverse-proxy wiring", () => {
   beforeEach(() => {
-    vi.stubEnv("TELEGRAM_BOT_TOKEN", "bot-token-xyz");
-    vi.stubEnv("TELEGRAM_ALLOWED_USER_ID", "123456789");
-    vi.stubEnv("OPENCODE_MODEL_PROVIDER", "test-provider");
-    vi.stubEnv("OPENCODE_MODEL_ID", "test-model");
-    vi.stubEnv("TELEGRAM_PROXY_URL", "");
-    vi.stubEnv("TELEGRAM_API_ROOT", "");
-    vi.stubEnv("TELEGRAM_PROXY_SECRET", "");
-    vi.stubEnv("TELEGRAM_FORCE_IPV4", "");
-    nodeFetchMock.mockReset();
+    // Reset config to defaults before each test
+    configMock.telegram.token = "bot-token-xyz";
+    configMock.telegram.apiRoot = "";
+    configMock.telegram.proxyUrl = "";
+    configMock.telegram.proxySecret = "";
+    configMock.telegram.forceIpv4 = false;
+
+    // Stub global fetch so downloadTelegramFile doesn't hit the real network
+    fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
+    });
+    vi.stubGlobal("fetch", fetchMock);
   });
 
   function makeApiStub(): Api {
@@ -139,23 +224,8 @@ describe("downloadTelegramFile reverse-proxy wiring", () => {
     } as unknown as Api;
   }
 
-  function makeFetchStub(): ReturnType<typeof vi.fn> {
-    return nodeFetchMock.mockResolvedValue({
-      ok: true,
-      arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
-    });
-  }
-
-  async function loadDownloadModule() {
-    vi.resetModules();
-    return import("../../../src/app/services/file-download-service.js");
-  }
-
   it("uses api.telegram.org as the file URL base when TELEGRAM_API_ROOT is unset", async () => {
-    const fetchMock = makeFetchStub();
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { downloadTelegramFile } = await loadDownloadModule();
+    const { downloadTelegramFile } = await getSut();
     await downloadTelegramFile(makeApiStub(), "fid");
 
     const [url] = fetchMock.mock.calls[0];
@@ -163,11 +233,8 @@ describe("downloadTelegramFile reverse-proxy wiring", () => {
   });
 
   it("uses TELEGRAM_API_ROOT as the file URL base when set", async () => {
-    vi.stubEnv("TELEGRAM_API_ROOT", "https://tg-proxy.example.com");
-    const fetchMock = makeFetchStub();
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { downloadTelegramFile } = await loadDownloadModule();
+    configMock.telegram.apiRoot = "https://tg-proxy.example.com";
+    const { downloadTelegramFile } = await getSut();
     await downloadTelegramFile(makeApiStub(), "fid");
 
     const [url] = fetchMock.mock.calls[0];
@@ -175,11 +242,8 @@ describe("downloadTelegramFile reverse-proxy wiring", () => {
   });
 
   it("normalizes a trailing slash so the URL has no double slash", async () => {
-    vi.stubEnv("TELEGRAM_API_ROOT", "https://tg-proxy.example.com/");
-    const fetchMock = makeFetchStub();
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { downloadTelegramFile } = await loadDownloadModule();
+    configMock.telegram.apiRoot = "https://tg-proxy.example.com/";
+    const { downloadTelegramFile } = await getSut();
     await downloadTelegramFile(makeApiStub(), "fid");
 
     const [url] = fetchMock.mock.calls[0];
@@ -187,11 +251,8 @@ describe("downloadTelegramFile reverse-proxy wiring", () => {
   });
 
   it("does not send X-Proxy-Secret when TELEGRAM_PROXY_SECRET is unset", async () => {
-    vi.stubEnv("TELEGRAM_API_ROOT", "https://tg-proxy.example.com");
-    const fetchMock = makeFetchStub();
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { downloadTelegramFile } = await loadDownloadModule();
+    configMock.telegram.apiRoot = "https://tg-proxy.example.com";
+    const { downloadTelegramFile } = await getSut();
     await downloadTelegramFile(makeApiStub(), "fid");
 
     const [, init] = fetchMock.mock.calls[0];
@@ -200,12 +261,9 @@ describe("downloadTelegramFile reverse-proxy wiring", () => {
   });
 
   it("sends X-Proxy-Secret on the file fetch when TELEGRAM_PROXY_SECRET is set", async () => {
-    vi.stubEnv("TELEGRAM_API_ROOT", "https://tg-proxy.example.com");
-    vi.stubEnv("TELEGRAM_PROXY_SECRET", "secret-abc");
-    const fetchMock = makeFetchStub();
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { downloadTelegramFile } = await loadDownloadModule();
+    configMock.telegram.apiRoot = "https://tg-proxy.example.com";
+    configMock.telegram.proxySecret = "secret-abc";
+    const { downloadTelegramFile } = await getSut();
     await downloadTelegramFile(makeApiStub(), "fid");
 
     const [, init] = fetchMock.mock.calls[0];
@@ -213,28 +271,22 @@ describe("downloadTelegramFile reverse-proxy wiring", () => {
     expect(headers?.["X-Proxy-Secret"]).toBe("secret-abc");
   });
 
-  it("does not configure a fetch agent for direct downloads by default", async () => {
-    const fetchMock = makeFetchStub();
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { downloadTelegramFile } = await loadDownloadModule();
+  it("does not configure a fetch proxy or agent for direct downloads by default", async () => {
+    const { downloadTelegramFile } = await getSut();
     await downloadTelegramFile(makeApiStub(), "fid");
 
     const [, init] = fetchMock.mock.calls[0];
-    expect((init as { agent?: unknown } | undefined)?.agent).toBeUndefined();
+    const opts = init as { proxy?: string } | undefined;
+    expect(opts?.proxy).toBeUndefined();
   });
 
-  it("uses an IPv4 HTTPS agent for direct downloads when TELEGRAM_FORCE_IPV4 is enabled", async () => {
-    vi.stubEnv("TELEGRAM_FORCE_IPV4", "true");
-    const fetchMock = makeFetchStub();
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { downloadTelegramFile } = await loadDownloadModule();
+  it("does not set a proxy when TELEGRAM_FORCE_IPV4 is enabled (Bun has no agent-level IPv4 pinning)", async () => {
+    configMock.telegram.forceIpv4 = true;
+    const { downloadTelegramFile } = await getSut();
     await downloadTelegramFile(makeApiStub(), "fid");
 
     const [, init] = fetchMock.mock.calls[0];
-    const agent = (init as { agent?: unknown } | undefined)?.agent;
-    expect(agent).toBeInstanceOf(HttpsAgent);
-    expect((agent as HttpsAgent).options.family).toBe(4);
+    const opts = init as { proxy?: string } | undefined;
+    expect(opts?.proxy).toBeUndefined();
   });
 });

@@ -1,5 +1,5 @@
 import type { ToolInfo } from "../managers/summary-aggregation-manager.js";
-import * as path from "path";
+import * as path from "bun:path";
 import { config } from "../../config.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";

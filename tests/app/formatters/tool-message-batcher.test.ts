@@ -1,5 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
-import { ToolMessageBatcher } from "../../../src/app/formatters/tool-message-batcher.js";
+import { describe, expect, it, vi } from "#vitest";
+import { loadSut } from "#helpers/sut-loader.js";
+const { ToolMessageBatcher } = await loadSut<typeof import("#src/app/formatters/tool-message-batcher.js")>(
+  "#src/app/formatters/tool-message-batcher.ts",
+  import.meta.url,
+);
 
 function createFileData(name: string) {
   return {

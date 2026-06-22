@@ -1,6 +1,5 @@
 import { Context, InputFile } from "grammy";
-import { promises as fs } from "node:fs";
-import path from "node:path";
+import path from "bun:path";
 import { formatFileSize } from "../../app/services/file-download-service.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
@@ -12,7 +11,7 @@ function escapeHtml(text: string): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
+    .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
 
@@ -22,14 +21,16 @@ export async function sendDownloadedFile(
   options?: { announce?: boolean },
 ): Promise<boolean> {
   try {
-    const stat = await fs.stat(filePath).catch(() => null);
-    if (!stat) {
+    const file = Bun.file(filePath);
+    const exists = await file.exists();
+    if (!exists) {
       await ctx.reply(`❌ ${t("commands.download.not_found")}: <code>${escapeHtml(filePath)}</code>`, {
         parse_mode: "HTML",
       });
       return false;
     }
 
+    const stat = await file.stat();
     if (!stat.isFile()) {
       await ctx.reply(`❌ ${t("commands.download.not_file")}: <code>${escapeHtml(filePath)}</code>`, {
         parse_mode: "HTML",
@@ -52,7 +53,7 @@ export async function sendDownloadedFile(
       });
     }
 
-    const fileContent = await fs.readFile(filePath);
+    const fileContent = await file.arrayBuffer();
     const caption =
       `📄 <code>${escapeHtml(fileName)}</code>\n` +
       `${t("commands.download.size")}: ${formatFileSize(stat.size)}\n` +

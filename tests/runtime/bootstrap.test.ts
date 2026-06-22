@@ -1,7 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
-import { buildEnvFileContent, validateRuntimeEnvValues } from "../../src/runtime/bootstrap.js";
+import { describe, expect, it } from "#vitest";
+import { loadSut } from "#helpers/sut-loader.js";
+const { buildEnvFileContent, validateRuntimeEnvValues } = await loadSut<typeof import("#src/runtime/bootstrap.js")>(
+  "#src/runtime/bootstrap.ts",
+  import.meta.url,
+);
 
 const ENV_EXAMPLE_CONTENT = fs.readFileSync(path.resolve(process.cwd(), ".env.example"), "utf-8");
 

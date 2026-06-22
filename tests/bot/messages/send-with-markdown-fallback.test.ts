@@ -1,9 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
-import {
-  editMessageWithMarkdownFallback,
-  isTelegramMarkdownParseError,
-  sendMessageWithMarkdownFallback,
-} from "../../../src/bot/messages/send-with-markdown-fallback.js";
+import { describe, expect, it, vi } from "#vitest";
+import { loadSut } from "#helpers/sut-loader.js";
+const { editMessageWithMarkdownFallback, isTelegramMarkdownParseError, sendMessageWithMarkdownFallback } = await loadSut<typeof import("#src/bot/messages/send-with-markdown-fallback.js")>(
+  "#src/bot/messages/send-with-markdown-fallback.ts",
+  import.meta.url,
+);
 
 describe("bot/messages/send-with-markdown-fallback", () => {
   it("sends with MarkdownV2 when there is no parse error", async () => {

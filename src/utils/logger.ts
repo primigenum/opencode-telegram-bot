@@ -1,7 +1,4 @@
-import fs from "node:fs";
-import fsPromises from "node:fs/promises";
-import path from "node:path";
-import { inspect } from "node:util";
+import path from "bun:path";
 import { getRuntimeMode, type RuntimeMode } from "../runtime/mode.js";
 import { getRuntimePaths } from "../runtime/paths.js";
 
@@ -18,7 +15,13 @@ const LOG_LEVELS: Record<LogLevel, number> = {
   error: 3,
 };
 
-let logStream: fs.WriteStream | null = null;
+interface LogFileWriter {
+  write(line: string): void;
+  flush(): Promise<void>;
+  end(): Promise<void>;
+}
+
+let logWriter: LogFileWriter | null = null;
 let logFilePath: string | null = null;
 let initializePromise: Promise<void> | null = null;
 let cleanupPromise: Promise<void> | null = null;
@@ -72,11 +75,10 @@ function formatArgForFile(arg: unknown): string {
     return formatted;
   }
 
-  return inspect(formatted, {
+  return Bun.inspect(formatted, {
     colors: false,
     compact: true,
     depth: 8,
-    breakLength: Infinity,
   });
 }
 
@@ -149,41 +151,74 @@ function reportLoggerInternalError(message: string, error?: unknown): void {
   process.stderr.write(`${formatPrefix("error")} ${LOGGER_ERROR_PREFIX} ${message}${suffix}\n`);
 }
 
+function createAppendWriter(filePath: string): LogFileWriter {
+  const sink = Bun.file(filePath).writer({ highWaterMark: 64 * 1024 });
+  return {
+    write(line: string): void {
+      const result = sink.write(line);
+      void result;
+    },
+    async flush(): Promise<void> {
+      try {
+        await sink.flush();
+      } catch (error) {
+        if (process.env.LOGGER_DEBUG) {
+          console.error("[logger] sink.flush error:", error);
+        }
+      }
+    },
+    async end(): Promise<void> {
+      try {
+        await sink.end();
+      } catch (error) {
+        if (process.env.LOGGER_DEBUG) {
+          console.error("[logger] sink.end error:", error);
+        }
+      }
+    },
+  };
+}
+
 function handleLogStreamError(error: unknown): void {
   if (!streamErrorReported) {
     streamErrorReported = true;
     reportLoggerInternalError("Failed to write to log file.", error);
   }
 
-  if (logStream) {
-    logStream.destroy();
-    logStream = null;
+  if (logWriter) {
+    logWriter.end().catch(() => {});
+    logWriter = null;
   }
 }
 
 function closeLogStream(): void {
-  if (!logStream) {
+  if (!logWriter) {
     return;
   }
 
-  logStream.removeAllListeners("error");
-  logStream.end();
-  logStream = null;
+  logWriter.end().catch(() => {});
+  logWriter = null;
 }
 
 function ensureLogStream(filePath: string): void {
-  if (logStream && logFilePath === filePath) {
+  if (logWriter && logFilePath === filePath) {
     return;
   }
 
   closeLogStream();
   streamErrorReported = false;
 
-  const stream = fs.createWriteStream(filePath, { flags: "a" });
-  stream.on("error", handleLogStreamError);
-
-  logStream = stream;
+  logWriter = createAppendWriter(filePath);
   logFilePath = filePath;
+}
+
+async function readDirNames(dirPath: string): Promise<string[]> {
+  const glob = new Bun.Glob("*");
+  const names: string[] = [];
+  for await (const name of glob.scan({ cwd: dirPath, onlyFiles: true })) {
+    names.push(name);
+  }
+  return names;
 }
 
 async function cleanupOldLogs(logsDirPath: string, mode: RuntimeMode): Promise<void> {
@@ -193,7 +228,7 @@ async function cleanupOldLogs(logsDirPath: string, mode: RuntimeMode): Promise<v
   let fileNames: string[];
 
   try {
-    fileNames = await fsPromises.readdir(logsDirPath);
+    fileNames = await readDirNames(logsDirPath);
   } catch (error) {
     reportLoggerInternalError(`Failed to read log directory ${logsDirPath}.`, error);
     return;
@@ -205,7 +240,7 @@ async function cleanupOldLogs(logsDirPath: string, mode: RuntimeMode): Promise<v
   await Promise.all(
     filesToDelete.map(async (fileName) => {
       try {
-        await fsPromises.unlink(path.join(logsDirPath, fileName));
+        await Bun.file(path.join(logsDirPath, fileName)).delete();
       } catch (error) {
         reportLoggerInternalError(`Failed to delete old log file ${fileName}.`, error);
       }
@@ -227,6 +262,13 @@ function cleanupOldLogsInBackground(logsDirPath: string, mode: RuntimeMode): voi
     });
 }
 
+function ensureDirectorySync(dirPath: string): void {
+  const result = Bun.spawnSync(["mkdir", "-p", dirPath], { stdout: "ignore", stderr: "ignore" });
+  if (result.exitCode !== 0) {
+    throw new Error(`mkdir -p "${dirPath}" failed with exit code ${result.exitCode}`);
+  }
+}
+
 function rotateInstalledLogIfNeeded(): void {
   const mode = getRuntimeMode();
   if (mode !== "installed" || !logFilePath) {
@@ -240,8 +282,7 @@ function rotateInstalledLogIfNeeded(): void {
   }
 
   try {
-    fs.mkdirSync(runtimePaths.logsDirPath, { recursive: true });
-    fs.appendFileSync(nextLogFilePath, "");
+    ensureDirectorySync(runtimePaths.logsDirPath);
     ensureLogStream(nextLogFilePath);
     cleanupOldLogsInBackground(runtimePaths.logsDirPath, mode);
   } catch (error) {
@@ -255,24 +296,29 @@ function rotateInstalledLogIfNeeded(): void {
 }
 
 function writeToFile(line: string): void {
-  if (!logStream) {
+  if (!logWriter) {
     return;
   }
 
   try {
     rotateInstalledLogIfNeeded();
-    if (!logStream) {
+    if (!logWriter) {
       return;
     }
 
-    logStream.write(`${line}\n`);
+    logWriter.write(`${line}\n`);
   } catch (error) {
     handleLogStreamError(error);
   }
 }
 
+async function ensureDirectoryAsync(dirPath: string): Promise<void> {
+  const proc = Bun.spawn(["mkdir", "-p", dirPath], { stdout: "ignore", stderr: "ignore" });
+  await proc.exited;
+}
+
 async function initializeLoggerInternal(): Promise<void> {
-  if (logStream && logFilePath) {
+  if (logWriter && logFilePath) {
     return;
   }
 
@@ -280,9 +326,8 @@ async function initializeLoggerInternal(): Promise<void> {
   const mode = getRuntimeMode();
 
   try {
-    await fsPromises.mkdir(runtimePaths.logsDirPath, { recursive: true });
+    await ensureDirectoryAsync(runtimePaths.logsDirPath);
     const nextLogFilePath = getLogFilePathForMode(runtimePaths.logsDirPath, mode);
-    await fsPromises.appendFile(nextLogFilePath, "");
     ensureLogStream(nextLogFilePath);
     await cleanupOldLogs(runtimePaths.logsDirPath, mode);
   } catch (error) {
@@ -319,20 +364,11 @@ export async function __flushLoggerForTests(): Promise<void> {
     await cleanupPromise;
   }
 
-  if (!logStream) {
+  if (!logWriter) {
     return;
   }
 
-  await new Promise<void>((resolve, reject) => {
-    logStream?.write("", (error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-
-      resolve();
-    });
-  });
+  await logWriter.flush();
 }
 
 export function __resetLoggerForTests(): void {

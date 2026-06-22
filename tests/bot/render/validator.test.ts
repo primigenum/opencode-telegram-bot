@@ -1,6 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "#vitest";
 import type { MessageEntity } from "grammy/types";
-import { validateTelegramEntities } from "../../../src/bot/render/validator.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { validateTelegramEntities } = await loadSut<typeof import("#src/bot/render/validator.js")>(
+  "#src/bot/render/validator.ts",
+  import.meta.url,
+);
 
 describe("bot/render/validator", () => {
   it("accepts nested style entities and style-link nesting", () => {

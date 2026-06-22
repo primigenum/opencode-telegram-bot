@@ -1,26 +1,51 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  formatSummary,
-  formatSummaryWithMode,
-} from "../../../src/bot/messages/summary-message-formatter.js";
-import {
-  formatToolInfo,
-  prepareCodeFile,
-} from "../../../src/app/formatters/summary-formatter.js";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
+import { loadSut } from "#helpers/sut-loader.js";
+const { formatSummary, formatSummaryWithMode } = await loadSut<typeof import("#src/bot/messages/summary-message-formatter.js")>(
+  "#src/bot/messages/summary-message-formatter.ts",
+  import.meta.url,
+);
+const { formatToolInfo, prepareCodeFile } = await loadSut<typeof import("#src/app/formatters/summary-formatter.js")>(
+  "#src/app/formatters/summary-formatter.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
-  getCurrentProjectMock: vi.fn(),
+  getCurrentProjectMock: vi.fn(() => ({ id: "p1", worktree: "D:/repo", name: "repo" })),
 }));
 
-vi.mock("../../../src/app/stores/settings-store.js", async () => {
-  const actual = await vi.importActual<typeof import("../../../src/app/stores/settings-store.js")>(
-    "../../../src/app/stores/settings-store.js",
-  );
-
-  return {
-    ...actual,
-    getCurrentProject: mocked.getCurrentProjectMock,
-  };
+vi.mock("#src/app/stores/settings-store.ts", () => {
+  const stubs = [
+    "getCurrentProject",
+    "setCurrentProject",
+    "clearProject",
+    "getCurrentSession",
+    "setCurrentSession",
+    "clearSession",
+    "getTtsMode",
+    "setTtsMode",
+    "getCurrentAgent",
+    "setCurrentAgent",
+    "clearCurrentAgent",
+    "getCurrentModel",
+    "setCurrentModel",
+    "clearCurrentModel",
+    "getPinnedMessageId",
+    "setPinnedMessageId",
+    "clearPinnedMessageId",
+    "getSessionDirectoryCache",
+    "setSessionDirectoryCache",
+    "clearSessionDirectoryCache",
+    "getScheduledTasks",
+    "setScheduledTasks",
+    "getScheduledTaskSessionIgnores",
+    "setScheduledTaskSessionIgnores",
+    "__resetSettingsForTests",
+    "loadSettings",
+  ];
+  const obj: Record<string, unknown> = {};
+  for (const name of stubs) obj[name] = vi.fn();
+  obj.getCurrentProject = mocked.getCurrentProjectMock;
+  return obj;
 });
 
 describe("bot/messages/summary-message-formatter", () => {

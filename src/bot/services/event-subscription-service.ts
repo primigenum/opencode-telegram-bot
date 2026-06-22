@@ -1,5 +1,4 @@
-import { promises as fs } from "fs";
-import * as path from "path";
+import * as path from "bun:path";
 import { fileURLToPath } from "url";
 import { Bot, Context, InputFile } from "grammy";
 import { config } from "../../config.js";
@@ -77,6 +76,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const TEMP_DIR = path.join(__dirname, "..", "..", ".tmp");
 
+async function mkdirAsync(dirPath: string): Promise<void> {
+  const proc = Bun.spawn(["mkdir", "-p", dirPath], { stdout: "ignore", stderr: "ignore" });
+  await proc.exited;
+}
+
 type EventStreamItem = {
   type: string;
   properties: Record<string, unknown>;
@@ -141,8 +145,8 @@ class EventSubscriptionService implements BotEventSubscriptionService {
             `[Bot] Sending code file: ${fileData.filename} (${fileData.buffer.length} bytes, session=${sessionId})`,
           );
 
-          await fs.mkdir(TEMP_DIR, { recursive: true });
-          await fs.writeFile(tempFilePath, fileData.buffer);
+          await mkdirAsync(TEMP_DIR);
+          await Bun.write(tempFilePath, fileData.buffer);
 
           const keyboard = this.getCurrentReplyKeyboard();
 
@@ -156,7 +160,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
             },
           );
         } finally {
-          await fs.unlink(tempFilePath).catch(() => {});
+          await Bun.file(tempFilePath).delete().catch(() => {});
         }
       },
     });

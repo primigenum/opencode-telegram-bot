@@ -1,5 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { getRuntimeMode, resolveRuntimeMode, setRuntimeMode } from "../../src/runtime/mode.js";
+import { afterEach, beforeEach, describe, expect, it } from "#vitest";
+import { loadSut } from "#helpers/sut-loader.js";
+const { getRuntimeMode, resolveRuntimeMode, setRuntimeMode } = await loadSut<typeof import("#src/runtime/mode.js")>(
+  "#src/runtime/mode.ts",
+  import.meta.url,
+);
 
 describe("runtime/mode", () => {
   beforeEach(() => {

@@ -1,19 +1,34 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Bot, Context } from "grammy";
-import { commandsCommand } from "../../../src/bot/commands/command-catalog-command.js";
-import {
-  handleCommandsCallback,
-  type ExecuteCommandDeps,
-} from "../../../src/bot/callbacks/command-catalog-callback-handler.js";
-import { handleCommandTextArguments } from "../../../src/bot/handlers/text-message-handler.js";
-import {
-  calculateCommandsPaginationRange,
-  formatCommandsSelectText,
-  parseCommandPageCallback,
-} from "../../../src/bot/menus/command-catalog-menu.js";
-import { interactionManager } from "../../../src/app/managers/interaction-manager.js";
-import { t } from "../../../src/i18n/index.js";
-import { foregroundSessionState } from "../../../src/app/managers/foreground-session-state-manager.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { commandsCommand } = await loadSut<typeof import("#src/bot/commands/command-catalog-command.js")>(
+  "#src/bot/commands/command-catalog-command.ts",
+  import.meta.url,
+);
+const { handleCommandsCallback, ExecuteCommandDeps } = await loadSut<typeof import("#src/bot/callbacks/command-catalog-callback-handler.js")>(
+  "#src/bot/callbacks/command-catalog-callback-handler.ts",
+  import.meta.url,
+);
+const { handleCommandTextArguments } = await loadSut<typeof import("#src/bot/handlers/text-message-handler.js")>(
+  "#src/bot/handlers/text-message-handler.ts",
+  import.meta.url,
+);
+const { calculateCommandsPaginationRange, formatCommandsSelectText, parseCommandPageCallback } = await loadSut<typeof import("#src/bot/menus/command-catalog-menu.js")>(
+  "#src/bot/menus/command-catalog-menu.ts",
+  import.meta.url,
+);
+const { interactionManager } = await loadSut<typeof import("#src/app/managers/interaction-manager.js")>(
+  "#src/app/managers/interaction-manager.ts",
+  import.meta.url,
+);
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
+const { foregroundSessionState } = await loadSut<typeof import("#src/app/managers/foreground-session-state-manager.js")>(
+  "#src/app/managers/foreground-session-state-manager.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   currentProject: {
@@ -41,11 +56,11 @@ const mocked = vi.hoisted(() => ({
   attachToSessionMock: vi.fn(),
 }));
 
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.ts", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
 }));
 
-vi.mock("../../../src/app/services/session-service.js", () => ({
+vi.mock("#src/app/services/session-service.ts", () => ({
   getCurrentSession: vi.fn(() => mocked.currentSession),
   setCurrentSession: vi.fn((session) => {
     mocked.currentSession = session;
@@ -57,12 +72,12 @@ vi.mock("../../../src/app/services/session-service.js", () => ({
   }),
 }));
 
-vi.mock("../../../src/app/services/session-cache-service.js", () => ({
+vi.mock("#src/app/services/session-cache-service.ts", () => ({
   ingestSessionInfoForCache: mocked.ingestSessionInfoForCacheMock,
   __resetSessionDirectoryCacheForTests: vi.fn(),
 }));
 
-vi.mock("../../../src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.ts", () => ({
   opencodeClient: {
     command: {
       list: mocked.commandListMock,
@@ -75,7 +90,7 @@ vi.mock("../../../src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("../../../src/app/managers/summary-aggregation-manager.js", () => ({
+vi.mock("#src/app/managers/summary-aggregation-manager.ts", () => ({
   summaryAggregator: {
     setSession: mocked.setSessionSummaryMock,
     setBotAndChatId: mocked.setBotAndChatIdMock,
@@ -83,12 +98,12 @@ vi.mock("../../../src/app/managers/summary-aggregation-manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/app/services/agent-selection-service.js", () => ({
+vi.mock("#src/app/services/agent-selection-service.ts", () => ({
   getStoredAgent: vi.fn(() => "build"),
   resolveProjectAgent: vi.fn(async (agentName?: string) => agentName ?? "build"),
 }));
 
-vi.mock("../../../src/app/services/model-selection-service.js", () => ({
+vi.mock("#src/app/services/model-selection-service.ts", () => ({
   getStoredModel: vi.fn(() => ({
     providerID: "openai",
     modelID: "gpt-5",
@@ -96,7 +111,7 @@ vi.mock("../../../src/app/services/model-selection-service.js", () => ({
   })),
 }));
 
-vi.mock("../../../src/utils/safe-background-task.js", () => ({
+vi.mock("#src/utils/safe-background-task.ts", () => ({
   safeBackgroundTask: vi.fn((options) => {
     mocked.safeBackgroundTaskMock(options);
     try {
@@ -120,13 +135,13 @@ vi.mock("../../../src/utils/safe-background-task.js", () => ({
   }),
 }));
 
-vi.mock("../../../src/app/managers/external-input-suppression-manager.js", () => ({
+vi.mock("#src/app/managers/external-input-suppression-manager.ts", () => ({
   externalUserInputSuppressionManager: {
     register: mocked.suppressionRegisterMock,
   },
 }));
 
-vi.mock("../../../src/app/services/attach-service.js", () => ({
+vi.mock("#src/app/services/attach-service.ts", () => ({
   attachToSession: mocked.attachToSessionMock,
   detachAttachedSession: vi.fn(),
   markAttachedSessionBusy: vi.fn().mockResolvedValue(undefined),

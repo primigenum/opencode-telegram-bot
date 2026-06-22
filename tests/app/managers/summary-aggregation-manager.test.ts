@@ -1,21 +1,26 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Event } from "@opencode-ai/sdk/v2";
-import { summaryAggregator } from "../../../src/app/managers/summary-aggregation-manager.js";
+import * as actualSettingsStore from "#src/app/stores/settings-store.js";
+import { mockDep } from "#helpers/mock-dep.js";
+import { loadSut } from "#helpers/sut-loader.js";
 
-const mocked = vi.hoisted(() => ({
+const mocked = {
   getCurrentProjectMock: vi.fn(),
-}));
+};
 
-vi.mock("../../../src/app/stores/settings-store.js", async () => {
-  const actual = await vi.importActual<typeof import("../../../src/app/stores/settings-store.js")>(
-    "../../../src/app/stores/settings-store.js",
-  );
-
-  return {
-    ...actual,
+mockDep(
+  "#src/app/stores/settings-store.ts",
+  () => ({
+    ...actualSettingsStore,
     getCurrentProject: mocked.getCurrentProjectMock,
-  };
-});
+  }),
+  import.meta.url,
+);
+
+const sut = await loadSut<typeof import("#src/app/managers/summary-aggregation-manager.js")>(
+  "#src/app/managers/summary-aggregation-manager.ts",
+  import.meta.url,
+);
 
 describe("summary/aggregator", () => {
   beforeEach(() => {
@@ -38,19 +43,19 @@ describe("summary/aggregator", () => {
 
   it("invokes onCleared callback when aggregator is cleared", () => {
     const onCleared = vi.fn();
-    summaryAggregator.setOnCleared(onCleared);
+    sut.summaryAggregator.setOnCleared(onCleared);
 
-    summaryAggregator.clear();
+    sut.summaryAggregator.clear();
 
     expect(onCleared).toHaveBeenCalledTimes(1);
   });
 
   it("includes sessionId in tool callback payload", () => {
     const onTool = vi.fn();
-    summaryAggregator.setOnTool(onTool);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnTool(onTool);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -62,7 +67,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -174,10 +179,10 @@ describe("summary/aggregator", () => {
 
   it("emits live subagent updates with per-session model, context, cost, and current tool", () => {
     const onSubagent = vi.fn();
-    summaryAggregator.setOnSubagent(onSubagent);
-    summaryAggregator.setSession("root-session");
+    sut.summaryAggregator.setOnSubagent(onSubagent);
+    sut.summaryAggregator.setSession("root-session");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -193,7 +198,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -218,7 +223,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "session.created",
       properties: {
         info: {
@@ -234,7 +239,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -259,7 +264,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -313,10 +318,10 @@ describe("summary/aggregator", () => {
 
   it("attaches unknown child session events to pending subagent cards before session.created", () => {
     const onSubagent = vi.fn();
-    summaryAggregator.setOnSubagent(onSubagent);
-    summaryAggregator.setSession("root-session");
+    sut.summaryAggregator.setOnSubagent(onSubagent);
+    sut.summaryAggregator.setSession("root-session");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -331,7 +336,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -364,8 +369,8 @@ describe("summary/aggregator", () => {
 
   it("tracks multiple parallel subagents independently", () => {
     const onSubagent = vi.fn();
-    summaryAggregator.setOnSubagent(onSubagent);
-    summaryAggregator.setSession("root-session");
+    sut.summaryAggregator.setOnSubagent(onSubagent);
+    sut.summaryAggregator.setSession("root-session");
 
     const subtasks = [
       { id: "subtask-1", agent: "explore", description: "first task", child: "child-1" },
@@ -373,7 +378,7 @@ describe("summary/aggregator", () => {
     ];
 
     for (const item of subtasks) {
-      summaryAggregator.processEvent({
+      sut.summaryAggregator.processEvent({
         type: "message.part.updated",
         properties: {
           part: {
@@ -388,7 +393,7 @@ describe("summary/aggregator", () => {
         },
       } as unknown as Event);
 
-      summaryAggregator.processEvent({
+      sut.summaryAggregator.processEvent({
         type: "session.created",
         properties: {
           info: {
@@ -404,7 +409,7 @@ describe("summary/aggregator", () => {
         },
       } as unknown as Event);
 
-      summaryAggregator.processEvent({
+      sut.summaryAggregator.processEvent({
         type: "message.part.updated",
         properties: {
           part: {
@@ -443,10 +448,10 @@ describe("summary/aggregator", () => {
 
   it("keeps subagent cards and updates terminal status for child sessions", () => {
     const onSubagent = vi.fn();
-    summaryAggregator.setOnSubagent(onSubagent);
-    summaryAggregator.setSession("root-session");
+    sut.summaryAggregator.setOnSubagent(onSubagent);
+    sut.summaryAggregator.setSession("root-session");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -461,7 +466,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "session.created",
       properties: {
         info: {
@@ -477,14 +482,14 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "session.idle",
       properties: {
         sessionID: "child-done",
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -499,7 +504,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "session.created",
       properties: {
         info: {
@@ -515,7 +520,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "session.error",
       properties: {
         sessionID: "child-error",
@@ -537,10 +542,10 @@ describe("summary/aggregator", () => {
 
   it("does not re-emit completed subagent cards for unchanged late child session updates", () => {
     const onSubagent = vi.fn();
-    summaryAggregator.setOnSubagent(onSubagent);
-    summaryAggregator.setSession("root-session");
+    sut.summaryAggregator.setOnSubagent(onSubagent);
+    sut.summaryAggregator.setSession("root-session");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -555,7 +560,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "session.created",
       properties: {
         info: {
@@ -571,7 +576,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "session.idle",
       properties: {
         sessionID: "child-done",
@@ -583,7 +588,7 @@ describe("summary/aggregator", () => {
     ]);
     const callsAfterIdle = onSubagent.mock.calls.length;
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "session.updated",
       properties: {
         info: {
@@ -605,11 +610,11 @@ describe("summary/aggregator", () => {
   it("marks write tool without file attachment when payload is oversized", () => {
     const onTool = vi.fn();
     const onToolFile = vi.fn();
-    summaryAggregator.setOnTool(onTool);
-    summaryAggregator.setOnToolFile(onToolFile);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnTool(onTool);
+    sut.summaryAggregator.setOnToolFile(onToolFile);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -621,7 +626,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -655,10 +660,10 @@ describe("summary/aggregator", () => {
 
   it("passes reasoning sections to thinking callback when reasoning part arrives", async () => {
     const onThinking = vi.fn();
-    summaryAggregator.setOnThinking(onThinking);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnThinking(onThinking);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -670,7 +675,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -899,11 +904,11 @@ describe("summary/aggregator", () => {
     const onPartial = vi.fn();
     const onComplete = vi.fn();
 
-    summaryAggregator.setOnPartial(onPartial);
-    summaryAggregator.setOnComplete(onComplete);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnPartial(onPartial);
+    sut.summaryAggregator.setOnComplete(onComplete);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -915,7 +920,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -929,7 +934,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -952,10 +957,10 @@ describe("summary/aggregator", () => {
 
   it("emits completed external user input for the current session", async () => {
     const onExternalUserInput = vi.fn();
-    summaryAggregator.setOnExternalUserInput(onExternalUserInput);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnExternalUserInput(onExternalUserInput);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -969,7 +974,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -992,10 +997,10 @@ describe("summary/aggregator", () => {
 
   it("ignores external user input from a different session", async () => {
     const onExternalUserInput = vi.fn();
-    summaryAggregator.setOnExternalUserInput(onExternalUserInput);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnExternalUserInput(onExternalUserInput);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -1009,7 +1014,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -1028,10 +1033,10 @@ describe("summary/aggregator", () => {
 
   it("does not emit whitespace-only external user input", async () => {
     const onExternalUserInput = vi.fn();
-    summaryAggregator.setOnExternalUserInput(onExternalUserInput);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnExternalUserInput(onExternalUserInput);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -1045,7 +1050,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -1066,11 +1071,11 @@ describe("summary/aggregator", () => {
     const onPartial = vi.fn();
     const onComplete = vi.fn();
 
-    summaryAggregator.setOnPartial(onPartial);
-    summaryAggregator.setOnComplete(onComplete);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnPartial(onPartial);
+    sut.summaryAggregator.setOnComplete(onComplete);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -1082,7 +1087,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -1096,7 +1101,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -1110,7 +1115,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -1133,10 +1138,10 @@ describe("summary/aggregator", () => {
 
   it("starts optimistic partial streaming after second unknown text update", () => {
     const onPartial = vi.fn();
-    summaryAggregator.setOnPartial(onPartial);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnPartial(onPartial);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -1150,7 +1155,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -1170,10 +1175,10 @@ describe("summary/aggregator", () => {
 
   it("does not stream unknown text when only one update arrived", () => {
     const onPartial = vi.fn();
-    summaryAggregator.setOnPartial(onPartial);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnPartial(onPartial);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -1193,11 +1198,11 @@ describe("summary/aggregator", () => {
   it("does not emit partial when pending text is attached on completed message", () => {
     const onPartial = vi.fn();
     const onComplete = vi.fn();
-    summaryAggregator.setOnPartial(onPartial);
-    summaryAggregator.setOnComplete(onComplete);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnPartial(onPartial);
+    sut.summaryAggregator.setOnComplete(onComplete);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -1211,7 +1216,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -1234,10 +1239,10 @@ describe("summary/aggregator", () => {
 
   it("reports root session.idle through callback", async () => {
     const onSessionIdle = vi.fn();
-    summaryAggregator.setOnSessionIdle(onSessionIdle);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnSessionIdle(onSessionIdle);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "session.idle",
       properties: {
         sessionID: "session-1",
@@ -1251,10 +1256,10 @@ describe("summary/aggregator", () => {
 
   it("passes assistant metadata to onComplete", () => {
     const onComplete = vi.fn();
-    summaryAggregator.setOnComplete(onComplete);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnComplete(onComplete);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -1269,7 +1274,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -1283,7 +1288,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -1314,10 +1319,10 @@ describe("summary/aggregator", () => {
 
   it("streams text from message.part.delta events", () => {
     const onPartial = vi.fn();
-    summaryAggregator.setOnPartial(onPartial);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnPartial(onPartial);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.delta",
       properties: {
         part: {
@@ -1330,7 +1335,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.delta",
       properties: {
         part: {
@@ -1349,10 +1354,10 @@ describe("summary/aggregator", () => {
 
   it("streams delta events even when part type is omitted", () => {
     const onPartial = vi.fn();
-    summaryAggregator.setOnPartial(onPartial);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnPartial(onPartial);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.delta",
       properties: {
         part: {
@@ -1369,10 +1374,10 @@ describe("summary/aggregator", () => {
 
   it("does not stream unknown delta part after reasoning started", () => {
     const onPartial = vi.fn();
-    summaryAggregator.setOnPartial(onPartial);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnPartial(onPartial);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -1386,7 +1391,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.delta",
       properties: {
         part: {
@@ -1403,11 +1408,11 @@ describe("summary/aggregator", () => {
 
   it("does not send thinking callback when no reasoning part arrives", async () => {
     const onThinking = vi.fn();
-    summaryAggregator.setOnThinking(onThinking);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnThinking(onThinking);
+    sut.summaryAggregator.setSession("session-1");
 
     // Only a message.updated event without any reasoning part — should NOT trigger thinking
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -1419,7 +1424,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -1440,10 +1445,10 @@ describe("summary/aggregator", () => {
 
   it("streams all reasoning parts and marks only the first thinking update", async () => {
     const onThinking = vi.fn();
-    summaryAggregator.setOnThinking(onThinking);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnThinking(onThinking);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -1456,7 +1461,7 @@ describe("summary/aggregator", () => {
     } as unknown as Event);
 
     for (let i = 0; i < 3; i++) {
-      summaryAggregator.processEvent({
+      sut.summaryAggregator.processEvent({
         type: "message.part.updated",
         properties: {
           part: {
@@ -1498,10 +1503,10 @@ describe("summary/aggregator", () => {
 
   it("reports session.error message through callback", async () => {
     const onSessionError = vi.fn();
-    summaryAggregator.setOnSessionError(onSessionError);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnSessionError(onSessionError);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "session.error",
       properties: {
         sessionID: "session-1",
@@ -1521,10 +1526,10 @@ describe("summary/aggregator", () => {
 
   it("reports session.status retry through callback", async () => {
     const onSessionRetry = vi.fn();
-    summaryAggregator.setOnSessionRetry(onSessionRetry);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnSessionRetry(onSessionRetry);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "session.status",
       properties: {
         sessionID: "session-1",
@@ -1549,10 +1554,10 @@ describe("summary/aggregator", () => {
 
   it("sends apply_patch payload as tool file", () => {
     const onToolFile = vi.fn();
-    summaryAggregator.setOnToolFile(onToolFile);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnToolFile(onToolFile);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -1564,7 +1569,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -1621,10 +1626,10 @@ describe("summary/aggregator", () => {
 
   it("sends apply_patch file using title and patchText fallback", () => {
     const onToolFile = vi.fn();
-    summaryAggregator.setOnToolFile(onToolFile);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnToolFile(onToolFile);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -1636,7 +1641,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -1681,11 +1686,11 @@ describe("summary/aggregator", () => {
 
   it("fires onTokens with isCompleted=true when message has completed timestamp", () => {
     const onTokens = vi.fn();
-    summaryAggregator.setOnTokens(onTokens);
-    summaryAggregator.setOnComplete(() => {});
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnTokens(onTokens);
+    sut.summaryAggregator.setOnComplete(() => {});
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -1697,7 +1702,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -1711,7 +1716,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -1734,10 +1739,10 @@ describe("summary/aggregator", () => {
 
   it("fires onTokens with isCompleted=false for non-completed message with tokens", () => {
     const onTokens = vi.fn();
-    summaryAggregator.setOnTokens(onTokens);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnTokens(onTokens);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -1759,11 +1764,11 @@ describe("summary/aggregator", () => {
 
   it("fires onTokens for non-completed message with non-zero tokens (intermediate update)", () => {
     const onTokens = vi.fn();
-    summaryAggregator.setOnTokens(onTokens);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnTokens(onTokens);
+    sut.summaryAggregator.setSession("session-1");
 
     // First message with zero tokens (new message starting)
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -1786,7 +1791,7 @@ describe("summary/aggregator", () => {
     onTokens.mockClear();
 
     // Later update with real tokens
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -1808,10 +1813,10 @@ describe("summary/aggregator", () => {
 
   it("does not fire onTokens when message.updated has no tokens field", () => {
     const onTokens = vi.fn();
-    summaryAggregator.setOnTokens(onTokens);
-    summaryAggregator.setSession("session-1");
+    sut.summaryAggregator.setOnTokens(onTokens);
+    sut.summaryAggregator.setSession("session-1");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.updated",
       properties: {
         info: {
@@ -1828,11 +1833,11 @@ describe("summary/aggregator", () => {
 
   it("forwards permission.asked events from tracked subagent (child) sessions", async () => {
     const onPermission = vi.fn();
-    summaryAggregator.setOnPermission(onPermission);
-    summaryAggregator.setSession("root-session");
+    sut.summaryAggregator.setOnPermission(onPermission);
+    sut.summaryAggregator.setSession("root-session");
 
     // Register a tracked child session via the task tool flow.
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "message.part.updated",
       properties: {
         part: {
@@ -1847,7 +1852,7 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "session.created",
       properties: {
         info: {
@@ -1864,7 +1869,7 @@ describe("summary/aggregator", () => {
     } as unknown as Event);
 
     // permission.asked from the child (subagent) session must reach the callback.
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "permission.asked",
       properties: {
         id: "req-child-1",
@@ -1886,15 +1891,15 @@ describe("summary/aggregator", () => {
         permission: "write",
       }),
     );
-    expect(summaryAggregator.isSubagentSession("child-session-1")).toBe(true);
+    expect(sut.summaryAggregator.isSubagentSession("child-session-1")).toBe(true);
   });
 
   it("ignores permission.asked events from unrelated sessions", async () => {
     const onPermission = vi.fn();
-    summaryAggregator.setOnPermission(onPermission);
-    summaryAggregator.setSession("root-session");
+    sut.summaryAggregator.setOnPermission(onPermission);
+    sut.summaryAggregator.setSession("root-session");
 
-    summaryAggregator.processEvent({
+    sut.summaryAggregator.processEvent({
       type: "permission.asked",
       properties: {
         id: "req-other",
@@ -1909,6 +1914,6 @@ describe("summary/aggregator", () => {
     await new Promise((resolve) => setImmediate(resolve));
 
     expect(onPermission).not.toHaveBeenCalled();
-    expect(summaryAggregator.isSubagentSession("some-other-session")).toBe(false);
+    expect(sut.summaryAggregator.isSubagentSession("some-other-session")).toBe(false);
   });
 });

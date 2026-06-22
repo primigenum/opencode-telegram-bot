@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
-import {
-  createAgentKeyboard,
-  createMainKeyboard,
-  removeKeyboard,
-} from "../../../src/bot/keyboards/main-reply-keyboard.js";
+import { describe, expect, it } from "#vitest";
+import { loadSut } from "#helpers/sut-loader.js";
+const { createAgentKeyboard, createMainKeyboard, removeKeyboard } = await loadSut<typeof import("#src/bot/keyboards/main-reply-keyboard.js")>(
+  "#src/bot/keyboards/main-reply-keyboard.ts",
+  import.meta.url,
+);
 
 function getButtonText(button: string | { text: string }): string {
   return typeof button === "string" ? button : button.text;

@@ -1,15 +1,26 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Bot, Context } from "grammy";
-import {
-  attachToSession,
-  configureAttachPresentation,
-  detachAttachedSession,
-  restoreAttachedCurrentSession,
-} from "../../../src/app/services/attach-service.js";
-import { attachManager } from "../../../src/app/managers/attach-manager.js";
-import { questionManager } from "../../../src/app/managers/question-manager.js";
-import { permissionManager } from "../../../src/app/managers/permission-manager.js";
-import { createAttachPresentation } from "../../../src/bot/services/attach-presentation.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { attachToSession, configureAttachPresentation, detachAttachedSession, restoreAttachedCurrentSession } = await loadSut<typeof import("#src/app/services/attach-service.js")>(
+  "#src/app/services/attach-service.ts",
+  import.meta.url,
+);
+const { attachManager } = await loadSut<typeof import("#src/app/managers/attach-manager.js")>(
+  "#src/app/managers/attach-manager.ts",
+  import.meta.url,
+);
+const { questionManager } = await loadSut<typeof import("#src/app/managers/question-manager.js")>(
+  "#src/app/managers/question-manager.ts",
+  import.meta.url,
+);
+const { permissionManager } = await loadSut<typeof import("#src/app/managers/permission-manager.js")>(
+  "#src/app/managers/permission-manager.ts",
+  import.meta.url,
+);
+const { createAttachPresentation } = await loadSut<typeof import("#src/bot/services/attach-presentation.js")>(
+  "#src/bot/services/attach-presentation.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   currentProject: {
@@ -43,15 +54,15 @@ const mocked = vi.hoisted(() => ({
   stopEventListeningMock: vi.fn(),
 }));
 
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.ts", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
 }));
 
-vi.mock("../../../src/app/services/session-service.js", () => ({
+vi.mock("#src/app/services/session-service.ts", () => ({
   getCurrentSession: vi.fn(() => mocked.currentSession),
 }));
 
-vi.mock("../../../src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.ts", () => ({
   opencodeClient: {
     global: {
       health: mocked.healthMock,
@@ -68,11 +79,11 @@ vi.mock("../../../src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("../../../src/opencode/events.js", () => ({
+vi.mock("#src/opencode/events.ts", () => ({
   stopEventListening: mocked.stopEventListeningMock,
 }));
 
-vi.mock("../../../src/app/managers/summary-aggregation-manager.js", () => ({
+vi.mock("#src/app/managers/summary-aggregation-manager.ts", () => ({
   summaryAggregator: {
     setSession: mocked.setSessionSummaryMock,
     setBotAndChatId: mocked.setBotAndChatIdMock,
@@ -80,7 +91,7 @@ vi.mock("../../../src/app/managers/summary-aggregation-manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/bot/pinned/pinned-message-manager.js", () => ({
+vi.mock("#src/bot/pinned/pinned-message-manager.ts", () => ({
   pinnedMessageManager: {
     isInitialized: mocked.pinnedIsInitializedMock,
     initialize: mocked.pinnedInitializeMock,
@@ -93,18 +104,18 @@ vi.mock("../../../src/bot/pinned/pinned-message-manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/bot/keyboards/keyboard-manager.js", () => ({
+vi.mock("#src/bot/keyboards/keyboard-manager.ts", () => ({
   keyboardManager: {
     initialize: mocked.keyboardInitializeMock,
     updateContext: mocked.keyboardUpdateContextMock,
   },
 }));
 
-vi.mock("../../../src/bot/menus/question-menu.js", () => ({
+vi.mock("#src/bot/menus/question-menu.ts", () => ({
   showCurrentQuestion: mocked.showCurrentQuestionMock,
 }));
 
-vi.mock("../../../src/bot/menus/permission-menu.js", () => ({
+vi.mock("#src/bot/menus/permission-menu.ts", () => ({
   showPermissionRequest: mocked.showPermissionRequestMock,
 }));
 

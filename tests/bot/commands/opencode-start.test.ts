@@ -1,7 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
 import type { ChildProcess } from "node:child_process";
 import type { Context } from "grammy";
-import { t } from "../../../src/i18n/index.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   healthMock: vi.fn(),
@@ -20,11 +24,11 @@ const mocked = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../../../src/config.js", () => ({
+vi.mock("#src/config.ts", () => ({
   config: mocked.config,
 }));
 
-vi.mock("../../../src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.ts", () => ({
   opencodeClient: {
     global: {
       health: mocked.healthMock,
@@ -32,22 +36,22 @@ vi.mock("../../../src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("../../../src/opencode/process.js", () => ({
+vi.mock("#src/opencode/process.ts", () => ({
   resolveLocalOpencodeTarget: mocked.resolveLocalOpencodeTargetMock,
   startLocalOpencodeServer: mocked.startLocalOpencodeServerMock,
 }));
 
-vi.mock("../../../src/bot/messages/telegram-text.js", () => ({
+vi.mock("#src/bot/messages/telegram-text.ts", () => ({
   editBotText: mocked.editBotTextMock,
 }));
 
-vi.mock("../../../src/opencode/ready-lifecycle.js", () => ({
+vi.mock("#src/opencode/ready-lifecycle.ts", () => ({
   opencodeReadyLifecycle: {
     notifyReady: mocked.notifyReadyMock,
   },
 }));
 
-vi.mock("../../../src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.ts", () => ({
   logger: {
     debug: mocked.loggerDebugMock,
     info: mocked.loggerInfoMock,
@@ -56,7 +60,10 @@ vi.mock("../../../src/utils/logger.js", () => ({
   },
 }));
 
-import { opencodeStartCommand } from "../../../src/bot/commands/opencode-start-command.js";
+const { opencodeStartCommand } = await loadSut<typeof import("#src/bot/commands/opencode-start-command.js")>(
+  "#src/bot/commands/opencode-start-command.ts",
+  import.meta.url,
+);
 
 function createContext(): Context {
   return {
@@ -163,16 +170,30 @@ describe("bot/commands/opencode-start-command", () => {
   });
 
   it("reports started_not_ready when the server does not answer in time", async () => {
-    vi.useFakeTimers();
-
     const ctx = createContext();
     const childProcess = createChildProcess(321);
     mocked.startLocalOpencodeServerMock.mockReturnValue(childProcess);
+    // Health check always fails — the command eventually times out internally.
     mocked.healthMock.mockRejectedValue(new Error("offline"));
 
-    const commandPromise = opencodeStartCommand(ctx as never);
-    await vi.advanceTimersByTimeAsync(10_500);
-    await commandPromise;
+    // Override setTimeout + Date.now to simulate time passing without
+    // actually waiting: fire every timeout callback on the next tick,
+    // and advance a fake clock by the requested ms.
+    const origSetTimeout = globalThis.setTimeout;
+    const origDateNow = Date.now;
+    let fakeTime = 0;
+    Date.now = () => fakeTime;
+    globalThis.setTimeout = ((cb: (...args: unknown[]) => void, ms?: number, ...args: unknown[]) => {
+      if ((ms ?? 0) > 0) {
+        fakeTime += ms!;
+      }
+      return origSetTimeout(cb, 0, ...args);
+    }) as typeof globalThis.setTimeout;
+
+    await opencodeStartCommand(ctx as never);
+
+    globalThis.setTimeout = origSetTimeout;
+    Date.now = origDateNow;
 
     expect(mocked.editBotTextMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -183,16 +204,28 @@ describe("bot/commands/opencode-start-command", () => {
   });
 
   it("does not hang indefinitely when health checks never resolve", async () => {
-    vi.useFakeTimers();
-
     const ctx = createContext();
     const childProcess = createChildProcess(456);
     mocked.startLocalOpencodeServerMock.mockReturnValue(childProcess);
+    // Health check never resolves (stays pending forever).
     mocked.healthMock.mockReturnValue(new Promise(() => {}));
 
-    const commandPromise = opencodeStartCommand(ctx as never);
-    await vi.advanceTimersByTimeAsync(20_000);
-    await commandPromise;
+    // Same override: fire setTimeout on next tick, advance fake clock.
+    const origSetTimeout = globalThis.setTimeout;
+    const origDateNow = Date.now;
+    let fakeTime = 0;
+    Date.now = () => fakeTime;
+    globalThis.setTimeout = ((cb: (...args: unknown[]) => void, ms?: number, ...args: unknown[]) => {
+      if ((ms ?? 0) > 0) {
+        fakeTime += ms!;
+      }
+      return origSetTimeout(cb, 0, ...args);
+    }) as typeof globalThis.setTimeout;
+
+    await opencodeStartCommand(ctx as never);
+
+    globalThis.setTimeout = origSetTimeout;
+    Date.now = origDateNow;
 
     expect(mocked.startLocalOpencodeServerMock).toHaveBeenCalledWith({
       host: "localhost",

@@ -1,5 +1,4 @@
-import { readFile, stat } from "node:fs/promises";
-import path from "node:path";
+import path from "bun:path";
 import { opencodeClient } from "../../opencode/client.js";
 import { getCachedSessionProjects } from "./session-cache-service.js";
 import { logger } from "../../utils/logger.js";
@@ -82,13 +81,13 @@ async function isLinkedGitWorktree(worktree: string): Promise<boolean> {
   const gitPath = path.join(worktree, ".git");
 
   try {
-    const gitStat = await stat(gitPath);
+    const gitStat = await Bun.file(gitPath).stat();
 
     if (!gitStat.isFile()) {
       return false;
     }
 
-    const gitPointer = (await readFile(gitPath, "utf-8")).trim();
+    const gitPointer = (await Bun.file(gitPath).text()).trim();
     const match = gitPointer.match(/^gitdir:\s*(.+)$/i);
     if (!match) {
       return false;

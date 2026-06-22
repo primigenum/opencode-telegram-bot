@@ -1,7 +1,4 @@
-import { promises as fs } from "node:fs";
-import { realpath } from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
+import path from "bun:path";
 import { t } from "../../i18n/index.js";
 import { getCurrentProject } from "../stores/settings-store.js";
 import { logger } from "../../utils/logger.js";
@@ -53,7 +50,7 @@ export const MAX_ENTRIES_PER_PAGE = 8;
 let resolvedRoots: string[] | null = null;
 
 export function getHomeDirectory(): string {
-  return os.homedir();
+  return process.env.HOME ?? process.env.USERPROFILE ?? "";
 }
 
 export function pathToDisplayPath(absolutePath: string): string {
@@ -69,22 +66,45 @@ export function pathToDisplayPath(absolutePath: string): string {
   return absolutePath;
 }
 
+interface DirEntryRaw {
+  name: string;
+  isDirectory: boolean;
+}
+
+async function readDirEntriesWithTypes(dirPath: string): Promise<DirEntryRaw[]> {
+  const glob = new Bun.Glob("*");
+  const names: string[] = [];
+  for await (const name of glob.scan({ cwd: dirPath, onlyFiles: false, dot: false })) {
+    names.push(name);
+  }
+
+  const entries = await Promise.all(
+    names.map(async (name) => {
+      const filePath = path.join(dirPath, name);
+      try {
+        const stat = await Bun.file(filePath).stat();
+        return { name, isDirectory: stat.isDirectory() };
+      } catch {
+        return { name, isDirectory: false };
+      }
+    }),
+  );
+
+  return entries;
+}
+
 export async function scanDirectory(
   dirPath: string,
   page: number = 0,
 ): Promise<DirectoryScanResult | DirectoryScanError> {
   try {
-    const entries = await fs.readdir(dirPath, { withFileTypes: true });
-    const subdirs: DirectoryEntry[] = [];
-
-    for (const entry of entries) {
-      if (entry.isDirectory() && !entry.name.startsWith(".")) {
-        subdirs.push({
-          name: entry.name,
-          fullPath: path.join(dirPath, entry.name),
-        });
-      }
-    }
+    const entries = await readDirEntriesWithTypes(dirPath);
+    const subdirs: DirectoryEntry[] = entries
+      .filter((entry) => entry.isDirectory)
+      .map((entry) => ({
+        name: entry.name,
+        fullPath: path.join(dirPath, entry.name),
+      }));
 
     subdirs.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
 
@@ -159,11 +179,12 @@ function isWindows(): boolean {
 }
 
 function expandTilde(p: string): string {
+  const home = getHomeDirectory();
   if (p === "~") {
-    return os.homedir();
+    return home;
   }
   if (p.startsWith("~/") || p.startsWith("~\\")) {
-    return path.join(os.homedir(), p.slice(2));
+    return path.join(home, p.slice(2));
   }
   return p;
 }
@@ -178,11 +199,10 @@ function normalizePath(p: string): string {
 }
 
 export function initBrowserRoots(raw?: string): void {
+  const home = resolveConfiguredPath(getHomeDirectory());
   if (!raw || raw.trim() === "") {
-    resolvedRoots = [resolveConfiguredPath(os.homedir())];
-    logger.debug(
-      `[BrowserRoots] No OPEN_BROWSER_ROOTS configured, defaulting to home: ${resolvedRoots[0]}`,
-    );
+    resolvedRoots = [home];
+    logger.debug(`[BrowserRoots] No OPEN_BROWSER_ROOTS configured, defaulting to home: ${home}`);
     return;
   }
 
@@ -193,7 +213,7 @@ export function initBrowserRoots(raw?: string): void {
 
   const roots = entries.map((entry) => resolveConfiguredPath(entry));
   if (roots.length === 0) {
-    resolvedRoots = [resolveConfiguredPath(os.homedir())];
+    resolvedRoots = [home];
     logger.warn("[BrowserRoots] All configured roots were invalid, falling back to home directory");
   } else {
     resolvedRoots = roots;
@@ -236,9 +256,13 @@ export function isWithinAllowedRoot(targetPath: string): boolean {
 export async function isWithinAllowedRootSafe(targetPath: string): Promise<boolean> {
   let resolved = targetPath;
   try {
-    resolved = await realpath(targetPath);
+    const proc = Bun.spawn(["realpath", targetPath], { stdout: "pipe", stderr: "pipe" });
+    const exitCode = await proc.exited;
+    if (exitCode === 0) {
+      resolved = (await proc.stdout.text()).trim();
+    }
   } catch {
-    // Path doesn't exist yet or can't be resolved; use the original value.
+    // realpath unavailable; fall through with the original value.
   }
   return isWithinAllowedRoot(resolved);
 }
@@ -309,12 +333,12 @@ export async function scanLsDirectory(
       return { error: t("ls.access_denied") };
     }
 
-    const dirEntries = await fs.readdir(dirPath, { withFileTypes: true });
+    const dirEntries = await readDirEntriesWithTypes(dirPath);
     const entries: LsEntry[] = dirEntries
       .map((entry): LsEntry => ({
         name: entry.name,
         fullPath: joinPath(dirPath, entry.name),
-        type: entry.isDirectory() ? "directory" : "file",
+        type: entry.isDirectory ? "directory" : "file",
       }))
       .sort((left, right) => {
         if (left.type !== right.type) {
@@ -349,7 +373,7 @@ export async function getFileDetails(filePath: string): Promise<FileDetails | { 
       return { error: t("ls.access_denied") };
     }
 
-    const stat = await fs.stat(filePath);
+    const stat = await Bun.file(filePath).stat();
     if (!stat.isFile()) {
       return { error: t("commands.download.not_file") };
     }

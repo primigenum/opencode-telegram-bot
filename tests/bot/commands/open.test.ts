@@ -1,6 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "#vitest";
 import type { Context } from "grammy";
-import { t } from "../../../src/i18n/index.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   scanDirectoryMock: vi.fn(),
@@ -32,7 +36,7 @@ const mocked = vi.hoisted(() => ({
   interactionStartMock: vi.fn(),
 }));
 
-vi.mock("../../../src/app/services/file-browser-service.js", () => ({
+vi.mock("#src/app/services/file-browser-service.ts", () => ({
   pathToDisplayPath: mocked.pathToDisplayPathMock,
   scanDirectory: mocked.scanDirectoryMock,
   buildEntryLabel: mocked.buildEntryLabelMock,
@@ -42,14 +46,31 @@ vi.mock("../../../src/app/services/file-browser-service.js", () => ({
   getBrowserRoots: mocked.getBrowserRootsMock,
   isWithinAllowedRoot: mocked.isWithinAllowedRootMock,
   isAllowedRoot: mocked.isAllowedRootMock,
+  scanLsDirectory: vi.fn(),
+  getFileDetails: vi.fn(),
+  getHomeDirectory: vi.fn(),
+  joinPath: vi.fn(),
+  getBaseName: vi.fn(),
+  getParentPath: vi.fn(),
+  isWithinAllowedRootSafe: vi.fn(),
+  initBrowserRoots: vi.fn(),
+  getBrowserRootPaths: vi.fn(),
+  __resetBrowserRootsForTests: vi.fn(),
+  isPathWithinDirectory: vi.fn(),
+  getProjectRoot: vi.fn(),
+  isWithinProjectRoot: vi.fn(),
+  isProjectRoot: vi.fn(),
 }));
 
-vi.mock("../../../src/bot/menus/inline-menu.js", () => ({
+vi.mock("#src/bot/menus/inline-menu.ts", () => ({
   appendInlineMenuCancelButton: vi.fn((kb: unknown) => kb),
   ensureActiveInlineMenu: mocked.ensureActiveInlineMenuMock,
+  clearActiveInlineMenu: vi.fn(),
+  replyWithInlineMenu: vi.fn(),
+  isInlineMenuKind: vi.fn(() => false),
 }));
 
-vi.mock("../../../src/app/managers/interaction-manager.js", () => ({
+vi.mock("#src/app/managers/interaction-manager.ts", () => ({
   interactionManager: {
     start: mocked.interactionStartMock,
     getSnapshot: vi.fn(() => null),
@@ -57,35 +78,44 @@ vi.mock("../../../src/app/managers/interaction-manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/app/services/run-control-service.js", () => ({
+vi.mock("#src/app/services/run-control-service.ts", () => ({
   isForegroundBusy: mocked.isForegroundBusyMock,
 }));
 
-vi.mock("../../../src/bot/messages/busy-blocked-renderer.js", () => ({
+vi.mock("#src/bot/messages/busy-blocked-renderer.ts", () => ({
   replyBusyBlocked: mocked.replyBusyBlockedMock,
 }));
 
-vi.mock("../../../src/app/services/session-cache-service.js", () => ({
+vi.mock("#src/app/services/session-cache-service.ts", () => ({
   upsertSessionDirectory: mocked.upsertSessionDirectoryMock,
   __resetSessionDirectoryCacheForTests: vi.fn(),
   syncSessionDirectoryCache: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("../../../src/app/services/project-service.js", () => ({
+vi.mock("#src/app/services/project-service.ts", () => ({
   getProjectByWorktree: mocked.getProjectByWorktreeMock,
 }));
 
-vi.mock("../../../src/app/services/project-switch-service.js", () => ({
+vi.mock("#src/app/services/project-switch-service.ts", () => ({
   switchToProject: mocked.switchToProjectMock,
 }));
 
-vi.mock("../../../src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.ts", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-import { openCommand } from "../../../src/bot/commands/open-command.js";
-import { handleOpenCallback } from "../../../src/bot/callbacks/file-browser-callback-handler.js";
-import { clearOpenPathIndex } from "../../../src/bot/menus/file-browser-menu.js";
+const { openCommand } = await loadSut<typeof import("#src/bot/commands/open-command.js")>(
+  "#src/bot/commands/open-command.ts",
+  import.meta.url,
+);
+const { handleOpenCallback } = await loadSut<typeof import("#src/bot/callbacks/file-browser-callback-handler.js")>(
+  "#src/bot/callbacks/file-browser-callback-handler.ts",
+  import.meta.url,
+);
+const { clearOpenPathIndex } = await loadSut<typeof import("#src/bot/menus/file-browser-menu.js")>(
+  "#src/bot/menus/file-browser-menu.ts",
+  import.meta.url,
+);
 
 // --- Context factories ---
 

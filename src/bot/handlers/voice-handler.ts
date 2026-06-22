@@ -1,10 +1,5 @@
-import http from "node:http";
-import https from "node:https";
-import { URL } from "node:url";
 import type { Context } from "grammy";
 import type { FilePartInput } from "@opencode-ai/sdk/v2";
-import { HttpsProxyAgent } from "https-proxy-agent";
-import { SocksProxyAgent } from "socks-proxy-agent";
 import { config } from "../../config.js";
 import { getTtsMode } from "../../app/stores/settings-store.js";
 import {
@@ -18,86 +13,66 @@ import { t } from "../../i18n/index.js";
 import { buildTelegramFileUrl } from "../../app/services/file-download-service.js";
 
 const TELEGRAM_DOWNLOAD_TIMEOUT_MS = 30_000;
-const TELEGRAM_DOWNLOAD_MAX_REDIRECTS = 3;
 
-let telegramDownloadAgent: https.RequestOptions["agent"] | null | undefined;
+let cachedProxyUrl: string | null | undefined;
 
-function getTelegramDownloadAgent(): https.RequestOptions["agent"] | undefined {
-  if (telegramDownloadAgent !== undefined) {
-    return telegramDownloadAgent || undefined;
+function getTelegramDownloadProxy(): string | undefined {
+  if (cachedProxyUrl !== undefined) {
+    return cachedProxyUrl ?? undefined;
   }
 
   const proxyUrl = config.telegram.proxyUrl.trim();
   if (!proxyUrl) {
-    telegramDownloadAgent = null;
+    cachedProxyUrl = null;
     return undefined;
   }
 
-  telegramDownloadAgent = proxyUrl.startsWith("socks")
-    ? new SocksProxyAgent(proxyUrl)
-    : new HttpsProxyAgent(proxyUrl);
+  if (proxyUrl.startsWith("socks")) {
+    logger.warn(
+      "[Voice] SOCKS proxies are not supported by Bun's fetch. Falling back to a direct connection.",
+    );
+    cachedProxyUrl = null;
+    return undefined;
+  }
 
+  cachedProxyUrl = proxyUrl;
   logger.info(`[Voice] Using Telegram download proxy: ${proxyUrl.replace(/\/\/.*@/, "//***@")}`);
-  return telegramDownloadAgent;
+  return proxyUrl;
 }
 
-async function downloadTelegramFileByUrl(url: string, redirectDepth: number = 0): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const targetUrl = new URL(url);
-    const requestModule = targetUrl.protocol === "http:" ? http : https;
+async function downloadTelegramFileByUrl(url: string): Promise<Buffer> {
+  const proxyUrl = getTelegramDownloadProxy();
+  const proxySecret = config.telegram.proxySecret;
+  const headers: Record<string, string> = {};
+  if (proxySecret) {
+    headers["X-Proxy-Secret"] = proxySecret;
+  }
 
-    const proxySecret = config.telegram.proxySecret;
-    const request = requestModule.get(
-      targetUrl,
-      {
-        agent: getTelegramDownloadAgent(),
-        ...(proxySecret ? { headers: { "X-Proxy-Secret": proxySecret } } : {}),
-      },
-      (response) => {
-        const statusCode = response.statusCode ?? 0;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), TELEGRAM_DOWNLOAD_TIMEOUT_MS);
 
-        if (statusCode >= 300 && statusCode < 400 && response.headers.location) {
-          response.resume();
-
-          if (redirectDepth >= TELEGRAM_DOWNLOAD_MAX_REDIRECTS) {
-            reject(new Error("Too many redirects while downloading Telegram file"));
-            return;
-          }
-
-          const redirectUrl = new URL(response.headers.location, targetUrl).toString();
-          void downloadTelegramFileByUrl(redirectUrl, redirectDepth + 1)
-            .then(resolve)
-            .catch(reject);
-          return;
-        }
-
-        if (statusCode < 200 || statusCode >= 300) {
-          response.resume();
-          reject(new Error(`Telegram file download failed with HTTP ${statusCode}`));
-          return;
-        }
-
-        const chunks: Buffer[] = [];
-
-        response.on("data", (chunk: Buffer | string) => {
-          chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
-        });
-
-        response.on("end", () => {
-          resolve(Buffer.concat(chunks));
-        });
-
-        response.on("error", reject);
-      },
-    );
-
-    request.on("error", reject);
-    request.setTimeout(TELEGRAM_DOWNLOAD_TIMEOUT_MS, () => {
-      request.destroy(
-        new Error(`Telegram file download timed out after ${TELEGRAM_DOWNLOAD_TIMEOUT_MS}ms`),
-      );
+  try {
+    const response = await fetch(url, {
+      ...(proxyUrl ? { proxy: proxyUrl } : {}),
+      headers,
+      signal: controller.signal,
+      redirect: "follow",
     });
-  });
+
+    if (!response.ok) {
+      throw new Error(`Telegram file download failed with HTTP ${response.status}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (error) {
+    if ((error as { name?: string }).name === "AbortError") {
+      throw new Error(`Telegram file download timed out after ${TELEGRAM_DOWNLOAD_TIMEOUT_MS}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 export interface VoiceMessageDeps extends ProcessPromptDeps {

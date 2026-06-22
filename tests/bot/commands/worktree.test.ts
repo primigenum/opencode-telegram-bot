@@ -1,6 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { t } from "../../../src/i18n/index.js";
+import { loadSut } from "#helpers/sut-loader.js";
+import { createSettingsStoreMock } from "#helpers/settings-store-mock.js";
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   currentProject: { id: "project-1", worktree: "/repo", name: "Repo" } as {
@@ -19,52 +24,58 @@ const mocked = vi.hoisted(() => ({
   clearAllInteractionStateMock: vi.fn(),
 }));
 
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
-  getCurrentProject: vi.fn(() => mocked.currentProject),
-}));
+const settingsStoreMock = createSettingsStoreMock();
+settingsStoreMock.getCurrentProject = vi.fn(() => mocked.currentProject);
+vi.mock("#src/app/stores/settings-store.ts", () => settingsStoreMock);
 
-vi.mock("../../../src/app/services/worktree-service.js", () => ({
+vi.mock("#src/app/services/worktree-service.ts", () => ({
   getGitWorktreeContext: mocked.getGitWorktreeContextMock,
 }));
 
-vi.mock("../../../src/bot/menus/inline-menu.js", () => ({
+vi.mock("#src/bot/menus/inline-menu.ts", () => ({
   appendInlineMenuCancelButton: vi.fn((keyboard: unknown) => keyboard),
   ensureActiveInlineMenu: mocked.ensureActiveInlineMenuMock,
   replyWithInlineMenu: mocked.replyWithInlineMenuMock,
 }));
 
-vi.mock("../../../src/app/services/run-control-service.js", () => ({
+vi.mock("#src/app/services/run-control-service.ts", () => ({
   isForegroundBusy: mocked.isForegroundBusyMock,
 }));
 
-vi.mock("../../../src/bot/messages/busy-blocked-renderer.js", () => ({
+vi.mock("#src/bot/messages/busy-blocked-renderer.ts", () => ({
   replyBusyBlocked: mocked.replyBusyBlockedMock,
 }));
 
-vi.mock("../../../src/app/services/session-cache-service.js", () => ({
+vi.mock("#src/app/services/session-cache-service.ts", () => ({
   upsertSessionDirectory: mocked.upsertSessionDirectoryMock,
   __resetSessionDirectoryCacheForTests: vi.fn(),
 }));
 
-vi.mock("../../../src/app/services/project-service.js", () => ({
+vi.mock("#src/app/services/project-service.ts", () => ({
   getProjectByWorktree: mocked.getProjectByWorktreeMock,
 }));
 
-vi.mock("../../../src/app/services/project-switch-service.js", () => ({
+vi.mock("#src/app/services/project-switch-service.ts", () => ({
   switchToProject: mocked.switchToProjectMock,
 }));
 
-vi.mock("../../../src/app/managers/interaction-manager.js", () => ({
+vi.mock("#src/app/managers/interaction-manager.ts", () => ({
   interactionManager: { clear: vi.fn() },
   clearAllInteractionState: mocked.clearAllInteractionStateMock,
 }));
 
-vi.mock("../../../src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.ts", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-import { worktreeCommand } from "../../../src/bot/commands/worktree-command.js";
-import { handleWorktreeCallback } from "../../../src/bot/callbacks/worktree-callback-handler.js";
+const { worktreeCommand } = await loadSut<typeof import("#src/bot/commands/worktree-command.js")>(
+  "#src/bot/commands/worktree-command.ts",
+  import.meta.url,
+);
+const { handleWorktreeCallback } = await loadSut<typeof import("#src/bot/callbacks/worktree-callback-handler.js")>(
+  "#src/bot/callbacks/worktree-callback-handler.ts",
+  import.meta.url,
+);
 
 function createCommandContext(): Context {
   return {

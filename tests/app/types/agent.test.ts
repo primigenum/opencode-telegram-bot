@@ -1,10 +1,9 @@
-import { describe, expect, it } from "vitest";
-import {
-  AGENT_EMOJI,
-  getAgentButtonLabel,
-  getAgentDisplayName,
-  getAgentEmoji,
-} from "../../../src/app/types/agent.js";
+import { describe, expect, it } from "#vitest";
+import { loadSut } from "#helpers/sut-loader.js";
+const { AGENT_EMOJI, getAgentButtonLabel, getAgentDisplayName, getAgentEmoji } = await loadSut<typeof import("#src/app/types/agent.js")>(
+  "#src/app/types/agent.ts",
+  import.meta.url,
+);
 
 describe("app/types/agent", () => {
   it("returns mapped emoji for known agents", () => {

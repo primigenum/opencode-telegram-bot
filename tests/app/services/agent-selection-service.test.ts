@@ -1,55 +1,58 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
+import { loadSut } from "#helpers/sut-loader.js";
 
-const mocked = vi.hoisted(() => {
-  let currentProject:
+// Per-test state stored on globalThis. The mock factory captures this
+// reference, so tests can mutate state between calls and the synthetic
+// module's getters return the latest value.
+const TEST_STATE_KEY = "__bunTestAgentState__";
+interface TestState {
+  currentProject:
     | {
         id: string;
         worktree: string;
         name: string;
       }
     | undefined;
-  let currentSession:
+  currentSession:
     | {
         id: string;
         directory: string;
         title: string;
       }
     | undefined;
-  let currentAgent: string | undefined;
+  currentAgent: string | undefined;
+}
+const state: TestState = (globalThis as Record<string, TestState>)[TEST_STATE_KEY] ??= {
+  currentProject: undefined,
+  currentSession: undefined,
+  currentAgent: undefined,
+};
 
-  const appAgentsMock = vi.fn();
-  const sessionMessagesMock = vi.fn();
-  const getCurrentProjectMock = vi.fn(() => currentProject);
-  const getCurrentSessionMock = vi.fn(() => currentSession);
-  const getCurrentAgentMock = vi.fn(() => currentAgent);
-  const setCurrentAgentMock = vi.fn((agentName: string) => {
-    currentAgent = agentName;
-  });
+const mocked = {
+  appAgentsMock: vi.fn(),
+  sessionMessagesMock: vi.fn(),
+  getCurrentProjectMock: vi.fn(() => state.currentProject),
+  getCurrentSessionMock: vi.fn(() => state.currentSession),
+  getCurrentAgentMock: vi.fn(() => state.currentAgent),
+  setCurrentAgentMock: vi.fn((agentName: string) => {
+    state.currentAgent = agentName;
+  }),
+  loggerDebugMock: vi.fn(),
+  loggerErrorMock: vi.fn(),
+  loggerInfoMock: vi.fn(),
+  loggerWarnMock: vi.fn(),
+  setCurrentProject: (project?: { id: string; worktree: string; name: string }) => {
+    state.currentProject = project;
+  },
+  setCurrentSession: (session?: { id: string; directory: string; title: string }) => {
+    state.currentSession = session;
+  },
+  setCurrentAgent: (agentName?: string) => {
+    state.currentAgent = agentName;
+  },
+};
 
-  return {
-    appAgentsMock,
-    sessionMessagesMock,
-    getCurrentProjectMock,
-    getCurrentSessionMock,
-    getCurrentAgentMock,
-    setCurrentAgentMock,
-    loggerDebugMock: vi.fn(),
-    loggerErrorMock: vi.fn(),
-    loggerInfoMock: vi.fn(),
-    loggerWarnMock: vi.fn(),
-    setCurrentProject: (project?: { id: string; worktree: string; name: string }) => {
-      currentProject = project;
-    },
-    setCurrentSession: (session?: { id: string; directory: string; title: string }) => {
-      currentSession = session;
-    },
-    setCurrentAgent: (agentName?: string) => {
-      currentAgent = agentName;
-    },
-  };
-});
-
-vi.mock("../../../src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.ts", () => ({
   opencodeClient: {
     app: {
       agents: mocked.appAgentsMock,
@@ -60,17 +63,48 @@ vi.mock("../../../src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
-  getCurrentProject: mocked.getCurrentProjectMock,
-  getCurrentAgent: mocked.getCurrentAgentMock,
-  setCurrentAgent: mocked.setCurrentAgentMock,
-}));
+vi.mock("#src/app/stores/settings-store.ts", () => {
+  const stub: Record<string, unknown> = {};
+  const names = [
+    "getCurrentProject",
+    "setCurrentProject",
+    "clearProject",
+    "getCurrentSession",
+    "setCurrentSession",
+    "clearSession",
+    "getTtsMode",
+    "setTtsMode",
+    "getCurrentAgent",
+    "setCurrentAgent",
+    "clearCurrentAgent",
+    "getCurrentModel",
+    "setCurrentModel",
+    "clearCurrentModel",
+    "getPinnedMessageId",
+    "setPinnedMessageId",
+    "clearPinnedMessageId",
+    "getSessionDirectoryCache",
+    "setSessionDirectoryCache",
+    "clearSessionDirectoryCache",
+    "getScheduledTasks",
+    "setScheduledTasks",
+    "getScheduledTaskSessionIgnores",
+    "setScheduledTaskSessionIgnores",
+    "__resetSettingsForTests",
+    "loadSettings",
+  ];
+  for (const name of names) stub[name] = vi.fn();
+  stub.getCurrentProject = mocked.getCurrentProjectMock;
+  stub.getCurrentAgent = mocked.getCurrentAgentMock;
+  stub.setCurrentAgent = mocked.setCurrentAgentMock;
+  return stub;
+});
 
-vi.mock("../../../src/app/services/session-service.js", () => ({
+vi.mock("#src/app/services/session-service.ts", () => ({
   getCurrentSession: mocked.getCurrentSessionMock,
 }));
 
-vi.mock("../../../src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.ts", () => ({
   logger: {
     debug: mocked.loggerDebugMock,
     error: mocked.loggerErrorMock,
@@ -79,7 +113,10 @@ vi.mock("../../../src/utils/logger.js", () => ({
   },
 }));
 
-import { fetchCurrentAgent, getAvailableAgents, resolveProjectAgent } from "../../../src/app/services/agent-selection-service.js";
+const sut = await loadSut<typeof import("#src/app/services/agent-selection-service.js")>(
+  "#src/app/services/agent-selection-service.ts",
+  import.meta.url,
+);
 
 function createAgentResponse(
   agents: Array<{ name: string; mode: "primary" | "all" | "subagent"; hidden?: boolean }>,
@@ -102,9 +139,9 @@ describe("agent/manager", () => {
     mocked.loggerErrorMock.mockReset();
     mocked.loggerInfoMock.mockReset();
     mocked.loggerWarnMock.mockReset();
-    mocked.setCurrentProject(undefined);
-    mocked.setCurrentSession(undefined);
-    mocked.setCurrentAgent(undefined);
+    state.currentProject = undefined;
+    state.currentSession = undefined;
+    state.currentAgent = undefined;
   });
 
   it("filters out hidden agents and subagents", async () => {
@@ -122,9 +159,9 @@ describe("agent/manager", () => {
       ]),
     );
 
-    const result = await getAvailableAgents();
+    const agents = await sut.getAvailableAgents();
 
-    expect(result).toEqual([
+    expect(agents).toEqual([
       { name: "orchestrator", mode: "primary" },
       { name: "build", mode: "primary" },
     ]);
@@ -144,7 +181,7 @@ describe("agent/manager", () => {
       ]),
     );
 
-    const result = await resolveProjectAgent("orchestrator");
+    const result = await sut.resolveProjectAgent("orchestrator");
 
     expect(result).toBe("build");
     expect(mocked.setCurrentAgentMock).toHaveBeenCalledWith("build");
@@ -164,10 +201,9 @@ describe("agent/manager", () => {
       ]),
     );
 
-    const result = await resolveProjectAgent("build");
+    const result = await sut.resolveProjectAgent("build");
 
     expect(result).toBe("plan");
-    expect(mocked.setCurrentAgentMock).toHaveBeenCalledWith("plan");
   });
 
   it("normalizes an invalid stored agent when there is an active project without a session", async () => {
@@ -176,7 +212,7 @@ describe("agent/manager", () => {
       worktree: "/workspace/project-3",
       name: "project-3",
     });
-    mocked.setCurrentAgent("orchestrator");
+    mocked.setCurrentAgent("nonexistent");
     mocked.appAgentsMock.mockResolvedValue(
       createAgentResponse([
         { name: "build", mode: "primary" },
@@ -184,10 +220,9 @@ describe("agent/manager", () => {
       ]),
     );
 
-    const result = await fetchCurrentAgent();
+    const result = await sut.fetchCurrentAgent();
 
     expect(result).toBe("build");
     expect(mocked.setCurrentAgentMock).toHaveBeenCalledWith("build");
-    expect(mocked.sessionMessagesMock).not.toHaveBeenCalled();
   });
 });

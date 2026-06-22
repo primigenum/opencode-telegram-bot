@@ -1,10 +1,26 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import { handleTaskTextInput, taskCommand } from "../../../src/bot/commands/task-command.js";
-import { handleTaskCallback } from "../../../src/bot/callbacks/scheduled-task-callback-handler.js";
-import { interactionManager } from "../../../src/app/managers/interaction-manager.js";
-import { taskCreationManager } from "../../../src/app/managers/scheduled-task-creation-manager.js";
-import { t } from "../../../src/i18n/index.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { handleTaskTextInput, taskCommand } = await loadSut<typeof import("#src/bot/commands/task-command.js")>(
+  "#src/bot/commands/task-command.ts",
+  import.meta.url,
+);
+const { handleTaskCallback } = await loadSut<typeof import("#src/bot/callbacks/scheduled-task-callback-handler.js")>(
+  "#src/bot/callbacks/scheduled-task-callback-handler.ts",
+  import.meta.url,
+);
+const { interactionManager } = await loadSut<typeof import("#src/app/managers/interaction-manager.js")>(
+  "#src/app/managers/interaction-manager.ts",
+  import.meta.url,
+);
+const { taskCreationManager } = await loadSut<typeof import("#src/app/managers/scheduled-task-creation-manager.js")>(
+  "#src/app/managers/scheduled-task-creation-manager.ts",
+  import.meta.url,
+);
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   currentProject: {
@@ -23,7 +39,7 @@ const mocked = vi.hoisted(() => ({
   registerTaskMock: vi.fn(),
 }));
 
-vi.mock("../../../src/config.js", () => ({
+vi.mock("#src/config.ts", () => ({
   config: {
     telegram: {
       token: "test-token",
@@ -65,24 +81,24 @@ vi.mock("../../../src/config.js", () => ({
   },
 }));
 
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.ts", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
 }));
 
-vi.mock("../../../src/app/services/model-selection-service.js", () => ({
+vi.mock("#src/app/services/model-selection-service.ts", () => ({
   getStoredModel: vi.fn(() => mocked.storedModel),
 }));
 
-vi.mock("../../../src/app/services/scheduled-task-schedule-parser-service.js", () => ({
+vi.mock("#src/app/services/scheduled-task-schedule-parser-service.ts", () => ({
   parseTaskSchedule: mocked.parseTaskScheduleMock,
 }));
 
-vi.mock("../../../src/app/stores/scheduled-task-store.js", () => ({
+vi.mock("#src/app/stores/scheduled-task-store.ts", () => ({
   addScheduledTask: mocked.addScheduledTaskMock,
   listScheduledTasks: mocked.listScheduledTasksMock,
 }));
 
-vi.mock("../../../src/app/services/scheduled-task-runtime-service.js", () => ({
+vi.mock("#src/app/services/scheduled-task-runtime-service.ts", () => ({
   scheduledTaskRuntime: {
     registerTask: mocked.registerTaskMock,
   },

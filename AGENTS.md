@@ -12,8 +12,9 @@ Functional requirements, features, and development status are in [PRODUCT.md](./
 ## Technology stack
 
 - **Language:** TypeScript 5.x
-- **Runtime:** Node.js 20+
-- **Package manager:** npm
+- **Runtime:** Bun >= 1.3.0
+- **Package manager:** Bun (`bun install`)
+- **Test runner:** `bun test` (vitest API shimmed through the `#vitest` subpath alias in `package.json` `imports`, which resolves to `tests/helpers/vitest-shim.ts`)
 - **Configuration:** environment variables (`.env`)
 - **Logging:** custom logger with levels (`debug`, `info`, `warn`, `error`)
 
@@ -23,16 +24,18 @@ Functional requirements, features, and development status are in [PRODUCT.md](./
 - `@grammyjs/menu` - inline keyboards and menus
 - `@opencode-ai/sdk` - official OpenCode Server SDK
 - `dotenv` - environment variable loading
+- `bun:sqlite` - native SQLite (replaces `better-sqlite3` for the session cache fallback)
 
 ### Test dependencies
 
-- Vitest
-- Mocks/stubs via `vi.mock()`
+- `bun:test` (`describe`, `test`, `expect`, `mock`, `spyOn`, `setSystemTime`, `jest`)
+- A vitest-compatible `vi` namespace exported from `tests/helpers/vitest-shim.ts` so existing test files can keep `import { vi } from "vitest"`
 
 ### Code quality
 
-- ESLint + Prettier
+- ESLint + Prettier (run via `bunx`, no node)
 - TypeScript strict mode
+- `bun run check` runs lint + build + tests
 
 ## Architecture
 
@@ -142,6 +145,27 @@ For multi-step tasks, state a brief plan:
 
 ## Coding rules
 
+### Bun-native APIs (no `node:*` imports in `src/`)
+
+This fork is bun-native at the file-I/O and process layer. The source code does not import from `node:fs`, `node:fs/promises`, `node:child_process`, `node:util`, `node:url`, `node:os`, `node:http`, `node:https`, `node:crypto`, or `node:readline`. Use the bun-native equivalents:
+
+| Use | Instead of |
+| --- | --- |
+| `Bun.file(path)` / `Bun.write(path, data)` / `Bun.file(path).delete()` | `node:fs/promises` read/write/unlink |
+| `Bun.Glob` | `fs.readdir` (for directory listings) |
+| `Bun.file(path).stat()` | `fs.stat` |
+| `Bun.file(path).text()` / `.json()` / `.arrayBuffer()` | `fs.readFile(path, "utf-8")` |
+| `Bun.spawn([...])` / `Bun.spawnSync([...])` | `child_process.spawn` / `exec` / `promisify(exec)` |
+| `Bun.spawn(["mkdir", "-p", path])` | `fs.mkdir(..., { recursive: true })` (no bun-native API for directory creation) |
+| `Bun.CryptoHasher` | `crypto.createHash` |
+| `crypto.randomUUID()` (global) | `crypto.randomUUID` from `node:crypto` |
+| `Bun.inspect` | `util.inspect` |
+| `fetch` (global) + `proxy` option | `node:http` / `node:https` + `https-proxy-agent` / `socks-proxy-agent` |
+| `Bun.fileURLToPath` | `fileURLToPath` from `node:url` |
+| `bun:path` | `path` from `node:path` |
+| `process.env.HOME` / `process.env.USERPROFILE` | `os.homedir` |
+| `for await (const line of console)` (line) or `Bun.stdin.stream()` (char) | `readline` / `readline/promises` |
+
 ### Language
 
 - Code, identifiers, comments, and in-code documentation must be in English.
@@ -235,7 +259,19 @@ Important:
 - Tests live in `tests/` (organized by module)
 - Use descriptive test names
 - Follow Arrange-Act-Assert
-- Use `vi.mock()` for external dependencies
+- Use `vi.mock()` for external dependencies (works through the shim — at runtime it routes to `bun:test`'s `mock.module()`)
+
+### Test runner notes
+
+- `bun test` discovers `tests/**/*.test.ts` by default.
+- `bunfig.toml` loads `tests/setup-preload.ts` (a no-op forward-compat hook) and `tests/setup.ts` (per-test env defaults + singleton reset).
+- Test files import from `"#vitest"`, which is a subpath alias defined in `package.json` `imports`. This avoids bun's built-in vitest namespace (which is intentionally limited) and routes every `import { vi } from "vitest"` to the shim.
+- `vi.useFakeTimers()` + `vi.setSystemTime(...)` work: bun mocks the system clock so log file names use the controlled date. The shim's `vi.advanceTimersByTime(ms)` advances the mocked clock (and not the timer queue — bun's `jest.advanceTimersByTime` resets `Date.now()` to real time, so the shim is the source of truth for time travel in tests).
+
+### Bun limitations that affect vitest-style tests
+
+- **`vi.mock(path, factory)` only intercepts dynamic imports.** Bun evaluates static `import` statements before any code runs, so `mock.module("node:fs", ...)` called in the test body never applies to a static `import "node:fs"` in the source. Vitest works around this by patching Node's module loader; bun does not. **This fork avoids the issue entirely** by not using `node:fs` (or any other `node:*` module) in the source — all file I/O goes through `Bun.file` / `Bun.write` / `Bun.Glob`, child processes through `Bun.spawn` / `Bun.spawnSync`, crypto through `Bun.CryptoHasher` / `crypto.randomUUID()` (global), HTTP through the global `fetch`, etc. Tests that still mock via `vi.mock("node:fs", ...)` should be migrated to `vi.stubGlobal("Bun", { ... })` or to dynamic `await import()` of the source file.
+- **`vi.resetModules()` is a no-op.** Bun has no public module cache reset API. Tests that rely on `resetModules` + `await import(...)` to re-evaluate a module (e.g. `tests/config.test.ts`) will not get a fresh module on the second import. The same source-side refactor (factory function returning a fresh `config` on every call) is the only portable fix.
 
 ## OpenCode SDK quick reference
 
@@ -271,6 +307,6 @@ Full docs: https://opencode.ai/docs/sdk
 2. Inspect existing code before adding or changing components.
 3. Align major architecture changes (including new dependencies) with the user first.
 4. Add or update tests for new functionality.
-5. After code changes, run quality checks: `npm run build`, `npm run lint`, and `npm test`.
-6. Update checkboxes in `PRODUCT.md` when relevant tasks are completed.
+5. After code changes, run quality checks: `bun run check` (runs lint + build + tests).
+6. Update checkboxes in [PRODUCT.md](./PRODUCT.md) when relevant tasks are completed.
 7. Keep code clean, consistent, and maintainable.

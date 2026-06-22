@@ -1,18 +1,16 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "#vitest";
 import os from "node:os";
 import path from "node:path";
 
-vi.mock("../../../src/utils/logger.js", () => ({
+import { loadSut } from "#helpers/sut-loader.js";
+vi.mock("#src/utils/logger.ts", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-import {
-  initBrowserRoots,
-  getBrowserRoots,
-  isWithinAllowedRoot,
-  isAllowedRoot,
-  __resetBrowserRootsForTests,
-} from "../../../src/app/services/file-browser-service.js";
+const { initBrowserRoots, getBrowserRoots, isWithinAllowedRoot, isAllowedRoot, __resetBrowserRootsForTests } = await loadSut<typeof import("#src/app/services/file-browser-service.js")>(
+  "#src/app/services/file-browser-service.ts",
+  import.meta.url,
+);
 
 describe("browser-roots", () => {
   const originalPlatform = process.platform;

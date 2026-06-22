@@ -1,13 +1,26 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
-import {
-  calculateMessagesPaginationRange,
-  parseMessagePageCallback,
-} from "../../../src/bot/menus/message-history-menu.js";
-import { messagesCommand } from "../../../src/bot/commands/messages-command.js";
-import { handleMessagesCallback } from "../../../src/bot/callbacks/message-history-callback-handler.js";
-import { interactionManager } from "../../../src/app/managers/interaction-manager.js";
-import { t } from "../../../src/i18n/index.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { calculateMessagesPaginationRange, parseMessagePageCallback } = await loadSut<typeof import("#src/bot/menus/message-history-menu.js")>(
+  "#src/bot/menus/message-history-menu.ts",
+  import.meta.url,
+);
+const { messagesCommand } = await loadSut<typeof import("#src/bot/commands/messages-command.js")>(
+  "#src/bot/commands/messages-command.ts",
+  import.meta.url,
+);
+const { handleMessagesCallback } = await loadSut<typeof import("#src/bot/callbacks/message-history-callback-handler.js")>(
+  "#src/bot/callbacks/message-history-callback-handler.ts",
+  import.meta.url,
+);
+const { interactionManager } = await loadSut<typeof import("#src/app/managers/interaction-manager.js")>(
+  "#src/app/managers/interaction-manager.ts",
+  import.meta.url,
+);
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
   currentProject: {
@@ -28,25 +41,25 @@ const mocked = vi.hoisted(() => ({
   ingestSessionInfoForCacheMock: vi.fn(),
 }));
 
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.ts", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
 }));
 
-vi.mock("../../../src/app/services/session-service.js", () => ({
+vi.mock("#src/app/services/session-service.ts", () => ({
   getCurrentSession: vi.fn(() => mocked.currentSession),
   setCurrentSession: mocked.setCurrentSessionMock,
 }));
 
-vi.mock("../../../src/app/services/attach-service.js", () => ({
+vi.mock("#src/app/services/attach-service.ts", () => ({
   attachToSession: mocked.attachToSessionMock,
 }));
 
-vi.mock("../../../src/app/services/session-cache-service.js", () => ({
+vi.mock("#src/app/services/session-cache-service.ts", () => ({
   ingestSessionInfoForCache: mocked.ingestSessionInfoForCacheMock,
   __resetSessionDirectoryCacheForTests: vi.fn(),
 }));
 
-vi.mock("../../../src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.ts", () => ({
   opencodeClient: {
     session: {
       messages: mocked.sessionMessagesMock,

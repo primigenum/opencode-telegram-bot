@@ -1,11 +1,18 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "#vitest";
 import type { Context, NextFunction } from "grammy";
-import {
-  ensureCommandsInitialized,
-  registerCommandRouter,
-} from "../../../src/bot/routers/command-router.js";
-import { BOT_COMMANDS } from "../../../src/bot/commands/definitions.js";
-import { config } from "../../../src/config.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { ensureCommandsInitialized, registerCommandRouter } = await loadSut<typeof import("#src/bot/routers/command-router.js")>(
+  "#src/bot/routers/command-router.ts",
+  import.meta.url,
+);
+const { BOT_COMMANDS } = await loadSut<typeof import("#src/bot/commands/definitions.js")>(
+  "#src/bot/commands/definitions.ts",
+  import.meta.url,
+);
+const { config } = await loadSut<typeof import("#src/config.js")>(
+  "#src/config.ts",
+  import.meta.url,
+);
 
 describe("bot/routers/command-router", () => {
   it("registers bot slash command handlers", () => {

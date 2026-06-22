@@ -1,16 +1,31 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Bot, Context } from "grammy";
-import { skillsCommand } from "../../../src/bot/commands/skills-catalog-command.js";
-import { handleSkillsCallback } from "../../../src/bot/callbacks/skills-catalog-callback-handler.js";
-import { handleSkillTextArguments } from "../../../src/bot/handlers/text-message-handler.js";
-import {
-  calculateSkillsPaginationRange,
-  formatSkillsSelectText,
-  parseSkillPageCallback,
-} from "../../../src/bot/menus/skills-catalog-menu.js";
-import { interactionManager } from "../../../src/app/managers/interaction-manager.js";
-import { t } from "../../../src/i18n/index.js";
-import type { ProcessPromptDeps } from "../../../src/bot/handlers/prompt.js";
+import { loadSut } from "#helpers/sut-loader.js";
+const { skillsCommand } = await loadSut<typeof import("#src/bot/commands/skills-catalog-command.js")>(
+  "#src/bot/commands/skills-catalog-command.ts",
+  import.meta.url,
+);
+const { handleSkillsCallback } = await loadSut<typeof import("#src/bot/callbacks/skills-catalog-callback-handler.js")>(
+  "#src/bot/callbacks/skills-catalog-callback-handler.ts",
+  import.meta.url,
+);
+const { handleSkillTextArguments } = await loadSut<typeof import("#src/bot/handlers/text-message-handler.js")>(
+  "#src/bot/handlers/text-message-handler.ts",
+  import.meta.url,
+);
+const { calculateSkillsPaginationRange, formatSkillsSelectText, parseSkillPageCallback } = await loadSut<typeof import("#src/bot/menus/skills-catalog-menu.js")>(
+  "#src/bot/menus/skills-catalog-menu.ts",
+  import.meta.url,
+);
+const { interactionManager } = await loadSut<typeof import("#src/app/managers/interaction-manager.js")>(
+  "#src/app/managers/interaction-manager.ts",
+  import.meta.url,
+);
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
+import type { ProcessPromptDeps } from "#src/bot/handlers/prompt.js";
 
 const mocked = vi.hoisted(() => ({
   currentProject: {
@@ -21,11 +36,11 @@ const mocked = vi.hoisted(() => ({
   processUserPromptMock: vi.fn(),
 }));
 
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
+vi.mock("#src/app/stores/settings-store.ts", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
 }));
 
-vi.mock("../../../src/opencode/client.js", () => ({
+vi.mock("#src/opencode/client.ts", () => ({
   opencodeClient: {
     command: {
       list: mocked.commandListMock,
@@ -33,7 +48,7 @@ vi.mock("../../../src/opencode/client.js", () => ({
   },
 }));
 
-vi.mock("../../../src/bot/handlers/prompt.js", () => ({
+vi.mock("#src/bot/handlers/prompt.ts", () => ({
   processUserPrompt: mocked.processUserPromptMock,
 }));
 

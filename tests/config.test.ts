@@ -1,10 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-async function loadConfig() {
-  vi.resetModules();
-  const module = await import("../src/config.js");
-  return module.config;
-}
+import { beforeEach, describe, expect, it, vi } from "#vitest";
+import { loadSut } from "#helpers/sut-loader.js";
+const { buildTelegramConfig, createConfig } = await loadSut<typeof import("#src/config.js")>(
+  "#src/config.ts",
+  import.meta.url,
+);
 
 describe("config boolean env parsing", () => {
   beforeEach(() => {
@@ -16,13 +15,13 @@ describe("config boolean env parsing", () => {
     vi.stubEnv("OPENCODE_MONITOR_INTERVAL_SEC", "");
   });
 
-  it("uses false defaults for hide service message flags", async () => {
+  it("uses false defaults for hide service message flags", () => {
     vi.stubEnv("HIDE_THINKING_MESSAGES", "");
     vi.stubEnv("SHOW_THINKING_CONTENT", "");
     vi.stubEnv("HIDE_TOOL_CALL_MESSAGES", "");
     vi.stubEnv("HIDE_TOOL_FILE_MESSAGES", "");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.hideThinkingMessages).toBe(false);
     expect(config.bot.showThinkingContent).toBe(false);
@@ -30,37 +29,37 @@ describe("config boolean env parsing", () => {
     expect(config.bot.hideToolFileMessages).toBe(false);
   });
 
-  it("tracks background sessions by default", async () => {
+  it("tracks background sessions by default", () => {
     vi.stubEnv("TRACK_BACKGROUND_SESSIONS", "");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.trackBackgroundSessions).toBe(true);
   });
 
-  it("parses falsy values for background session tracking", async () => {
+  it("parses falsy values for background session tracking", () => {
     vi.stubEnv("TRACK_BACKGROUND_SESSIONS", "off");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.trackBackgroundSessions).toBe(false);
   });
 
-  it("falls back to enabled background session tracking on invalid value", async () => {
+  it("falls back to enabled background session tracking on invalid value", () => {
     vi.stubEnv("TRACK_BACKGROUND_SESSIONS", "banana");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.trackBackgroundSessions).toBe(true);
   });
 
-  it("parses truthy values for hide service message flags", async () => {
+  it("parses truthy values for hide service message flags", () => {
     vi.stubEnv("HIDE_THINKING_MESSAGES", "YES");
     vi.stubEnv("SHOW_THINKING_CONTENT", "1");
     vi.stubEnv("HIDE_TOOL_CALL_MESSAGES", "1");
     vi.stubEnv("HIDE_TOOL_FILE_MESSAGES", "true");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.hideThinkingMessages).toBe(true);
     expect(config.bot.showThinkingContent).toBe(true);
@@ -68,13 +67,13 @@ describe("config boolean env parsing", () => {
     expect(config.bot.hideToolFileMessages).toBe(true);
   });
 
-  it("parses falsy values for hide service message flags", async () => {
+  it("parses falsy values for hide service message flags", () => {
     vi.stubEnv("HIDE_THINKING_MESSAGES", "off");
     vi.stubEnv("SHOW_THINKING_CONTENT", "false");
     vi.stubEnv("HIDE_TOOL_CALL_MESSAGES", "0");
     vi.stubEnv("HIDE_TOOL_FILE_MESSAGES", "false");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.hideThinkingMessages).toBe(false);
     expect(config.bot.showThinkingContent).toBe(false);
@@ -82,13 +81,13 @@ describe("config boolean env parsing", () => {
     expect(config.bot.hideToolFileMessages).toBe(false);
   });
 
-  it("falls back to defaults on invalid values", async () => {
+  it("falls back to defaults on invalid values", () => {
     vi.stubEnv("HIDE_THINKING_MESSAGES", "banana");
     vi.stubEnv("SHOW_THINKING_CONTENT", "maybe");
     vi.stubEnv("HIDE_TOOL_CALL_MESSAGES", "nope");
     vi.stubEnv("HIDE_TOOL_FILE_MESSAGES", "invalid");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.hideThinkingMessages).toBe(false);
     expect(config.bot.showThinkingContent).toBe(false);
@@ -96,34 +95,34 @@ describe("config boolean env parsing", () => {
     expect(config.bot.hideToolFileMessages).toBe(false);
   });
 
-  it("uses markdown as default message format mode", async () => {
+  it("uses markdown as default message format mode", () => {
     vi.stubEnv("MESSAGE_FORMAT_MODE", "");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.messageFormatMode).toBe("markdown");
   });
 
-  it("parses markdown message format mode", async () => {
+  it("parses markdown message format mode", () => {
     vi.stubEnv("MESSAGE_FORMAT_MODE", "MARKDOWN");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.messageFormatMode).toBe("markdown");
   });
 
-  it("parses raw message format mode", async () => {
+  it("parses raw message format mode", () => {
     vi.stubEnv("MESSAGE_FORMAT_MODE", "raw");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.messageFormatMode).toBe("raw");
   });
 
-  it("falls back to markdown on invalid message format mode", async () => {
+  it("falls back to markdown on invalid message format mode", () => {
     vi.stubEnv("MESSAGE_FORMAT_MODE", "html");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.messageFormatMode).toBe("markdown");
   });
@@ -155,167 +154,167 @@ describe("config boolean env parsing", () => {
   it("parses supported locale from BOT_LOCALE", async () => {
     vi.stubEnv("BOT_LOCALE", "fr");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.locale).toBe("fr");
   });
 
-  it("normalizes regional locale tags", async () => {
+  it("normalizes regional locale tags", () => {
     vi.stubEnv("BOT_LOCALE", "ru-RU");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.locale).toBe("ru");
   });
 
-  it("falls back to default locale on unsupported value", async () => {
+  it("falls back to default locale on unsupported value", () => {
     vi.stubEnv("BOT_LOCALE", "pt");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.locale).toBe("en");
   });
 
-  it("uses default task limit when TASK_LIMIT is missing", async () => {
+  it("uses default task limit when TASK_LIMIT is missing", () => {
     vi.stubEnv("TASK_LIMIT", "");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.taskLimit).toBe(10);
   });
 
-  it("uses default scheduled task execution timeout when SCHEDULED_TASK_EXECUTION_TIMEOUT_MINUTES is missing", async () => {
+  it("uses default scheduled task execution timeout when SCHEDULED_TASK_EXECUTION_TIMEOUT_MINUTES is missing", () => {
     vi.stubEnv("SCHEDULED_TASK_EXECUTION_TIMEOUT_MINUTES", "");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.scheduledTaskExecutionTimeoutMinutes).toBe(120);
   });
 
-  it("uses default response stream throttle when RESPONSE_STREAM_THROTTLE_MS is missing", async () => {
+  it("uses default response stream throttle when RESPONSE_STREAM_THROTTLE_MS is missing", () => {
     vi.stubEnv("RESPONSE_STREAM_THROTTLE_MS", "");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.responseStreamThrottleMs).toBe(1000);
   });
 
-  it("parses RESPONSE_STREAM_THROTTLE_MS as a positive integer", async () => {
+  it("parses RESPONSE_STREAM_THROTTLE_MS as a positive integer", () => {
     vi.stubEnv("RESPONSE_STREAM_THROTTLE_MS", "750");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.responseStreamThrottleMs).toBe(750);
   });
 
-  it("falls back to default response stream throttle on invalid value", async () => {
+  it("falls back to default response stream throttle on invalid value", () => {
     vi.stubEnv("RESPONSE_STREAM_THROTTLE_MS", "zero");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.responseStreamThrottleMs).toBe(1000);
   });
 
-  it("uses default bash tool display length when env is missing", async () => {
+  it("uses default bash tool display length when env is missing", () => {
     vi.stubEnv("BASH_TOOL_DISPLAY_MAX_LENGTH", "");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.bashToolDisplayMaxLength).toBe(128);
   });
 
-  it("parses BASH_TOOL_DISPLAY_MAX_LENGTH as a positive integer", async () => {
+  it("parses BASH_TOOL_DISPLAY_MAX_LENGTH as a positive integer", () => {
     vi.stubEnv("BASH_TOOL_DISPLAY_MAX_LENGTH", "256");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.bashToolDisplayMaxLength).toBe(256);
   });
 
-  it("falls back to default bash tool display length on invalid value", async () => {
+  it("falls back to default bash tool display length on invalid value", () => {
     vi.stubEnv("BASH_TOOL_DISPLAY_MAX_LENGTH", "zero");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.bashToolDisplayMaxLength).toBe(128);
   });
 
-  it("parses TASK_LIMIT as a positive integer", async () => {
+  it("parses TASK_LIMIT as a positive integer", () => {
     vi.stubEnv("TASK_LIMIT", "25");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.taskLimit).toBe(25);
   });
 
-  it("parses SCHEDULED_TASK_EXECUTION_TIMEOUT_MINUTES as a positive integer", async () => {
+  it("parses SCHEDULED_TASK_EXECUTION_TIMEOUT_MINUTES as a positive integer", () => {
     vi.stubEnv("SCHEDULED_TASK_EXECUTION_TIMEOUT_MINUTES", "180");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.scheduledTaskExecutionTimeoutMinutes).toBe(180);
   });
 
-  it("falls back to default task limit on invalid TASK_LIMIT", async () => {
+  it("falls back to default task limit on invalid TASK_LIMIT", () => {
     vi.stubEnv("TASK_LIMIT", "zero");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.taskLimit).toBe(10);
   });
 
-  it("falls back to default scheduled task execution timeout on invalid value", async () => {
+  it("falls back to default scheduled task execution timeout on invalid value", () => {
     vi.stubEnv("SCHEDULED_TASK_EXECUTION_TIMEOUT_MINUTES", "zero");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.bot.scheduledTaskExecutionTimeoutMinutes).toBe(120);
   });
 
-  it("uses disabled OpenCode auto-restart by default", async () => {
-    const config = await loadConfig();
+  it("uses disabled OpenCode auto-restart by default", () => {
+    const config = createConfig(process.env);
 
     expect(config.opencode.autoRestartEnabled).toBe(false);
   });
 
-  it("parses OPENCODE_AUTO_RESTART_ENABLED as a boolean", async () => {
+  it("parses OPENCODE_AUTO_RESTART_ENABLED as a boolean", () => {
     vi.stubEnv("OPENCODE_AUTO_RESTART_ENABLED", "true");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.opencode.autoRestartEnabled).toBe(true);
   });
 
-  it("uses 300 seconds as default OpenCode monitor interval", async () => {
-    const config = await loadConfig();
+  it("uses 300 seconds as default OpenCode monitor interval", () => {
+    const config = createConfig(process.env);
 
     expect(config.opencode.monitorIntervalSec).toBe(300);
   });
 
-  it("parses OPENCODE_MONITOR_INTERVAL_SEC as a positive integer", async () => {
+  it("parses OPENCODE_MONITOR_INTERVAL_SEC as a positive integer", () => {
     vi.stubEnv("OPENCODE_MONITOR_INTERVAL_SEC", "600");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.opencode.monitorIntervalSec).toBe(600);
   });
 
-  it("falls back to default OpenCode monitor interval on invalid value", async () => {
+  it("falls back to default OpenCode monitor interval on invalid value", () => {
     vi.stubEnv("OPENCODE_MONITOR_INTERVAL_SEC", "zero");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.opencode.monitorIntervalSec).toBe(300);
   });
 
-  it("keeps TTS credentials unset when dedicated vars are missing", async () => {
+  it("keeps TTS credentials unset when dedicated vars are missing", () => {
     vi.stubEnv("STT_API_URL", "https://api.openai.com/v1");
     vi.stubEnv("STT_API_KEY", "sk-test-key");
     vi.stubEnv("TTS_API_URL", "");
     vi.stubEnv("TTS_API_KEY", "");
     vi.stubEnv("TTS_VOICE", "");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.tts.apiUrl).toBe("");
     expect(config.tts.apiKey).toBe("");
@@ -323,14 +322,14 @@ describe("config boolean env parsing", () => {
     expect(config.tts.voice).toBe("alloy");
   });
 
-  it("accepts ElevenLabs as a TTS provider", async () => {
+  it("accepts ElevenLabs as a TTS provider", () => {
     vi.stubEnv("TTS_PROVIDER", "elevenlabs");
     vi.stubEnv("TTS_API_URL", "https://api.elevenlabs.io/v1");
     vi.stubEnv("TTS_API_KEY", "xi-test-key");
     vi.stubEnv("TTS_MODEL", "eleven_flash_v2_5");
     vi.stubEnv("TTS_VOICE", "nPczCjzI2devNBz1zQrb");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.tts.provider).toBe("elevenlabs");
     expect(config.tts.apiUrl).toBe("https://api.elevenlabs.io/v1");
@@ -339,12 +338,12 @@ describe("config boolean env parsing", () => {
     expect(config.tts.voice).toBe("nPczCjzI2devNBz1zQrb");
   });
 
-  it("uses ElevenLabs defaults for ElevenLabs TTS", async () => {
+  it("uses ElevenLabs defaults for ElevenLabs TTS", () => {
     vi.stubEnv("TTS_PROVIDER", "elevenlabs");
     vi.stubEnv("TTS_MODEL", "");
     vi.stubEnv("TTS_VOICE", "");
 
-    const config = await loadConfig();
+    const config = createConfig(process.env);
 
     expect(config.tts.model).toBe("eleven_flash_v2_5");
     expect(config.tts.voice).toBe("21m00Tcm4TlvDq8ikWAM");
@@ -363,100 +362,80 @@ describe("config telegram reverse-proxy", () => {
     delete process.env.TELEGRAM_FORCE_IPV4;
   });
 
-  // Drive buildTelegramConfig directly: re-importing the whole config module to
-  // observe a top-level throw turned out to be flaky under vitest (the module
-  // evaluation error propagates through the module loader rather than as a
-  // simple promise rejection). The exported builder is the unit under test.
-  async function loadBuilder() {
-    const module = await import("../src/config.js");
-    return module.buildTelegramConfig;
-  }
-
-  it("leaves apiRoot and proxySecret empty when neither env var is set", async () => {
-    const buildTelegramConfig = await loadBuilder();
-    const telegram = buildTelegramConfig();
+  it("leaves apiRoot and proxySecret empty when neither env var is set", () => {
+    const telegram = buildTelegramConfig(process.env);
 
     expect(telegram.apiRoot).toBe("");
     expect(telegram.proxySecret).toBe("");
   });
 
-  it("disables forced IPv4 by default", async () => {
-    const buildTelegramConfig = await loadBuilder();
-
-    expect(buildTelegramConfig().forceIpv4).toBe(false);
+  it("disables forced IPv4 by default", () => {
+    expect(buildTelegramConfig(process.env).forceIpv4).toBe(false);
   });
 
-  it("parses TELEGRAM_FORCE_IPV4 as a boolean", async () => {
+  it("parses TELEGRAM_FORCE_IPV4 as a boolean", () => {
     vi.stubEnv("TELEGRAM_FORCE_IPV4", "true");
-    const buildTelegramConfig = await loadBuilder();
-
-    expect(buildTelegramConfig().forceIpv4).toBe(true);
+    expect(buildTelegramConfig(process.env).forceIpv4).toBe(true);
   });
 
-  it("allows TELEGRAM_FORCE_IPV4 together with reverse proxy settings", async () => {
+  it("allows TELEGRAM_FORCE_IPV4 together with reverse proxy settings", () => {
     vi.stubEnv("TELEGRAM_API_ROOT", "https://tg-proxy.example.com");
     vi.stubEnv("TELEGRAM_PROXY_SECRET", "shared-secret");
     vi.stubEnv("TELEGRAM_FORCE_IPV4", "true");
-    const buildTelegramConfig = await loadBuilder();
 
-    const telegram = buildTelegramConfig();
+    const telegram = buildTelegramConfig(process.env);
     expect(telegram.apiRoot).toBe("https://tg-proxy.example.com");
     expect(telegram.proxySecret).toBe("shared-secret");
     expect(telegram.forceIpv4).toBe(true);
   });
 
-  it("strips a trailing slash from TELEGRAM_API_ROOT", async () => {
+  it("strips a trailing slash from TELEGRAM_API_ROOT", () => {
     vi.stubEnv("TELEGRAM_API_ROOT", "https://tg-proxy.example.com/");
-    const buildTelegramConfig = await loadBuilder();
 
-    expect(buildTelegramConfig().apiRoot).toBe("https://tg-proxy.example.com");
+    expect(buildTelegramConfig(process.env).apiRoot).toBe("https://tg-proxy.example.com");
   });
 
-  it("strips multiple trailing slashes from TELEGRAM_API_ROOT", async () => {
+  it("strips multiple trailing slashes from TELEGRAM_API_ROOT", () => {
     vi.stubEnv("TELEGRAM_API_ROOT", "https://tg-proxy.example.com///");
-    const buildTelegramConfig = await loadBuilder();
 
-    expect(buildTelegramConfig().apiRoot).toBe("https://tg-proxy.example.com");
+    expect(buildTelegramConfig(process.env).apiRoot).toBe("https://tg-proxy.example.com");
   });
 
-  it("preserves TELEGRAM_API_ROOT that has no trailing slash", async () => {
+  it("preserves TELEGRAM_API_ROOT that has no trailing slash", () => {
     vi.stubEnv("TELEGRAM_API_ROOT", "https://tg-proxy.example.com");
-    const buildTelegramConfig = await loadBuilder();
 
-    expect(buildTelegramConfig().apiRoot).toBe("https://tg-proxy.example.com");
+    expect(buildTelegramConfig(process.env).apiRoot).toBe("https://tg-proxy.example.com");
   });
 
-  it("accepts TELEGRAM_API_ROOT together with TELEGRAM_PROXY_SECRET", async () => {
+  it("accepts TELEGRAM_API_ROOT together with TELEGRAM_PROXY_SECRET", () => {
     vi.stubEnv("TELEGRAM_API_ROOT", "https://tg-proxy.example.com");
     vi.stubEnv("TELEGRAM_PROXY_SECRET", "shared-secret");
-    const buildTelegramConfig = await loadBuilder();
 
-    const telegram = buildTelegramConfig();
+    const telegram = buildTelegramConfig(process.env);
     expect(telegram.apiRoot).toBe("https://tg-proxy.example.com");
     expect(telegram.proxySecret).toBe("shared-secret");
   });
 
-  it("allows TELEGRAM_PROXY_URL alone without TELEGRAM_API_ROOT", async () => {
+  it("allows TELEGRAM_PROXY_URL alone without TELEGRAM_API_ROOT", () => {
     vi.stubEnv("TELEGRAM_PROXY_URL", "socks5://forward.example.com:1080");
-    const buildTelegramConfig = await loadBuilder();
 
-    const telegram = buildTelegramConfig();
+    const telegram = buildTelegramConfig(process.env);
     expect(telegram.proxyUrl).toBe("socks5://forward.example.com:1080");
     expect(telegram.apiRoot).toBe("");
   });
 
-  it("rejects TELEGRAM_PROXY_URL combined with TELEGRAM_API_ROOT", async () => {
+  it("rejects TELEGRAM_PROXY_URL combined with TELEGRAM_API_ROOT", () => {
     vi.stubEnv("TELEGRAM_PROXY_URL", "socks5://forward.example.com:1080");
     vi.stubEnv("TELEGRAM_API_ROOT", "https://tg-proxy.example.com");
-    const buildTelegramConfig = await loadBuilder();
 
-    expect(() => buildTelegramConfig()).toThrow(/cannot be used together/i);
+    expect(() => buildTelegramConfig(process.env)).toThrow(/cannot be used together/i);
   });
 
-  it("rejects TELEGRAM_PROXY_SECRET without TELEGRAM_API_ROOT", async () => {
+  it("rejects TELEGRAM_PROXY_SECRET without TELEGRAM_API_ROOT", () => {
     vi.stubEnv("TELEGRAM_PROXY_SECRET", "shared-secret");
-    const buildTelegramConfig = await loadBuilder();
 
-    expect(() => buildTelegramConfig()).toThrow(/TELEGRAM_PROXY_SECRET requires TELEGRAM_API_ROOT/);
+    expect(() => buildTelegramConfig(process.env)).toThrow(
+      /TELEGRAM_PROXY_SECRET requires TELEGRAM_API_ROOT/,
+    );
   });
 });

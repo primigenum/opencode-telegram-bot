@@ -10,8 +10,15 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "types": ["bun"],
+    "paths": {
+      "vitest": ["./tests/helpers/vitest-shim.ts"],
+      "#src/*": ["./src/*"],
+      "#tests/*": ["./tests/*"],
+      "#helpers/*": ["./tests/helpers/*"]
+    }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "**/*.test.ts"]
+  "include": ["src/**/*", "tests/**/*", "scripts/**/*"],
+  "exclude": ["node_modules", "dist", "coverage", "**/node_modules"]
 }

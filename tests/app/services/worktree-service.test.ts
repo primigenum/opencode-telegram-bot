@@ -1,32 +1,38 @@
 import path from "node:path";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
+import { loadSut } from "#helpers/sut-loader.js";
+const { getGitWorktreeContext, resolveGitDir } = await loadSut<typeof import("#src/app/services/worktree-service.js")>(
+  "#src/app/services/worktree-service.ts",
+  import.meta.url,
+);
 
 const mocked = vi.hoisted(() => ({
-  execFileMock: vi.fn(),
-  statMock: vi.fn(),
-  readFileMock: vi.fn(),
+  spawnMock: vi.fn(),
+  fileTextMock: vi.fn(),
+  fileStatMock: vi.fn(),
 }));
 
-vi.mock("node:child_process", () => ({
-  execFile: mocked.execFileMock,
-}));
+beforeEach(() => {
+  vi.spyOn(Bun, "spawn").mockImplementation(mocked.spawnMock);
+  vi.spyOn(Bun, "file").mockImplementation((filePath: string) => ({
+    text: () => mocked.fileTextMock(filePath),
+    stat: () => mocked.fileStatMock(filePath),
+  }));
+});
 
-vi.mock("node:fs/promises", () => ({
-  stat: mocked.statMock,
-  readFile: mocked.readFileMock,
-}));
-
-import { getGitWorktreeContext, resolveGitDir } from "../../../src/app/services/worktree-service.js";
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("app/services/worktree-service", () => {
   beforeEach(() => {
-    mocked.execFileMock.mockReset();
-    mocked.statMock.mockReset();
-    mocked.readFileMock.mockReset();
+    mocked.spawnMock.mockReset();
+    mocked.fileTextMock.mockReset();
+    mocked.fileStatMock.mockReset();
   });
 
   it("returns null when .git metadata is missing", async () => {
-    mocked.statMock.mockRejectedValue(new Error("ENOENT"));
+    mocked.fileStatMock.mockRejectedValue(new Error("ENOENT"));
 
     await expect(resolveGitDir(path.resolve("D:/repo"))).resolves.toBeNull();
     await expect(getGitWorktreeContext(path.resolve("D:/repo"))).resolves.toBeNull();
@@ -35,24 +41,16 @@ describe("app/services/worktree-service", () => {
   it("resolves main worktree metadata from git worktree list", async () => {
     const repoPath = path.resolve("D:/repo");
 
-    mocked.statMock.mockResolvedValue({
+    mocked.fileStatMock.mockResolvedValue({
       isDirectory: () => true,
       isFile: () => false,
     });
-    mocked.execFileMock.mockImplementation(
-      (
-        _file: string,
-        _args: string[],
-        _options: unknown,
-        callback: (error: Error | null, stdout: string, stderr: string) => void,
-      ) => {
-        callback(
-          null,
-          `worktree ${repoPath}\nHEAD 123\nbranch refs/heads/main\n\nworktree ${path.resolve("D:/repo-feature")}\nHEAD 456\nbranch refs/heads/feature/mobile\n`,
-          "",
-        );
-      },
-    );
+    const worktreeOutput = `worktree ${repoPath}\nHEAD 123\nbranch refs/heads/main\n\nworktree ${path.resolve("D:/repo-feature")}\nHEAD 456\nbranch refs/heads/feature/mobile\n`;
+    mocked.spawnMock.mockImplementation(() => ({
+      exited: Promise.resolve(0),
+      stdout: { text: () => Promise.resolve(worktreeOutput) },
+      stderr: { text: () => Promise.resolve("") },
+    }));
 
     const context = await getGitWorktreeContext(repoPath);
 
@@ -77,26 +75,41 @@ describe("app/services/worktree-service", () => {
     const mainWorktree = path.resolve("D:/repo");
     const linkedWorktree = path.resolve("D:/repo-feature");
     const linkedGitDir = path.join(mainWorktree, ".git", "worktrees", "feature");
+    const linkedGitPointer = path.join(linkedWorktree, ".git");
 
-    mocked.statMock.mockResolvedValue({
-      isDirectory: () => false,
-      isFile: () => true,
+    mocked.fileStatMock.mockImplementation((p: string) => {
+      if (p === linkedGitPointer) {
+        return Promise.resolve({
+          isDirectory: () => false,
+          isFile: () => true,
+        });
+      }
+      if (p === linkedGitDir) {
+        return Promise.resolve({
+          isDirectory: () => true,
+          isFile: () => false,
+        });
+      }
+      return Promise.reject(new Error(`unexpected stat: ${p}`));
     });
-    mocked.readFileMock.mockResolvedValue(`gitdir: ${linkedGitDir}`);
-    mocked.execFileMock.mockImplementation(
-      (
-        _file: string,
-        _args: string[],
-        _options: unknown,
-        callback: (error: Error | null, stdout: string, stderr: string) => void,
-      ) => {
-        callback(
-          null,
-          `worktree ${mainWorktree}\nHEAD 123\nbranch refs/heads/main\n\nworktree ${linkedWorktree}\nHEAD 456\nbranch refs/heads/feature/worktree\n`,
-          "",
-        );
-      },
-    );
+    mocked.fileTextMock.mockImplementation((p: string) => {
+      if (p === linkedGitPointer) {
+        return Promise.resolve(`gitdir: ${linkedGitDir}\n`);
+      }
+      if (p === path.join(linkedGitDir, "HEAD")) {
+        return Promise.resolve("ref: refs/heads/feature/worktree\n");
+      }
+      if (p === path.join(linkedGitDir, "commondir")) {
+        return Promise.resolve("../..\n");
+      }
+      return Promise.reject(new Error(`unexpected read: ${p}`));
+    });
+    const linkedOutput = `worktree ${mainWorktree}\nHEAD 123\nbranch refs/heads/main\n\nworktree ${linkedWorktree}\nHEAD 456\nbranch refs/heads/feature/worktree\n`;
+    mocked.spawnMock.mockImplementation(() => ({
+      exited: Promise.resolve(0),
+      stdout: { text: () => Promise.resolve(linkedOutput) },
+      stderr: { text: () => Promise.resolve("") },
+    }));
 
     const context = await getGitWorktreeContext(linkedWorktree);
 
@@ -107,12 +120,7 @@ describe("app/services/worktree-service", () => {
       isLinkedWorktree: true,
       worktrees: [
         { path: mainWorktree, branch: "main", isCurrent: false, isMain: true },
-        {
-          path: linkedWorktree,
-          branch: "feature/worktree",
-          isCurrent: true,
-          isMain: false,
-        },
+        { path: linkedWorktree, branch: "feature/worktree", isCurrent: true, isMain: false },
       ],
     });
   });

@@ -1,9 +1,13 @@
-import { describe, expect, it } from "vitest";
-import {
-  renderTelegramBlocks,
-  renderTelegramParts,
-} from "../../../src/bot/render/pipeline.js";
-import { validateTelegramEntities } from "../../../src/bot/render/validator.js";
+import { describe, expect, it } from "#vitest";
+import { loadSut } from "#helpers/sut-loader.js";
+const { renderTelegramBlocks, renderTelegramParts } = await loadSut<typeof import("#src/bot/render/pipeline.js")>(
+  "#src/bot/render/pipeline.ts",
+  import.meta.url,
+);
+const { validateTelegramEntities } = await loadSut<typeof import("#src/bot/render/validator.js")>(
+  "#src/bot/render/validator.ts",
+  import.meta.url,
+);
 
 describe("bot/render/pipeline", () => {
   it("renders markdown into block-level outputs", () => {

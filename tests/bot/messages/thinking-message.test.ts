@@ -1,6 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
-import { deliverThinkingMessage } from "../../../src/bot/messages/thinking-message.js";
-import { t } from "../../../src/i18n/index.js";
+import { describe, expect, it, vi } from "#vitest";
+import { loadSut } from "#helpers/sut-loader.js";
+const { deliverThinkingMessage } = await loadSut<typeof import("#src/bot/messages/thinking-message.js")>(
+  "#src/bot/messages/thinking-message.ts",
+  import.meta.url,
+);
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
 
 describe("bot/messages/thinking-message", () => {
   it("sends thinking immediately when visible", () => {

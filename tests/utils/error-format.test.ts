@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { formatErrorDetails } from "../../src/utils/error-format.js";
+import { describe, expect, it } from "#vitest";
+import { loadSut } from "#helpers/sut-loader.js";
+const { formatErrorDetails } = await loadSut<typeof import("#src/utils/error-format.js")>(
+  "#src/utils/error-format.ts",
+  import.meta.url,
+);
 
 describe("utils/error-format", () => {
   it("formats Error instances using stack or message", () => {

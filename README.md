@@ -1,13 +1,10 @@
-# OpenCode Telegram Bot
+# OpenCode Telegram Bot (Bun port)
 
-[![npm version](https://img.shields.io/npm/v/@grinev/opencode-telegram-bot)](https://www.npmjs.com/package/@grinev/opencode-telegram-bot)
-[![CI](https://github.com/grinev/opencode-telegram-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/grinev/opencode-telegram-bot/actions/workflows/ci.yml)
+[![CI](https://github.com/primigenum/opencode-telegram-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/primigenum/opencode-telegram-bot/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](https://nodejs.org)
-[![Follow updates](https://img.shields.io/badge/-Follow%20updates-333333?logo=x)](https://x.com/grin_rus)
-[![Community](https://img.shields.io/badge/Community-Telegram-26A5E4?logo=telegram&logoColor=white)](https://t.me/+Fj_IyKRi6-41MGUy)
+[![Bun](https://img.shields.io/badge/bun-%3E%3D1.3.0-f9f1e1)](https://bun.sh)
 
-OpenCode Telegram Bot is a secure Telegram client for [OpenCode](https://opencode.ai) CLI that runs on your local machine.
+OpenCode Telegram Bot is a secure Telegram client for [OpenCode](https://opencode.ai) CLI that runs on your local machine. This is a **Bun port of [grinev/opencode-telegram-bot](https://github.com/grinev/opencode-telegram-bot)** — same feature set, same UX, but no `npm` and no `node` in the toolchain.
 
 Run AI coding tasks, monitor progress, switch models, and manage sessions from your phone.
 
@@ -17,42 +14,43 @@ Scheduled tasks support. Turns the bot into a lightweight OpenClaw alternative f
 
 Platforms: macOS, Windows, Linux
 
-Languages: English (`en`), العربية (`ar`), Deutsch (`de`), Español (`es`), Français (`fr`), Русский (`ru`), 简体中文 (`zh`)
+## What changed vs. the upstream Node port
 
-<p align="center">
-  <img src="assets/screencast.gif" width="45%" alt="OpenCode Telegram Bot screencast" />
-</p>
+- **Runtime**: Node.js 20+ → **Bun ≥ 1.3.0** (`bun run` everywhere; the bin entry is `#!/usr/bin/env bun`)
+- **Package manager**: npm → **bun install** (no `package-lock.json`, just `bun.lock`)
+- **Test runner**: vitest → **bun test** (with a thin vitest-compatible shim — see [Test status](#test-status))
+- **SQLite driver**: `better-sqlite3` (native node addon) → **`bun:sqlite`** (built-in to Bun, no compile)
+- **CI**: `setup-node` → **`oven-sh/setup-bun`**
+- **Distribution**: removed npm publish workflow (this fork is for personal use; re-add a publish workflow if you decide to ship to npm later)
 
-> I use [boardown](https://github.com/grinev/boardown), my open-source Markdown-based task board, to plan and track this project. It stores tasks in plain `.md` files and can be used as a VS Code extension or a desktop app.
+Everything else is identical. Same commands, same Telegram UX, same `.env` schema, same config wizard.
 
 ## Features
 
 - **Remote coding** — send prompts to OpenCode from anywhere, receive complete results with code sent as files
 - **Session management** — create new sessions or continue existing ones, just like in the TUI
-- **Track live session** — follow a live OpenCode CLI session; see [Track Existing Session](#track-existing-session)
-- **Background session notifications** — get short notifications when detached or non-current sessions in the current project/worktree reply, ask questions, or request permissions
+- **Track live session** — follow a live OpenCode CLI session
+- **Background session notifications** — get short notifications when detached or non-current sessions reply
 - **Live status** — pinned message with current project/worktree, model, context usage, and changed files list, updated in real time
-- **Model switching** — pick models from OpenCode favorites and recent history directly in the chat (favorites are shown first)
+- **Model switching** — pick models from OpenCode favorites and recent history directly in the chat
 - **Agent modes** — switch between Plan and Build modes on the fly
-- **Subagent activity** — watch live subagent progress in chat, including the current task, agent, model, and active tool step
-- **Custom Commands** — run OpenCode custom commands (and built-ins like `init`/`review`) from an inline menu with confirmation
-- **Skills Catalog** — browse OpenCode skills from an inline menu and run them immediately or with arguments in the next message
+- **Subagent activity** — watch live subagent progress in chat
+- **Custom Commands** — run OpenCode custom commands from an inline menu
+- **Skills Catalog** — browse OpenCode skills from an inline menu
 - **Interactive Q&A** — answer agent questions and approve permissions via inline buttons
-- **Voice prompts** — send voice/audio messages, transcribe them via a Whisper-compatible API, and optionally enable spoken replies with `/tts`
-- **File attachments** — send images, PDF documents, and text-based files to OpenCode, including multiple files in one Telegram album
-- **Scheduled tasks** — schedule prompts to run later or on a recurring interval; see [Scheduled Tasks](#scheduled-tasks)
-- **Context control** — compact context when it gets too large, right from the chat
-- **Input flow control** — when an interactive flow is active, the bot accepts only relevant input to keep context consistent and avoid accidental actions
-- **Git worktree switching** — browse and switch between existing git worktrees for the current repository with `/worktree`
-- **Security** — strict user ID whitelist; no one else can access your bot, even if they find it
-- **Localization** — UI localization is supported for multiple languages (`BOT_LOCALE`)
-- **Interactive file browser** — use `/ls` to browse files and directories inside the current project, open subdirectories, go back, and download files by tapping them
-
-Planned features currently in development are listed in [Current Task List](PRODUCT.md#current-task-list).
+- **Voice prompts** — send voice/audio, transcribe via a Whisper-compatible API, optional spoken replies
+- **File attachments** — send images, PDFs, and text files to OpenCode
+- **Scheduled tasks** — schedule prompts to run later or on a recurring interval
+- **Context control** — compact context when it gets too large
+- **Input flow control** — when an interactive flow is active, only relevant input is accepted
+- **Git worktree switching** — browse and switch between git worktrees
+- **Security** — strict user ID whitelist
+- **Localization** — UI localized for en, ar, de, es, fr, ru, zh
+- **Interactive file browser** — `/ls` to browse and download files inside the current project
 
 ## Prerequisites
 
-- **Node.js 20+** — [download](https://nodejs.org)
+- **Bun ≥ 1.3.0** — [install](https://bun.sh)
 - **OpenCode** — install from [opencode.ai](https://opencode.ai) or [GitHub](https://github.com/sst/opencode)
 - **Telegram Bot** — you'll create one during setup (takes 1 minute)
 
@@ -68,55 +66,52 @@ You'll also need your **Telegram User ID** — send any message to [@userinfobot
 
 ### 2. Start OpenCode Server
 
-Run the OpenCode server on the same machine where the bot runs:
-
 ```bash
 opencode serve
 ```
 
-> The bot connects to the local OpenCode API at `http://localhost:4096` by default.
-
-> After the bot is configured, you can also start and stop the local OpenCode server from Telegram with `/opencode_start` and `/opencode_stop`.
+The bot connects to `http://localhost:4096` by default.
 
 ### 3. Install & Run
 
-The fastest way — run directly with `npx`:
-
 ```bash
-npx @grinev/opencode-telegram-bot@latest
+git clone https://github.com/primigenum/opencode-telegram-bot.git
+cd opencode-telegram-bot
+bun install
+cp .env.example .env
+# Edit .env with your bot token, user ID, and model settings
+
+bun run dev
 ```
 
-> **Note:** This README tracks the `main` branch, which may include unreleased changes. The latest npm release may not include every feature described here yet. See [recent commits on `main`](https://github.com/grinev/opencode-telegram-bot/commits/main).
+`bun run dev` uses `bun --hot` for hot reload — edit any file under `src/` and the bot restarts in <1s.
 
-> Quick start is for npm usage. You do not need to clone this repository. If you run this command from the source directory (repository root), it may fail with `opencode-telegram: not found`. To run from sources, use the [Development](#development) section.
-
-On first launch, an interactive wizard will guide you through the configuration — it asks for interface language first, then your bot token, user ID, OpenCode API URL, and optional OpenCode server credentials (username/password). After that, you're ready to go. Open your bot in Telegram and start sending tasks.
-
-#### Alternative: Global Install
+#### Alternative: Foreground start
 
 ```bash
-npm install -g @grinev/opencode-telegram-bot
-opencode-telegram start
+bun run start:foreground
 ```
 
-`start` runs in the foreground by default. This is the recommended mode for `systemd`, Docker, local debugging, and other external process managers.
+Same as `bun run dev` but without the file watcher (cleaner for `systemd`, Docker, etc.).
 
-To run the bot in the built-in background mode instead:
+On first launch, an interactive wizard guides you through configuration (interface language → bot token → user ID → OpenCode API URL → optional server credentials). After that, the bot is ready in Telegram.
+
+#### Alternative: Built-in daemon mode
+
+The CLI supports a built-in `start --daemon` mode for standalone runs without a process manager:
 
 ```bash
-opencode-telegram start --daemon
-opencode-telegram status
-opencode-telegram stop
+bun run dist/cli.js start --daemon   # uses the built binary
+bun run dist/cli.js status
+bun run dist/cli.js stop
 ```
 
-> Built-in daemon mode is intended for standalone npm installs without an external supervisor. For `systemd`, `pm2`, or Docker, keep using `opencode-telegram start` without `--daemon`.
-
-For Linux `systemd` setup, see [`docs/LINUX_SYSTEMD_SETUP.md`](./docs/LINUX_SYSTEMD_SETUP.md).
+> Daemon mode is intended for standalone installs without an external supervisor. For `systemd`, `pm2`, or Docker, use the foreground command.
 
 To reconfigure at any time:
 
 ```bash
-opencode-telegram config
+bun run dist/cli.js config
 ```
 
 ## Supported Platforms
@@ -125,7 +120,7 @@ opencode-telegram config
 | -------- | -------------------------------------------- |
 | macOS    | Fully supported                              |
 | Windows  | Fully supported                              |
-| Linux    | Fully supported (tested on Ubuntu 24.04 LTS) |
+| Linux    | Fully supported (tested on Fedora 44, Bun 1.3) |
 
 ## Bot Commands
 
@@ -136,7 +131,7 @@ opencode-telegram config
 | `/abort`          | Abort the current task                                  |
 | `/detach`         | Detach from the current session without stopping it     |
 | `/sessions`       | Browse and switch between recent sessions               |
-| `/messages`       | Browse user messages, revert or fork from a previous state     |
+| `/messages`       | Browse user messages, revert or fork from a previous state |
 | `/projects`       | Switch between OpenCode projects                        |
 | `/worktree`       | Switch between existing git worktrees                   |
 | `/open`           | Add a project by browsing directories                   |
@@ -379,69 +374,41 @@ Since the bot runs locally on your machine and connects to your local OpenCode s
 
 ## Development
 
-### Running from Source
-
 ```bash
-git clone https://github.com/grinev/opencode-telegram-bot.git
-cd opencode-telegram-bot
-npm install
-cp .env.example .env
-# Edit .env with your bot token, user ID, and model settings
+bun install                # install deps
+bun run check              # lint + build + tests (quality gate)
+bun test                   # run tests
+bun test tests/utils       # one directory
+bunx vitest watch ...      # if you ever need vitest — but the shim is now the canonical path
 ```
 
-Build and run:
+The lint, format, and TypeScript configs are unchanged from upstream (ESLint + Prettier) — they run on `bunx`, no Node involved.
 
-```bash
-npm run dev
-```
+## Test status
 
-### Available Scripts
+This is a partial port. Two vitest patterns have **no equivalent in bun's test runner** and are not polyfillable through the shim:
 
-| Script                          | Description                          |
-| ------------------------------- | ------------------------------------ |
-| `npm run dev`                   | Build and start (development)        |
-| `npm run build`                 | Compile TypeScript                   |
-| `npm start`                     | Run compiled code                    |
-| `npm run release:notes:preview` | Preview auto-generated release notes |
-| `npm run lint`                  | ESLint check (zero warnings policy)  |
-| `npm run format`                | Format code with Prettier            |
-| `npm test`                      | Run tests (Vitest)                   |
-| `npm run test:coverage`         | Tests with coverage report           |
+1. **`vi.mock(module, factory)` for module-level mocking** — vitest's `vi.mock` is hoisted to the top of the test file (via the vitest transformer) so the mock is registered before any `import` statement. Bun's `mock.module()` does **not** hoist. Tests that rely on this pattern (60 of 118 test files) need to be rewritten to either:
+   - Use dynamic `await import("module")` after registering the mock, or
+   - Use bun's `mock.module()` from a preload file.
 
-> **Note:** No file watcher or auto-restart is used. The bot maintains persistent SSE and long-polling connections — automatic restarts would break them mid-task. After making changes, restart manually with `npm run dev`.
+2. **`vi.resetModules()` + `await import(...)` to re-evaluate a module** — vitest's `resetModules` clears the module cache so the next `import` re-executes the module. Bun has **no public module cache reset API**. Tests that rely on this (e.g. `tests/config.test.ts` re-reading env vars) currently fail.
 
-## Troubleshooting
+Everything else works through the shim at `tests/helpers/vitest-shim.ts`:
 
-**Bot doesn't respond to messages**
+- `vi.fn`, `vi.spyOn`, `vi.hoisted`, `vi.mocked`, `vi.importActual` → bun's `mock` / `spyOn`
+- `vi.stubEnv` / `vi.unstubAllEnvs` / `vi.stubGlobal` / `vi.unstubAllGlobals` → tracked env + global stubs
+- `vi.useFakeTimers` / `vi.useRealTimers` / `vi.setSystemTime` → bun's `jest` timer primitives
+- `vi.advanceTimersByTime` / `vi.advanceTimersByTimeAsync` / `vi.runAllTimersAsync` → advance `Date.now()` + flush microtasks
 
-- Make sure `TELEGRAM_ALLOWED_USER_ID` matches your actual Telegram user ID (check with [@userinfobot](https://t.me/userinfobot))
-- Verify the bot token is correct
+Test files import from the `#vitest` subpath (defined in `package.json` `imports`) instead of `"vitest"`, which sidesteps bun's built-in vitest namespace.
 
-**"OpenCode server is not available"**
+**Current baseline**: tests that don't use `vi.mock` or `vi.resetModules` pass. The remaining failures are concentrated in `tests/bot/commands/*`, `tests/bot/streaming/*`, `tests/bot/services/*`, `tests/bot/menus/*`, `tests/bot/middleware/*`, `tests/bot/messages/*`, `tests/bot/pinned/*`, `tests/bot/render/*`, `tests/app/services/*`, `tests/app/managers/*`, `tests/app/bootstrap/*`, `tests/runtime/*`, `tests/config*.test.ts`, and `tests/opencode/process.test.ts`.
 
-- Ensure an OpenCode server is running at the configured `OPENCODE_API_URL` (default: `http://localhost:4096`)
-- For a local setup, you can start it with `opencode serve` or use `/opencode_start` in Telegram
-- For VPS/systemd setups with scheduled tasks, enable `OPENCODE_AUTO_RESTART_ENABLED=true` to let the bot restart a local OpenCode server when health-checks fail
-- If `OPENCODE_API_URL` points to a remote server, verify that the address is reachable from the bot machine and that the remote server is healthy
-
-**No models in model picker**
-
-- Add models to your OpenCode favorites: open OpenCode TUI, go to model selection, press **Ctrl+F** on desired models
-- Verify `OPENCODE_MODEL_PROVIDER` and `OPENCODE_MODEL_ID` point to an available model in your setup
-
-**Linux: permission denied errors**
-
-- Make sure the CLI binary has execute permission: `chmod +x $(which opencode-telegram)`
-- Check that the config directory is writable: `~/.config/opencode-telegram-bot/`
-
-## Contributing
-
-Please follow commit and release note conventions in [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## Community
-
-Have questions, want to share your experience using the bot, or have an idea for a feature? Join the [Telegram group](https://t.me/+Fj_IyKRi6-41MGUy) for announcements and discussions, or start a thread in [GitHub Discussions](https://github.com/grinev/opencode-telegram-bot/discussions).
+A future PR can fix this with either:
+- A custom bun loader that hoists `vi.mock` and rewrites static imports of mocked modules to `await import(...)`, or
+- A mechanical rewrite of the 60 affected test files to dynamic imports.
 
 ## License
 
-[MIT](LICENSE) © Ruslan Grinev
+[MIT](LICENSE) — fork of grinev/opencode-telegram-bot by Ruslan Grinev (MIT). All new code in this fork is also MIT.

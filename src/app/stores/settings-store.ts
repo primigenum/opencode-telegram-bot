@@ -1,4 +1,4 @@
-import path from "node:path";
+import path from "bun:path";
 import type { ModelInfo } from "../types/model.js";
 import type { ProjectInfo } from "../types/project.js";
 import type { SessionDirectoryCacheInfo, SessionInfo } from "../types/session.js";
@@ -23,11 +23,10 @@ function getSettingsFilePath(): string {
 
 async function readSettingsFile(): Promise<Settings> {
   try {
-    const fs = await import("fs/promises");
-    const content = await fs.readFile(getSettingsFilePath(), "utf-8");
+    const content = await Bun.file(getSettingsFilePath()).text();
     return JSON.parse(content) as Settings;
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+    if (error instanceof Error && (error as Error & { code?: string }).code !== "ENOENT") {
       logger.error("[SettingsManager] Error reading settings file:", error);
     }
     return {};
@@ -43,10 +42,12 @@ function writeSettingsFile(settings: Settings): Promise<void> {
     })
     .then(async () => {
       try {
-        const fs = await import("fs/promises");
         const settingsFilePath = getSettingsFilePath();
-        await fs.mkdir(path.dirname(settingsFilePath), { recursive: true });
-        await fs.writeFile(settingsFilePath, JSON.stringify(settings, null, 2));
+        await Bun.spawn(["mkdir", "-p", path.dirname(settingsFilePath)], {
+          stdout: "ignore",
+          stderr: "ignore",
+        }).exited;
+        await Bun.write(settingsFilePath, JSON.stringify(settings, null, 2));
       } catch (err) {
         logger.error("[SettingsManager] Error writing settings file:", err);
       }

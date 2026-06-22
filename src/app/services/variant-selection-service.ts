@@ -1,10 +1,140 @@
 /**
  * Variant Manager - manages model variants (reasoning modes)
  */
+import { readFileSync } from "fs";
+import path from "bun:path";
 import { opencodeClient } from "../../opencode/client.js";
 import { getCurrentModel, setCurrentModel } from "../stores/settings-store.js";
 import { logger } from "../../utils/logger.js";
 import type { VariantInfo } from "../types/variant.js";
+
+// ── OpenCode CLI config reader ────────────────────────────────────
+// The bot defaults to "default" variant, but the user may have set
+// reasoningEffort or agent variant in ~/.config/opencode/opencode.jsonc.
+// Read it here so the bot picks up the same defaults the CLI uses.
+
+const OPENCODE_CONFIG_PATH = path.join(
+  process.env.HOME || process.env.USERPROFILE || "~",
+  ".config",
+  "opencode",
+  "opencode.jsonc",
+);
+
+/**
+ * Strip JSONC comments (single-line // and multi-line /* * /) without
+ * touching // inside string values (e.g. https:// URLs).
+ */
+function stripJsoncComments(content: string): string {
+  let result = "";
+  let inString = false;
+  let escape = false;
+
+  for (let i = 0; i < content.length; i++) {
+    const ch = content[i];
+    const next = content[i + 1] ?? "";
+
+    if (escape) {
+      result += ch;
+      escape = false;
+      continue;
+    }
+
+    if (inString) {
+      if (ch === "\\") { escape = true; result += ch; continue; }
+      if (ch === '"') { inString = false; }
+      result += ch;
+      continue;
+    }
+
+    if (ch === '"') { inString = true; result += ch; continue; }
+
+    // Single-line comment
+    if (ch === "/" && next === "/") {
+      while (i < content.length && content[i] !== "\n") i++;
+      result += "\n";
+      continue;
+    }
+
+    // Multi-line comment
+    if (ch === "/" && next === "*") {
+      i += 2;
+      while (i < content.length && !(content[i] === "*" && content[i + 1] === "/")) {
+        if (content[i] === "\n") result += "\n";
+        i++;
+      }
+      i++; // skip * (loop for will skip /)
+      continue;
+    }
+
+    result += ch;
+  }
+
+  return result;
+}
+
+interface OpenCodeCliProviderConfig {
+  provider?: Record<string, {
+    models?: Record<string, {
+      options?: {
+        reasoningEffort?: string;
+        [key: string]: unknown;
+      };
+      [key: string]: unknown;
+    }>;
+    [key: string]: unknown;
+  }>;
+  agent?: Record<string, {
+    variant?: string;
+    [key: string]: unknown;
+  }>;
+  [key: string]: unknown;
+}
+
+let parsedConfig: OpenCodeCliProviderConfig | null | undefined = undefined;
+
+function getOpenCodeCliConfig(): OpenCodeCliProviderConfig | null {
+  if (parsedConfig !== undefined) return parsedConfig;
+  try {
+    const raw = readFileSync(OPENCODE_CONFIG_PATH, "utf-8");
+    const json = stripJsoncComments(raw);
+    parsedConfig = JSON.parse(json) as OpenCodeCliProviderConfig;
+    return parsedConfig;
+  } catch {
+    parsedConfig = null;
+    return null;
+  }
+}
+
+/**
+ * Look up the default variant from the OpenCode CLI config.
+ *
+ * Priority:
+ * 1. `agent.<agentName>.variant` (e.g. `build` → `thinking`)
+ * 2. `provider.<providerID>.models.<modelID>.options.reasoningEffort`
+ *    (e.g. `deepseek-v4-flash` → `max`)
+ * 3. undefined if neither is set
+ */
+export function getDefaultVariantFromConfig(
+  providerID: string,
+  modelID: string,
+  agentName?: string,
+): string | undefined {
+  const cfg = getOpenCodeCliConfig();
+  if (!cfg) return undefined;
+
+  // Agent-level variant (e.g. build → thinking)
+  if (agentName && cfg.agent?.[agentName]?.variant) {
+    return cfg.agent[agentName].variant;
+  }
+
+  // Model-level reasoningEffort (e.g. deepseek-v4-flash → max)
+  const modelOptions = cfg.provider?.[providerID]?.models?.[modelID]?.options;
+  if (modelOptions?.reasoningEffort) {
+    return modelOptions.reasoningEffort;
+  }
+
+  return undefined;
+}
 
 /**
  * Get available variants for a model from OpenCode API
@@ -67,11 +197,29 @@ export async function getAvailableVariants(
 
 /**
  * Get current variant from settings
- * @returns Current variant ID (defaults to "default")
+ * @returns Current variant ID (falls back to OpenCode CLI config, then "default")
  */
 export function getCurrentVariant(): string {
   const currentModel = getCurrentModel();
-  return currentModel?.variant || "default";
+  if (currentModel?.variant) {
+    // If the stored variant is "default", check if the OpenCode CLI config
+    // specifies a different one (e.g. reasoningEffort: max). This way the
+    // bot picks up the user's opencode config automatically without needing
+    // to clear settings.json.
+    if (currentModel.variant !== "default") return currentModel.variant;
+    const fromConfig = getDefaultVariantFromConfig(
+      currentModel.providerID || "",
+      currentModel.modelID || "",
+    );
+    return fromConfig ?? "default";
+  }
+
+  // Fall back to the OpenCode CLI config
+  const fromConfig = getDefaultVariantFromConfig(
+    currentModel?.providerID || "",
+    currentModel?.modelID || "",
+  );
+  return fromConfig ?? "default";
 }
 
 /**

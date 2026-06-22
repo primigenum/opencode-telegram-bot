@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
-import {
-  normalizeMarkdownForTelegramBlockParsing,
-  normalizeMarkdownForTelegramRendering,
-} from "../../../src/bot/render/markdown-normalizer.js";
+import { describe, expect, it } from "#vitest";
+import { loadSut } from "#helpers/sut-loader.js";
+const { normalizeMarkdownForTelegramBlockParsing, normalizeMarkdownForTelegramRendering } = await loadSut<typeof import("#src/bot/render/markdown-normalizer.js")>(
+  "#src/bot/render/markdown-normalizer.ts",
+  import.meta.url,
+);
 
 describe("bot/render/markdown-normalizer", () => {
   it("normalizes headings, quotes, horizontal rules, and checklists", () => {
