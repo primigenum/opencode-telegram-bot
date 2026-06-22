@@ -1,18 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Api } from "grammy";
-import { Agent as HttpsAgent } from "https";
 import { loadSut } from "#helpers/sut-loader.js";
 
-// ---- Mutable mocks (registered BEFORE any SUT load) ----
+let fetchMock: ReturnType<typeof vi.fn>;
 
-const nodeFetchMock = vi.hoisted(() =>
-  vi.fn().mockResolvedValue({
-    ok: true,
-    arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
-  }),
-);
-
-const configMock = vi.hoisted(() => ({
+const configMock = {
   telegram: {
     token: "bot-token-xyz",
     allowedUserId: 123456789,
@@ -73,11 +65,7 @@ const configMock = vi.hoisted(() => ({
     model: "gpt-4o-mini-tts",
     voice: "alloy",
   },
-}));
-
-vi.mock("node-fetch", () => ({
-  default: nodeFetchMock,
-}));
+};
 
 vi.mock("#src/config.ts", () => ({
   config: configMock,
@@ -218,11 +206,13 @@ describe("downloadTelegramFile reverse-proxy wiring", () => {
     configMock.telegram.proxyUrl = "";
     configMock.telegram.proxySecret = "";
     configMock.telegram.forceIpv4 = false;
-    nodeFetchMock.mockReset();
-    nodeFetchMock.mockResolvedValue({
+
+    // Stub global fetch so downloadTelegramFile doesn't hit the real network
+    fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
     });
+    vi.stubGlobal("fetch", fetchMock);
   });
 
   function makeApiStub(): Api {
@@ -238,7 +228,7 @@ describe("downloadTelegramFile reverse-proxy wiring", () => {
     const { downloadTelegramFile } = await getSut();
     await downloadTelegramFile(makeApiStub(), "fid");
 
-    const [url] = nodeFetchMock.mock.calls[0];
+    const [url] = fetchMock.mock.calls[0];
     expect(url).toBe("https://api.telegram.org/file/botbot-token-xyz/voice/sample.ogg");
   });
 
@@ -247,7 +237,7 @@ describe("downloadTelegramFile reverse-proxy wiring", () => {
     const { downloadTelegramFile } = await getSut();
     await downloadTelegramFile(makeApiStub(), "fid");
 
-    const [url] = nodeFetchMock.mock.calls[0];
+    const [url] = fetchMock.mock.calls[0];
     expect(url).toBe("https://tg-proxy.example.com/file/botbot-token-xyz/voice/sample.ogg");
   });
 
@@ -256,7 +246,7 @@ describe("downloadTelegramFile reverse-proxy wiring", () => {
     const { downloadTelegramFile } = await getSut();
     await downloadTelegramFile(makeApiStub(), "fid");
 
-    const [url] = nodeFetchMock.mock.calls[0];
+    const [url] = fetchMock.mock.calls[0];
     expect(url).toBe("https://tg-proxy.example.com/file/botbot-token-xyz/voice/sample.ogg");
   });
 
@@ -265,7 +255,7 @@ describe("downloadTelegramFile reverse-proxy wiring", () => {
     const { downloadTelegramFile } = await getSut();
     await downloadTelegramFile(makeApiStub(), "fid");
 
-    const [, init] = nodeFetchMock.mock.calls[0];
+    const [, init] = fetchMock.mock.calls[0];
     const headers = (init as { headers?: Record<string, string> } | undefined)?.headers;
     expect(headers?.["X-Proxy-Secret"]).toBeUndefined();
   });
@@ -276,27 +266,27 @@ describe("downloadTelegramFile reverse-proxy wiring", () => {
     const { downloadTelegramFile } = await getSut();
     await downloadTelegramFile(makeApiStub(), "fid");
 
-    const [, init] = nodeFetchMock.mock.calls[0];
+    const [, init] = fetchMock.mock.calls[0];
     const headers = (init as { headers?: Record<string, string> } | undefined)?.headers;
     expect(headers?.["X-Proxy-Secret"]).toBe("secret-abc");
   });
 
-  it("does not configure a fetch agent for direct downloads by default", async () => {
+  it("does not configure a fetch proxy or agent for direct downloads by default", async () => {
     const { downloadTelegramFile } = await getSut();
     await downloadTelegramFile(makeApiStub(), "fid");
 
-    const [, init] = nodeFetchMock.mock.calls[0];
-    expect((init as { agent?: unknown } | undefined)?.agent).toBeUndefined();
+    const [, init] = fetchMock.mock.calls[0];
+    const opts = init as { proxy?: string } | undefined;
+    expect(opts?.proxy).toBeUndefined();
   });
 
-  it("uses an IPv4 HTTPS agent for direct downloads when TELEGRAM_FORCE_IPV4 is enabled", async () => {
+  it("does not set a proxy when TELEGRAM_FORCE_IPV4 is enabled (Bun has no agent-level IPv4 pinning)", async () => {
     configMock.telegram.forceIpv4 = true;
     const { downloadTelegramFile } = await getSut();
     await downloadTelegramFile(makeApiStub(), "fid");
 
-    const [, init] = nodeFetchMock.mock.calls[0];
-    const agent = (init as { agent?: unknown } | undefined)?.agent;
-    expect(agent).toBeInstanceOf(HttpsAgent);
-    expect((agent as HttpsAgent).options.family).toBe(4);
+    const [, init] = fetchMock.mock.calls[0];
+    const opts = init as { proxy?: string } | undefined;
+    expect(opts?.proxy).toBeUndefined();
   });
 });

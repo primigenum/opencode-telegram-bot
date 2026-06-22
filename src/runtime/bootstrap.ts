@@ -1,5 +1,4 @@
 import path from "bun:path";
-import dotenv from "dotenv";
 import { getRuntimePaths, type RuntimePaths } from "./paths.js";
 import {
   getLocale,
@@ -287,7 +286,7 @@ async function readEnvFileIfExists(filePath: string): Promise<string | null> {
     return await Bun.file(filePath).text();
   } catch (error) {
     if (error instanceof Error) {
-      const code = (error as NodeJS.ErrnoException).code;
+      const code = (error as Error & { code?: string }).code;
       if (code === "ENOENT") {
         return null;
       }
@@ -327,6 +326,29 @@ async function loadEnvExampleContent(): Promise<string | null> {
   }
 }
 
+function parseEnvContent(content: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const line of content.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    // Skip lines without '='
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx === -1) continue;
+    const key = trimmed.slice(0, eqIdx).trim();
+    let value = trimmed.slice(eqIdx + 1).trim();
+    // Strip surrounding quotes
+    if (
+      value.length >= 2 &&
+      ((value[0] === '"' && value[value.length - 1] === '"') ||
+        (value[0] === "'" && value[value.length - 1] === "'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (key) result[key] = value;
+  }
+  return result;
+}
+
 function loadModelDefaultsFromEnvExample(envExampleContent: string | null): ModelDefaults {
   const fallbackDefaults: ModelDefaults = {
     provider: FALLBACK_MODEL_PROVIDER,
@@ -338,7 +360,7 @@ function loadModelDefaultsFromEnvExample(envExampleContent: string | null): Mode
       return fallbackDefaults;
     }
 
-    const parsed = dotenv.parse(envExampleContent);
+    const parsed = parseEnvContent(envExampleContent);
 
     const provider = parsed.OPENCODE_MODEL_PROVIDER?.trim();
     const modelId = parsed.OPENCODE_MODEL_ID?.trim();
@@ -556,7 +578,7 @@ async function validateExistingEnv(envFilePath: string): Promise<EnvValidationRe
     return { isValid: false, reason: "Missing .env" };
   }
 
-  const parsed = dotenv.parse(content);
+  const parsed = parseEnvContent(content);
   return validateRuntimeEnvValues(parsed);
 }
 
@@ -570,7 +592,7 @@ async function runWizardAndPersist(runtimePaths: RuntimePaths): Promise<void> {
   ]);
 
   const modelDefaults = loadModelDefaultsFromEnvExample(envExampleContent);
-  const existingParsed = existingContent ? dotenv.parse(existingContent) : {};
+  const existingParsed = existingContent ? parseEnvContent(existingContent) : {};
   const provider = existingParsed.OPENCODE_MODEL_PROVIDER || modelDefaults.provider;
   const modelId = existingParsed.OPENCODE_MODEL_ID || modelDefaults.modelId;
 

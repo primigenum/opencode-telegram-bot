@@ -1,9 +1,4 @@
-// @ts-expect-error — node-fetch v2 ships no TS types and we avoid adding @types/node-fetch
-import nodeFetch from "node-fetch";
-import { Agent as HttpsAgent } from "https";
 import type { Bot, Context } from "grammy";
-import { HttpsProxyAgent } from "https-proxy-agent";
-import { SocksProxyAgent } from "socks-proxy-agent";
 import { logger } from "../utils/logger.js";
 
 export interface TelegramClientConfig {
@@ -14,10 +9,6 @@ export interface TelegramClientConfig {
 }
 
 export type TelegramBotOptions = NonNullable<ConstructorParameters<typeof Bot<Context>>[1]>;
-
-export function createTelegramIpv4Agent(): HttpsAgent {
-  return new HttpsAgent({ family: 4, keepAlive: true });
-}
 
 export function createTelegramBotOptions(telegram: TelegramClientConfig): TelegramBotOptions {
   const botOptions: TelegramBotOptions = {};
@@ -33,45 +24,44 @@ export function createTelegramBotOptions(telegram: TelegramClientConfig): Telegr
       // baseFetchConfig.headers, because grammY's client spreads
       // `{...baseFetchConfig, ...config}` and the per-request config.headers
       // (Content-Type/Length) wipes out anything we put on baseFetchConfig.
-      // Plain-object headers merge (not the Headers class) keeps this compatible
-      // with node-fetch v2's init shape and avoids the DOM lib HeadersInit type.
       const proxySecret = telegram.proxySecret;
-      botOptions.client.fetch = (((url: unknown, init: Record<string, unknown> | undefined) => {
+      botOptions.client.fetch = (
+        url: string | URL | Request,
+        init?: RequestInit,
+      ): Promise<Response> => {
         const existing = (init?.headers as Record<string, string> | undefined) ?? {};
         const merged = { ...existing, "X-Proxy-Secret": proxySecret };
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return (nodeFetch as any)(url, { ...(init ?? {}), headers: merged });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      }) as any);
+        return fetch(url, { ...init, headers: merged });
+      };
       logger.info(`[Bot] Sending X-Proxy-Secret header to Telegram API root`);
     }
   }
 
   if (telegram.proxyUrl) {
     const proxyUrl = telegram.proxyUrl;
-    let agent;
 
     if (proxyUrl.startsWith("socks")) {
-      agent = new SocksProxyAgent(proxyUrl);
-      logger.info(`[Bot] Using SOCKS proxy: ${proxyUrl.replace(/\/\/.*@/, "//***@")}`);
+      logger.warn(
+        `[Bot] SOCKS proxy (${proxyUrl.replace(/\/\/.*@/, "//***@")}) is not supported by Bun's fetch — falling back to direct connection`,
+      );
     } else {
-      agent = new HttpsProxyAgent(proxyUrl);
       logger.info(`[Bot] Using HTTP/HTTPS proxy: ${proxyUrl.replace(/\/\/.*@/, "//***@")}`);
+      botOptions.client = botOptions.client ?? {};
+      botOptions.client.baseFetchConfig = {
+        proxy: proxyUrl,
+        compress: true,
+      };
     }
-
-    botOptions.client = botOptions.client ?? {};
-    botOptions.client.baseFetchConfig = {
-      agent,
-      compress: true,
-    };
   } else if (telegram.forceIpv4) {
+    // Bun's native fetch doesn't expose an IPv4-enforcement option.
+    // If DNS resolution prefers IPv6, consider setting `--network-preference ipv4`
+    // or configuring the system resolver.
     botOptions.client = botOptions.client ?? {};
     botOptions.client.baseFetchConfig = {
       ...(botOptions.client.baseFetchConfig ?? {}),
-      agent: createTelegramIpv4Agent(),
       compress: true,
     };
-    logger.info(`[Bot] Forcing IPv4 for Telegram API requests`);
+    logger.info(`[Bot] IPv4 enforcement requested — Bun does not support agent-level IPv4 pinning`);
   }
 
   return botOptions;

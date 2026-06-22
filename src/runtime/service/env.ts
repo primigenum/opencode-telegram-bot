@@ -2,9 +2,9 @@ const SERVICE_CHILD_ENV_KEY = "OPENCODE_TELEGRAM_SERVICE_CHILD";
 const SERVICE_STATE_PATH_ENV_KEY = "OPENCODE_TELEGRAM_SERVICE_STATE_PATH";
 
 export function buildServiceChildEnv(
-  baseEnv: NodeJS.ProcessEnv,
+  baseEnv: Record<string, string | undefined>,
   stateFilePath: string,
-): NodeJS.ProcessEnv {
+): Record<string, string | undefined> {
   return {
     ...baseEnv,
     [SERVICE_CHILD_ENV_KEY]: "1",

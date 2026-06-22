@@ -90,7 +90,7 @@ export async function startBotApp(): Promise<void> {
     serviceStateCleared = true;
   };
 
-  const shutdown = (signal: NodeJS.Signals): void => {
+  const shutdown = (signal: string): void => {
     if (shutdownStarted) {
       return;
     }

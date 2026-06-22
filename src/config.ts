@@ -1,15 +1,43 @@
-import dotenv from "dotenv";
 import { getRuntimePaths } from "./runtime/paths.js";
 import { normalizeLocale, type Locale } from "./i18n/index.js";
 
 const runtimePaths = getRuntimePaths();
-dotenv.config({ path: runtimePaths.envFilePath, quiet: true });
+
+// Load .env file — bun-native replacement for dotenv.config()
+{
+  try {
+    const envContent = await Bun.file(runtimePaths.envFilePath).text();
+    for (const line of envContent.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eqIdx = trimmed.indexOf("=");
+      if (eqIdx === -1) continue;
+      const key = trimmed.slice(0, eqIdx).trim();
+      let value = trimmed.slice(eqIdx + 1).trim();
+      // Strip surrounding quotes
+      if (
+        value.length >= 2 &&
+        ((value[0] === '"' && value[value.length - 1] === '"') ||
+          (value[0] === "'" && value[value.length - 1] === "'"))
+      ) {
+        value = value.slice(1, -1);
+      }
+      if (key && process.env[key] === undefined) {
+        process.env[key] = value;
+      }
+    }
+  } catch {
+    // .env file not found or unreadable — proceed with process.env as-is
+  }
+}
+
+type EnvRecord = Record<string, string | undefined>;
 
 export type MessageFormatMode = "raw" | "markdown";
 export type StreamingMode = "edit" | "draft";
 export type TtsProvider = "openai" | "google" | "elevenlabs";
 
-function getEnvVar(env: NodeJS.ProcessEnv, key: string, required: boolean = true): string {
+function getEnvVar(env: EnvRecord, key: string, required: boolean = true): string {
   const value = env[key];
   if (required && !value) {
     throw new Error(
@@ -20,7 +48,7 @@ function getEnvVar(env: NodeJS.ProcessEnv, key: string, required: boolean = true
 }
 
 function getOptionalPositiveIntEnvVar(
-  env: NodeJS.ProcessEnv,
+  env: EnvRecord,
   key: string,
   defaultValue: number,
 ): number {
@@ -38,13 +66,13 @@ function getOptionalPositiveIntEnvVar(
   return parsedValue;
 }
 
-function getOptionalLocaleEnvVar(env: NodeJS.ProcessEnv, key: string, defaultValue: Locale): Locale {
+function getOptionalLocaleEnvVar(env: EnvRecord, key: string, defaultValue: Locale): Locale {
   const value = getEnvVar(env, key, false);
   return normalizeLocale(value, defaultValue);
 }
 
 function getOptionalBooleanEnvVar(
-  env: NodeJS.ProcessEnv,
+  env: EnvRecord,
   key: string,
   defaultValue: boolean,
 ): boolean {
@@ -68,7 +96,7 @@ function getOptionalBooleanEnvVar(
 }
 
 function getOptionalStreamingModeEnvVar(
-  env: NodeJS.ProcessEnv,
+  env: EnvRecord,
   key: string,
   defaultValue: StreamingMode,
 ): StreamingMode {
@@ -87,7 +115,7 @@ function getOptionalStreamingModeEnvVar(
 }
 
 function getOptionalMessageFormatModeEnvVar(
-  env: NodeJS.ProcessEnv,
+  env: EnvRecord,
   key: string,
   defaultValue: MessageFormatMode,
 ): MessageFormatMode {
@@ -108,7 +136,7 @@ function getOptionalMessageFormatModeEnvVar(
 const VALID_TTS_PROVIDERS: TtsProvider[] = ["openai", "google", "elevenlabs"];
 
 function getOptionalTtsProviderEnvVar(
-  env: NodeJS.ProcessEnv,
+  env: EnvRecord,
   key: string,
   defaultValue: TtsProvider,
 ): TtsProvider {
@@ -135,7 +163,7 @@ export interface TelegramConfig {
   forceIpv4: boolean;
 }
 
-export function buildTelegramConfig(env: NodeJS.ProcessEnv): TelegramConfig {
+export function buildTelegramConfig(env: EnvRecord): TelegramConfig {
   const proxyUrl = getEnvVar(env, "TELEGRAM_PROXY_URL", false);
   // grammY rejects an apiRoot ending with `/`, so normalize once at config
   // load instead of leaking the concern into every consumer.
@@ -167,7 +195,7 @@ export function buildTelegramConfig(env: NodeJS.ProcessEnv): TelegramConfig {
   };
 }
 
-export function createConfig(env: NodeJS.ProcessEnv) {
+export function createConfig(env: EnvRecord) {
   const provider = getOptionalTtsProviderEnvVar(env, "TTS_PROVIDER", "openai");
   const defaultVoice =
     provider === "google"

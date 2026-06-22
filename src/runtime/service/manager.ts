@@ -72,7 +72,7 @@ async function readServiceStateFile(
     return { service: parsed, cleanupReason: null };
   } catch (error) {
     if (error instanceof Error) {
-      const code = (error as NodeJS.ErrnoException).code;
+      const code = (error as Error & { code?: string }).code;
       if (code === "ENOENT") {
         return { service: null, cleanupReason: null };
       }
@@ -165,7 +165,7 @@ export async function clearServiceStateFile(
     await Bun.file(filePath).delete();
   } catch (error) {
     if (error instanceof Error) {
-      const code = (error as NodeJS.ErrnoException).code;
+      const code = (error as Error & { code?: string }).code;
       if (code !== "ENOENT") {
         throw error;
       }
