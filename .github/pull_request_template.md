@@ -15,5 +15,5 @@
 - [ ] PR title follows Conventional Commits: `<type>(<scope>)?: <description>`
 - [ ] This PR contains one logically complete change
 - [ ] Branch is rebased on the latest `main`
-- [ ] I ran `npm run lint`, `npm run build`, and `npm test`
+- [ ] I ran `bun run lint`, `bun run build`, and `bash scripts/run-tests.sh`
 - [ ] If this PR is OS-sensitive, behavior/limitations for Linux/macOS/Windows are described

@@ -158,7 +158,7 @@ For OS-sensitive changes, verify behavior on Linux, macOS, and Windows. If you c
 - PR title must follow the Conventional Commits format (see above).
 - PR must contain exactly one logically complete change (see above).
 - At PR creation time, the branch must be rebased on the latest `main` and be conflict-free.
-- CI must pass (`npm run lint`, `npm run build`, `npm test`).
+- CI must pass (`bun run lint`, `bun run build`, `bash scripts/run-tests.sh`).
 - Changes must be compatible with Linux, macOS, and Windows (our supported platforms).
 - If a feature affects OS interaction (processes, paths, shell commands, filesystem behavior), it must work correctly on all three supported platforms.
 

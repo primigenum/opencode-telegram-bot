@@ -75,9 +75,9 @@ Update `.env.example` add new language to supported languages list
 Run quality checks:
 
 ```bash
-npm run build
-npm run lint
-npm test
+bun run build
+bun run lint
+bash scripts/run-tests.sh
 ```
 
 Manual checks:
@@ -106,5 +106,5 @@ Relevant test files if needed:
 - [ ] Imported locale in `src/i18n/index.ts`
 - [ ] Added locale entry to `LOCALE_DEFINITIONS`
 - [ ] Updated `README.md` (language list and localization section)
-- [ ] Ran `npm run build`, `npm run lint`, `npm test`
+- [ ] Ran `bun run build`, `bun run lint`, `bash scripts/run-tests.sh`
 - [ ] Manually validated `BOT_LOCALE` and wizard language selection

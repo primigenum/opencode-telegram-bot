@@ -332,7 +332,7 @@ describe("app/services/scheduled-task-executor-service", () => {
     });
   });
 
-  it("fails when execution stays busy beyond the bot polling deadline", async () => {
+  it("fails when execution stays busy beyond the bot polling deadline", { timeout: 30000 }, async () => {
     const { executeScheduledTask } = await import("#src/app/services/scheduled-task-executor-service.js");
 
     mocked.createMock.mockResolvedValueOnce({
@@ -399,23 +399,39 @@ describe("app/services/scheduled-task-executor-service", () => {
       .mockResolvedValueOnce({ data: {}, error: null })
       .mockResolvedValueOnce({ data: {}, error: null });
 
-    vi.useFakeTimers();
+    // Accelerate time: fire setTimeout callbacks on next microtask (queueMicrotask
+    // avoids the ~1ms minimum delay of setTimeout(fn, 0)), advance fake clock by delay.
+    // We use the same accelerateTime helper as the timeout test (test 5) because
+    // vi.advanceTimersByTimeAsync cannot reliably fast-forward bun's fake timer
+    // queue by thousands of small steps — see tests/helpers/vitest-shim.ts.
+    const _origSt = globalThis.setTimeout;
+    const _origDn = Date.now;
+    let _ft = Date.now();
+    Date.now = () => _ft;
+    globalThis.setTimeout = ((cb: (...args: unknown[]) => void, _ms?: number, ...args: unknown[]) => {
+      if ((_ms ?? 0) > 0) _ft += _ms!;
+      queueMicrotask(() => { cb(...args); });
+      return 0;
+    }) as typeof globalThis.setTimeout;
 
-    const resultPromise = executeScheduledTask(createTask());
+    try {
+      const result = await executeScheduledTask(createTask());
 
-    await vi.advanceTimersByTimeAsync(12000);
-
-    await expect(resultPromise).resolves.toMatchObject({
-      taskId: "task-1",
-      status: "success",
-      resultText: "Started late but finished",
-      errorMessage: null,
-    });
-    expect(mocked.statusMock.mock.calls.length).toBeGreaterThan(3);
-    expect(mocked.loggerWarnMock).not.toHaveBeenCalledWith(
-      expect.stringContaining("Scheduled task finished without a completed assistant response"),
-    );
-    expect(mocked.deleteMock).toHaveBeenCalledWith({ sessionID: "session-1" });
+      expect(result).toMatchObject({
+        taskId: "task-1",
+        status: "success",
+        resultText: "Started late but finished",
+        errorMessage: null,
+      });
+      expect(mocked.statusMock.mock.calls.length).toBeGreaterThan(3);
+      expect(mocked.loggerWarnMock).not.toHaveBeenCalledWith(
+        expect.stringContaining("Scheduled task finished without a completed assistant response"),
+      );
+      expect(mocked.deleteMock).toHaveBeenCalledWith({ sessionID: "session-1" });
+    } finally {
+      globalThis.setTimeout = _origSt;
+      Date.now = _origDn;
+    }
   });
 
   it("treats an empty completed assistant reply as an execution error", async () => {

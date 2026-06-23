@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "#vitest";
 import { CompactProgressStreamer } from "../../../src/bot/streaming/compact-progress-streamer.js";
 
 describe("bot/streaming/compact-progress-streamer", () => {

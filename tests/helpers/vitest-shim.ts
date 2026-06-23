@@ -205,10 +205,12 @@ export function hoisted<T>(factory: () => T): T {
 
 export function useFakeTimers(_options?: unknown): void {
   bunTest.jest.useFakeTimers();
+  fakeTimersActive = true;
 }
 
 export function useRealTimers(): void {
   bunTest.jest.useRealTimers();
+  fakeTimersActive = false;
 }
 
 function resolveCurrentMockedTime(): number {
@@ -219,30 +221,75 @@ function resolveCurrentMockedTime(): number {
   }
 }
 
+let fakeTimersActive = false;
+
 export function advanceTimersByTime(ms: number): void {
-  const currentMocked = resolveCurrentMockedTime();
-  bunTest.setSystemTime(new Date(currentMocked + ms));
+  if (fakeTimersActive) {
+    // bun's jest.advanceTimersByTime fires any pending fake timers in
+    // the requested window, but as a side effect it resets the fake
+    // clock to `realTime + ms` (not `currentFakeClock + ms`). That is
+    // broken from the perspective of vitest's contract, which expects
+    // the clock to advance from wherever it currently is.
+    //
+    // Workaround: snapshot the current fake clock, ask bun to fire
+    // the timers, then re-anchor the clock to the snapshot + ms.
+    // Pending timers whose deadline fell inside [snapshot, realTime+ms]
+    // are executed by bun, and `Date.now()` ends up at the expected
+    // value (snapshot + ms).
+    const before = bunTest.jest.now();
+    bunTest.jest.advanceTimersByTime(ms);
+    bunTest.setSystemTime(new Date(before + ms));
+    return;
+  }
+  // Fake timers inactive: the SUT is using the real clock (or a
+  // test-local Date.now shim like the `accelerateTime()` helper in
+  // response-streamer.test.ts). Just nudge the system clock; the test
+  // is responsible for its own clock.
+  const before = Date.now();
+  bunTest.setSystemTime(new Date(before + ms));
 }
 
 export async function advanceTimersByTimeAsync(ms: number): Promise<void> {
-  const currentMocked = resolveCurrentMockedTime();
-  bunTest.setSystemTime(new Date(currentMocked + ms));
-  for (let i = 0; i < 3; i += 1) {
-    await new Promise<void>((resolve) => setImmediate(resolve));
+  advanceTimersByTime(ms);
+  // Drain the SUT's pending microtask chain without queueing a
+  // setImmediate. Each setImmediate registered while `useFakeTimers`
+  // is active consumes a slot in bun's internal fake-timer heap, and
+  // the heap corrupts after ~3700 such calls (bun then throws
+  // "Fake timers are not active" mid-test). A handful of `await
+  // Promise.resolve()` turns is enough to drain the typical await
+  // chains (mocked resolved promises, `enqueueTask` .then, etc.)
+  // without leaking into the fake-timer queue.
+  for (let i = 0; i < 5; i++) {
+    await Promise.resolve();
   }
 }
 
 export async function runAllTimersAsync(): Promise<void> {
-  bunTest.jest.setSystemTime(new Date(Date.now() + 600_000));
-  for (let i = 0; i < 3; i += 1) {
-    await new Promise<void>((resolve) => setImmediate(resolve));
-  }
+  // Intentionally NOT calling bunTest.jest.runAllTimers(). bun's
+  // implementation drains the fake-timer queue by invoking every
+  // callback in sequence, regardless of its scheduled deadline. A
+  // source that schedules a recurring next-run timer (e.g.
+  // ScheduledTaskRuntime.handleFailedExecution → scheduleTask for a
+  // cron task) will then re-schedule another timer from inside the
+  // callback, and runAllTimers fires that one too, recursively —
+  // infinite loop until the test timeout.
+  //
+  // Tests that need a specific timer to run should call
+  // `vi.advanceTimersByTime(ms)` to advance the clock to that
+  // timer's deadline first. runAllTimersAsync's only job here is to
+  // let the SUT's pending microtasks run on the next event loop turn.
+  await Promise.resolve();
 }
 
 async function flushMicrotasks(): Promise<void> {
-  for (let i = 0; i < 3; i += 1) {
-    await new Promise<void>((resolve) => setImmediate(resolve));
-  }
+  // Retained for the legacy `runAllTimersAsync` path. We deliberately
+  // do NOT use `setImmediate` here: every setImmediate queued while
+  // `useFakeTimers` is active consumes a slot in bun's internal fake
+  // timer heap, and the heap corrupts after ~3700 such calls (bun
+  // then throws "Fake timers are not active" mid-test). A single
+  // resolved-promise microtask is enough to give the SUT a turn on
+  // the event loop without leaking into the fake timer queue.
+  await Promise.resolve();
 }
 
 export function setSystemTime(date?: Date | string | number): void {
