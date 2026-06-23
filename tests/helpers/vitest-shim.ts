@@ -251,7 +251,17 @@ export function advanceTimersByTime(ms: number): void {
 
 export async function advanceTimersByTimeAsync(ms: number): Promise<void> {
   advanceTimersByTime(ms);
-  await flushMicrotasks();
+  // Drain the SUT's pending microtask chain without queueing a
+  // setImmediate. Each setImmediate registered while `useFakeTimers`
+  // is active consumes a slot in bun's internal fake-timer heap, and
+  // the heap corrupts after ~3700 such calls (bun then throws
+  // "Fake timers are not active" mid-test). A handful of `await
+  // Promise.resolve()` turns is enough to drain the typical await
+  // chains (mocked resolved promises, `enqueueTask` .then, etc.)
+  // without leaking into the fake-timer queue.
+  for (let i = 0; i < 5; i++) {
+    await Promise.resolve();
+  }
 }
 
 export async function runAllTimersAsync(): Promise<void> {
@@ -267,14 +277,19 @@ export async function runAllTimersAsync(): Promise<void> {
   // Tests that need a specific timer to run should call
   // `vi.advanceTimersByTime(ms)` to advance the clock to that
   // timer's deadline first. runAllTimersAsync's only job here is to
-  // flush microtasks so await chains inside the SUT can complete.
-  await flushMicrotasks();
+  // let the SUT's pending microtasks run on the next event loop turn.
+  await Promise.resolve();
 }
 
 async function flushMicrotasks(): Promise<void> {
-  for (let i = 0; i < 3; i += 1) {
-    await new Promise<void>((resolve) => setImmediate(resolve));
-  }
+  // Retained for the legacy `runAllTimersAsync` path. We deliberately
+  // do NOT use `setImmediate` here: every setImmediate queued while
+  // `useFakeTimers` is active consumes a slot in bun's internal fake
+  // timer heap, and the heap corrupts after ~3700 such calls (bun
+  // then throws "Fake timers are not active" mid-test). A single
+  // resolved-promise microtask is enough to give the SUT a turn on
+  // the event loop without leaking into the fake timer queue.
+  await Promise.resolve();
 }
 
 export function setSystemTime(date?: Date | string | number): void {
