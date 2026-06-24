@@ -1,6 +1,7 @@
 import path from "bun:path";
 import { opencodeClient } from "../../opencode/client.js";
 import { getCachedSessionProjects } from "./session-cache-service.js";
+import { getVisibleProjects } from "../stores/settings-store.js";
 import { logger } from "../../utils/logger.js";
 import type { ProjectInfo } from "../types/project.js";
 
@@ -63,8 +64,25 @@ async function getResolvedProjects(options?: {
     projectList.map((project) => isLinkedGitWorktree(project.worktree)),
   );
 
-  const visibleProjects = projectList.filter((_, index) => !linkedWorktreeFlags[index]);
+  let visibleProjects = projectList.filter((_, index) => !linkedWorktreeFlags[index]);
   const hiddenLinkedWorktrees = projectList.length - visibleProjects.length;
+
+  // Apply whitelist filter if visibleProjects is configured (env var takes precedence)
+  const envFilter = process.env.OPENCODE_TELEGRAM_VISIBLE_PROJECTS;
+  const allowedPaths = envFilter
+    ? envFilter.split(";").map((p) => p.trim()).filter(Boolean)
+    : getVisibleProjects();
+  if (allowedPaths.length > 0) {
+    visibleProjects = visibleProjects.filter((project) => {
+      const normalizedWorktree = project.worktree.replace(/[\\/]+$/g, "").toLowerCase();
+      return allowedPaths.some(
+        (allowed) => normalizedWorktree === allowed.replace(/[\\/]+$/g, "").toLowerCase(),
+      );
+    });
+    logger.debug(
+      `[ProjectManager] Whitelist filter applied: source=${envFilter ? "env" : "settings"}, allowed=${allowedPaths.length}, matching=${visibleProjects.length}`,
+    );
+  }
 
   logger.debug(
     `[ProjectManager] Projects resolved: api=${projects.length}, cached=${cachedProjects.length}, hiddenLinkedWorktrees=${hiddenLinkedWorktrees}, total=${visibleProjects.length}`,

@@ -162,6 +162,15 @@ export function setScheduledTasks(tasks: ScheduledTask[]): Promise<void> {
   return writeSettingsFile(currentSettings);
 }
 
+export function getVisibleProjects(): string[] {
+  return currentSettings.visibleProjects ?? [];
+}
+
+export function setVisibleProjects(projects: string[]): Promise<void> {
+  currentSettings.visibleProjects = projects;
+  return writeSettingsFile(currentSettings);
+}
+
 export function getScheduledTaskSessionIgnores(): ScheduledTaskSessionIgnoreInfo[] {
   return cloneScheduledTaskSessionIgnores(currentSettings.scheduledTaskSessionIgnores) ?? [];
 }
