@@ -8,6 +8,7 @@ export interface ScheduledTaskModel {
   providerID: string;
   modelID: string;
   variant: string | null;
+  agent: string | null;
 }
 
 export interface ScheduledTaskBase {
@@ -71,11 +72,12 @@ export interface TaskCreationState {
   promptRequestMessageId: number | null;
 }
 
-export function createScheduledTaskModel(model: ModelInfo): ScheduledTaskModel {
+export function createScheduledTaskModel(model: ModelInfo, agent?: string | null): ScheduledTaskModel {
   return {
     providerID: model.providerID,
     modelID: model.modelID,
     variant: model.variant ?? null,
+    agent: agent ?? null,
   };
 }
 

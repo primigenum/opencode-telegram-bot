@@ -62,7 +62,7 @@ function buildSuccessDelivery(
     }),
     resultText,
     footerText: formatAssistantRunFooter({
-      agent: SCHEDULED_TASK_AGENT,
+      agent: task.model.agent ?? SCHEDULED_TASK_AGENT,
       providerID: task.model.providerID,
       modelID: task.model.modelID,
       elapsedMs: calculateElapsedMs(startedAt, runAt),

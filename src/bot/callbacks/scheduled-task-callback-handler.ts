@@ -4,6 +4,7 @@ import { interactionManager } from "../../app/managers/interaction-manager.js";
 import { taskCreationManager } from "../../app/managers/scheduled-task-creation-manager.js";
 import type { InteractionState } from "../../app/types/interaction.js";
 import type { ScheduledTask, TaskCreationState } from "../../app/types/scheduled-task.js";
+import { getAgentDisplayName } from "../../app/types/agent.js";
 import { getScheduledTask, removeScheduledTask } from "../../app/stores/scheduled-task-store.js";
 import { scheduledTaskRuntime } from "../../app/services/scheduled-task-runtime-service.js";
 import { logger } from "../../utils/logger.js";
@@ -155,8 +156,9 @@ function formatDateTime(dateIso: string | null, timezone: string): string {
 }
 
 function formatTaskDetails(task: ScheduledTask): string {
+  const agentDisplay = getAgentDisplayName(task.model.agent ?? "build");
   const variant = task.model.variant ? ` (${task.model.variant})` : "";
-  const model = `${task.model.providerID}/${task.model.modelID}${variant}`;
+  const model = `${agentDisplay} · ${task.model.providerID}/${task.model.modelID}${variant}`;
   const cronLine =
     task.kind === "cron" ? `${t("tasklist.details.cron", { cron: task.cron })}\n` : "";
 

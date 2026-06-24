@@ -259,6 +259,7 @@ describe("bot/commands/task", () => {
           providerID: "openai",
           modelID: "gpt-5",
           variant: "default",
+          agent: null,
         },
         kind: "cron",
         scheduleText: "every day at 17:00",
