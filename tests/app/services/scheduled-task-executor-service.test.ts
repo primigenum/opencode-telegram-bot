@@ -708,6 +708,80 @@ describe("app/services/scheduled-task-executor-service", () => {
     expect(mocked.messagesMock).not.toHaveBeenCalled();
   });
 
+  it("passes the task agent to promptAsync when set", async () => {
+    const { executeScheduledTask } = await import("#src/app/services/scheduled-task-executor-service.js");
+
+    mocked.createMock.mockResolvedValueOnce({
+      data: { id: "session-1", directory: "D:\\Projects\\Repo", title: "Scheduled task run" },
+      error: null,
+    });
+    mocked.promptAsyncMock.mockResolvedValueOnce({ data: undefined, error: null });
+    mocked.messagesMock.mockResolvedValueOnce({
+      data: [createAssistantMessage("Done with bypass", { completed: true })],
+      error: null,
+    });
+    mocked.statusMock.mockResolvedValueOnce({
+      data: { "session-1": { type: "busy" } },
+      error: null,
+    });
+
+    const { restore } = accelerateTime();
+    try {
+      const task = createTask({
+        model: { providerID: "openai", modelID: "gpt-5", variant: "default", agent: "bypass" },
+      });
+      const resultPromise = executeScheduledTask(task);
+      await new Promise((r) => setTimeout(r, 0));
+
+      await expect(resultPromise).resolves.toMatchObject({
+        status: "success",
+        resultText: "Done with bypass",
+      });
+      expect(mocked.promptAsyncMock).toHaveBeenCalledWith(
+        expect.objectContaining({ agent: "bypass" }),
+      );
+    } finally {
+      restore();
+    }
+  });
+
+  it("falls back to build agent when task agent is null", async () => {
+    const { executeScheduledTask } = await import("#src/app/services/scheduled-task-executor-service.js");
+
+    mocked.createMock.mockResolvedValueOnce({
+      data: { id: "session-1", directory: "D:\\Projects\\Repo", title: "Scheduled task run" },
+      error: null,
+    });
+    mocked.promptAsyncMock.mockResolvedValueOnce({ data: undefined, error: null });
+    mocked.messagesMock.mockResolvedValueOnce({
+      data: [createAssistantMessage("Done with fallback", { completed: true })],
+      error: null,
+    });
+    mocked.statusMock.mockResolvedValueOnce({
+      data: { "session-1": { type: "busy" } },
+      error: null,
+    });
+
+    const { restore } = accelerateTime();
+    try {
+      const task = createTask({
+        model: { providerID: "openai", modelID: "gpt-5", variant: "default", agent: null },
+      });
+      const resultPromise = executeScheduledTask(task);
+      await new Promise((r) => setTimeout(r, 0));
+
+      await expect(resultPromise).resolves.toMatchObject({
+        status: "success",
+        resultText: "Done with fallback",
+      });
+      expect(mocked.promptAsyncMock).toHaveBeenCalledWith(
+        expect.objectContaining({ agent: "build" }),
+      );
+    } finally {
+      restore();
+    }
+  });
+
   it("ignores pending interactive requests for other sessions", async () => {
     const { executeScheduledTask } = await import("#src/app/services/scheduled-task-executor-service.js");
 
