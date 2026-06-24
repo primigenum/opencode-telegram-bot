@@ -18,4 +18,6 @@ export interface Settings {
   sessionDirectoryCache?: SessionDirectoryCacheInfo;
   scheduledTasks?: ScheduledTask[];
   scheduledTaskSessionIgnores?: ScheduledTaskSessionIgnoreInfo[];
+  /** If set, only projects whose folder name matches one of these entries are shown in /projects */
+  visibleProjects?: string[];
 }

@@ -22,6 +22,9 @@ vi.mock("#src/app/services/session-cache-service.ts", () => ({
   __resetSessionDirectoryCacheForTests: vi.fn(),
 }));
 
+// settings-store is not mocked here — tests that need to control
+// getVisibleProjects import it dynamically and use vi.mocked().mockReturnValue()
+
 const { getProjects, getProjectByWorktree } = await loadSut<typeof import("#src/app/services/project-service.js")>(
   "#src/app/services/project-service.ts",
   import.meta.url,
@@ -33,6 +36,7 @@ describe("project/manager", () => {
   beforeEach(() => {
     projectListMock.mockReset();
     cachedSessionProjectsMock.mockReset();
+    delete process.env.OPENCODE_TELEGRAM_VISIBLE_PROJECTS;
   });
 
   afterEach(async () => {
@@ -101,6 +105,174 @@ describe("project/manager", () => {
     const projects = await getProjects();
 
     expect(projects).toEqual([{ id: "main", worktree: mainWorktree, name: "Main" }]);
+  });
+
+  describe("whitelist filter", () => {
+    beforeEach(async () => {
+      delete process.env.OPENCODE_TELEGRAM_VISIBLE_PROJECTS;
+      // Reset settings-store whitelist before each test
+      const settings = await import("#src/app/stores/settings-store.js") as typeof import("#src/app/stores/settings-store.js");
+      await settings.setVisibleProjects([]);
+    });
+
+    it("shows all projects when no filter is configured", async () => {
+      projectListMock.mockResolvedValueOnce({
+        data: [
+          { id: "p1", worktree: "/home/user/a", name: "A" },
+          { id: "p2", worktree: "/home/user/b", name: "B" },
+        ],
+        error: null,
+      });
+      cachedSessionProjectsMock.mockResolvedValueOnce([]);
+
+      const projects = await getProjects();
+
+      expect(projects).toHaveLength(2);
+    });
+
+    it("filters by env var (OPENCODE_TELEGRAM_VISIBLE_PROJECTS)", async () => {
+      process.env.OPENCODE_TELEGRAM_VISIBLE_PROJECTS = "/home/user/a;/home/user/c";
+
+      projectListMock.mockResolvedValueOnce({
+        data: [
+          { id: "p1", worktree: "/home/user/a", name: "A" },
+          { id: "p2", worktree: "/home/user/b", name: "B" },
+          { id: "p3", worktree: "/home/user/c", name: "C" },
+        ],
+        error: null,
+      });
+      cachedSessionProjectsMock.mockResolvedValueOnce([]);
+
+      const projects = await getProjects();
+
+      expect(projects).toHaveLength(2);
+      expect(projects.map((p) => p.id)).toEqual(["p1", "p3"]);
+    });
+
+    it("env var takes precedence over settings whitelist", async () => {
+      process.env.OPENCODE_TELEGRAM_VISIBLE_PROJECTS = "/home/user/a";
+      const settings = await import("#src/app/stores/settings-store.js") as typeof import("#src/app/stores/settings-store.js");
+      await settings.setVisibleProjects(["/home/user/b"]);
+
+      projectListMock.mockResolvedValueOnce({
+        data: [
+          { id: "p1", worktree: "/home/user/a", name: "A" },
+          { id: "p2", worktree: "/home/user/b", name: "B" },
+        ],
+        error: null,
+      });
+      cachedSessionProjectsMock.mockResolvedValueOnce([]);
+
+      const projects = await getProjects();
+
+      expect(projects).toHaveLength(1);
+      expect(projects[0].id).toBe("p1");
+    });
+
+    it("filters by settings whitelist (visibleProjects)", async () => {
+      const settings = await import("#src/app/stores/settings-store.js") as typeof import("#src/app/stores/settings-store.js");
+      await settings.setVisibleProjects(["/home/user/repo-a"]);
+
+      projectListMock.mockResolvedValueOnce({
+        data: [
+          { id: "p1", worktree: "/home/user/repo-a", name: "Repo A" },
+          { id: "p2", worktree: "/home/user/repo-b", name: "Repo B" },
+        ],
+        error: null,
+      });
+      cachedSessionProjectsMock.mockResolvedValueOnce([]);
+
+      const projects = await getProjects();
+
+      expect(projects).toHaveLength(1);
+      expect(projects[0].id).toBe("p1");
+    });
+
+    it("is case-insensitive on path matching", async () => {
+      const settings = await import("#src/app/stores/settings-store.js") as typeof import("#src/app/stores/settings-store.js");
+      await settings.setVisibleProjects(["/HOME/User/REPO-A"]);
+
+      projectListMock.mockResolvedValueOnce({
+        data: [
+          { id: "p1", worktree: "/home/user/repo-a", name: "Repo A" },
+          { id: "p2", worktree: "/home/user/repo-b", name: "Repo B" },
+        ],
+        error: null,
+      });
+      cachedSessionProjectsMock.mockResolvedValueOnce([]);
+
+      const projects = await getProjects();
+
+      expect(projects).toHaveLength(1);
+      expect(projects[0].id).toBe("p1");
+    });
+
+    it("handles trailing slashes in paths", async () => {
+      const settings = await import("#src/app/stores/settings-store.js") as typeof import("#src/app/stores/settings-store.js");
+      await settings.setVisibleProjects(["/home/user/repo-a/"]);
+
+      projectListMock.mockResolvedValueOnce({
+        data: [
+          { id: "p1", worktree: "/home/user/repo-a", name: "Repo A" },
+        ],
+        error: null,
+      });
+      cachedSessionProjectsMock.mockResolvedValueOnce([]);
+
+      const projects = await getProjects();
+
+      expect(projects).toHaveLength(1);
+      expect(projects[0].id).toBe("p1");
+    });
+
+    it("returns empty list when no projects match the filter", async () => {
+      const settings = await import("#src/app/stores/settings-store.js") as typeof import("#src/app/stores/settings-store.js");
+      await settings.setVisibleProjects(["/home/user/other"]);
+
+      projectListMock.mockResolvedValueOnce({
+        data: [
+          { id: "p1", worktree: "/home/user/repo-a", name: "Repo A" },
+        ],
+        error: null,
+      });
+      cachedSessionProjectsMock.mockResolvedValueOnce([]);
+
+      const projects = await getProjects();
+
+      expect(projects).toHaveLength(0);
+    });
+
+    it("filters after linked worktree filtering", async () => {
+      tempRoot = await mkdtemp(path.join(os.tmpdir(), "opencode-whitelist-linked-"));
+
+      const mainWorktree = path.join(tempRoot, "repo-main");
+      const linkedWorktree = path.join(tempRoot, "repo-feature");
+
+      await mkdir(path.join(mainWorktree, ".git"), { recursive: true });
+      await mkdir(linkedWorktree, { recursive: true });
+      await writeFile(
+        path.join(linkedWorktree, ".git"),
+        `gitdir: ${path.join(mainWorktree, ".git", "worktrees", "feature")}`,
+        "utf-8",
+      );
+
+      process.env.OPENCODE_TELEGRAM_VISIBLE_PROJECTS = tempRoot + "/repo-feature";
+
+      projectListMock.mockResolvedValueOnce({
+        data: [
+          { id: "main", worktree: mainWorktree, name: "Main" },
+          { id: "feature", worktree: linkedWorktree, name: "Feature" },
+        ],
+        error: null,
+      });
+      cachedSessionProjectsMock.mockResolvedValueOnce([]);
+
+      const projects = await getProjects();
+
+      // repo-feature is a linked worktree, so it's already filtered out
+      // by the linked-worktree filter. The whitelist sees it as empty.
+      expect(projects).toHaveLength(0);
+    });
   });
 
   describe("getProjectByWorktree", () => {
