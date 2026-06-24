@@ -254,6 +254,28 @@ The first time you start the bot, the configuration wizard runs and writes `.env
 
 Logs are written to `./logs` when running from sources and to the runtime config directory `logs/` folder in `installed` mode. Log rotation depends on runtime mode: `sources` creates one file per bot launch, while `installed` appends to one file per day. Old log files are removed according to `LOG_RETENTION`.
 
+### Project Visibility Filter
+
+If you have many OpenCode projects and `/projects` shows ones you don't need, you can whitelist which projects appear. Two ways:
+
+**1. Environment variable** (recommended — survives bot restarts and settings rewrites):
+
+```env
+OPENCODE_TELEGRAM_VISIBLE_PROJECTS=/home/user/project-a;/home/user/project-b
+```
+
+Semicolon-separated list of full directory paths. Only projects whose worktree path matches one of the listed paths are shown.
+
+**2. `settings.json`** (overwritten by the bot on every settings change — prefer env var):
+
+```json
+{
+  "visibleProjects": ["/home/user/project-a", "/home/user/project-b"]
+}
+```
+
+When unconfigured, all projects are shown (backward compatible). The env var takes precedence over `settings.json`.
+
 ### Reverse Proxy (Optional)
 
 For environments that block `api.telegram.org` but allow your own HTTPS endpoint (corporate networks, restricted regions), you can route Bot API traffic through a reverse proxy you control. This is an alternative to the SOCKS/HTTP forward proxy configured with `TELEGRAM_PROXY_URL`.
