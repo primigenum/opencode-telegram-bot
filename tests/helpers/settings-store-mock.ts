@@ -48,6 +48,8 @@ export function createSettingsStoreMock(): SettingsStoreMock {
     setScheduledTasks: vi.fn(),
     getScheduledTaskSessionIgnores: vi.fn(() => []),
     setScheduledTaskSessionIgnores: vi.fn(),
+    getVisibleProjects: vi.fn(() => []),
+    setVisibleProjects: vi.fn(),
     __resetSettingsForTests: vi.fn(),
     loadSettings: vi.fn(),
   };
