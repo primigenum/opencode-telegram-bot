@@ -5,7 +5,7 @@ import { getDateLocale, t } from "../../i18n/index.js";
 import { interactionManager } from "../../app/managers/interaction-manager.js";
 import type { InteractionState } from "../../app/types/interaction.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
-import { getCurrentProject } from "../../app/stores/settings-store.js";
+import { getCurrentAgent, getCurrentProject } from "../../app/stores/settings-store.js";
 import { taskCreationManager } from "../../app/managers/scheduled-task-creation-manager.js";
 import { parseTaskSchedule } from "../../app/services/scheduled-task-schedule-parser-service.js";
 import { addScheduledTask, listScheduledTasks } from "../../app/stores/scheduled-task-store.js";
@@ -16,6 +16,7 @@ import {
   type ParsedTaskSchedule,
   type ScheduledTask,
 } from "../../app/types/scheduled-task.js";
+import { getAgentDisplayName } from "../../app/types/agent.js";
 import { logger } from "../../utils/logger.js";
 
 const TASK_PROMPT_PREVIEW_LENGTH = 100;
@@ -87,8 +88,9 @@ function formatParsedSchedulePromptMessage(schedule: ParsedTaskSchedule): string
 }
 
 function formatTaskCreatedMessage(task: ScheduledTask): string {
+  const agentDisplay = getAgentDisplayName(task.model.agent ?? "build");
   const variant = task.model.variant ? ` (${task.model.variant})` : "";
-  const model = `${task.model.providerID}/${task.model.modelID}${variant}`;
+  const model = `${agentDisplay} · ${task.model.providerID}/${task.model.modelID}${variant}`;
   const cronLine = task.kind === "cron" ? `${t("task.created.cron", { cron: task.cron })}\n` : "";
 
   return t("task.created", {
@@ -279,7 +281,7 @@ export async function taskCommand(ctx: CommandContext<Context>): Promise<void> {
     return;
   }
 
-  const currentModel = createScheduledTaskModel(getStoredModel());
+  const currentModel = createScheduledTaskModel(getStoredModel(), getCurrentAgent());
 
   taskCreationManager.start(currentProject.id, currentProject.worktree, currentModel);
   interactionManager.start({

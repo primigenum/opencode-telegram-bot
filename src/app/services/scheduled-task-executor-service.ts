@@ -560,7 +560,7 @@ export async function executeScheduledTask(
       sessionID: session.id,
       directory: session.directory,
       parts: [{ type: "text", text: task.prompt }],
-      agent: SCHEDULED_TASK_AGENT,
+      agent: task.model.agent ?? SCHEDULED_TASK_AGENT,
     };
 
     if (task.model.providerID && task.model.modelID) {
