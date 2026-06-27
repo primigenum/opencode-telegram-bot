@@ -5,7 +5,7 @@ export const en = {
   "cmd.description.detach": "Detach from current session",
   "cmd.description.sessions": "List sessions",
   "cmd.description.messages": "Browse session messages",
-  "cmd.description.tts": "Choose audio reply mode",
+  "cmd.description.settings": "Change bot settings",
   "cmd.description.projects": "List projects",
   "cmd.description.worktree": "Switch git worktrees",
   "cmd.description.task": "Create a scheduled task",
@@ -47,6 +47,7 @@ export const en = {
     "⚠️ This command is not available until current question flow is completed.",
 
   "inline.button.cancel": "❌ Cancel",
+  "inline.button.close": "❌ Close",
   "inline.inactive_callback": "This menu is inactive",
   "inline.cancelled_callback": "Cancelled",
 
@@ -136,13 +137,25 @@ export const en = {
   "status.server_unavailable":
     "🔴 OpenCode Server is unavailable\n\nUse /opencode_start to start the server.",
 
-  "tts.prompt": "Select audio reply mode:",
   "tts.off": "🔇 Audio replies disabled.",
   "tts.all": "🔊 Audio replies enabled for all messages.",
   "tts.auto": "🎤 Audio replies enabled for voice/audio messages only.",
   "tts.not_configured":
     "⚠️ Audio replies are unavailable. Set `TTS_API_URL` and `TTS_API_KEY` first.",
   "tts.failed": "⚠️ Failed to generate audio reply.",
+
+  "settings.menu.title": "⚙️ Bot settings\nTap a setting to toggle its value:",
+  "settings.compact_output.label": "Compact output mode",
+  "settings.thinking_content.label": "Thinking content",
+  "settings.response_streaming.label": "Response streaming",
+  "settings.response_streaming.edit": "edit",
+  "settings.response_streaming.draft": "draft (experimental)",
+  "settings.diff_files.label": "Diff files",
+  "settings.assistant_footer.label": "Assistant footer",
+  "settings.tts.label": "Audio replies",
+  "settings.value.on": "On",
+  "settings.value.off": "Off",
+  "settings.saved": "✅ Setting saved.",
 
   "projects.empty":
     "📭 No projects found.\n\nOpen a directory in OpenCode and create at least one session, then it will appear here.",

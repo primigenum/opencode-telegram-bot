@@ -16,20 +16,6 @@ describe("config boolean env parsing", () => {
     vi.stubEnv("OPENCODE_MONITOR_INTERVAL_SEC", "");
   });
 
-  it("uses false defaults for hide service message flags", async () => {
-    vi.stubEnv("HIDE_THINKING_MESSAGES", "");
-    vi.stubEnv("SHOW_THINKING_CONTENT", "");
-    vi.stubEnv("HIDE_TOOL_CALL_MESSAGES", "");
-    vi.stubEnv("HIDE_TOOL_FILE_MESSAGES", "");
-
-    const config = await loadConfig();
-
-    expect(config.bot.hideThinkingMessages).toBe(false);
-    expect(config.bot.showThinkingContent).toBe(false);
-    expect(config.bot.hideToolCallMessages).toBe(false);
-    expect(config.bot.hideToolFileMessages).toBe(false);
-  });
-
   it("tracks background sessions by default", async () => {
     vi.stubEnv("TRACK_BACKGROUND_SESSIONS", "");
 
@@ -52,48 +38,6 @@ describe("config boolean env parsing", () => {
     const config = await loadConfig();
 
     expect(config.bot.trackBackgroundSessions).toBe(true);
-  });
-
-  it("parses truthy values for hide service message flags", async () => {
-    vi.stubEnv("HIDE_THINKING_MESSAGES", "YES");
-    vi.stubEnv("SHOW_THINKING_CONTENT", "1");
-    vi.stubEnv("HIDE_TOOL_CALL_MESSAGES", "1");
-    vi.stubEnv("HIDE_TOOL_FILE_MESSAGES", "true");
-
-    const config = await loadConfig();
-
-    expect(config.bot.hideThinkingMessages).toBe(true);
-    expect(config.bot.showThinkingContent).toBe(true);
-    expect(config.bot.hideToolCallMessages).toBe(true);
-    expect(config.bot.hideToolFileMessages).toBe(true);
-  });
-
-  it("parses falsy values for hide service message flags", async () => {
-    vi.stubEnv("HIDE_THINKING_MESSAGES", "off");
-    vi.stubEnv("SHOW_THINKING_CONTENT", "false");
-    vi.stubEnv("HIDE_TOOL_CALL_MESSAGES", "0");
-    vi.stubEnv("HIDE_TOOL_FILE_MESSAGES", "false");
-
-    const config = await loadConfig();
-
-    expect(config.bot.hideThinkingMessages).toBe(false);
-    expect(config.bot.showThinkingContent).toBe(false);
-    expect(config.bot.hideToolCallMessages).toBe(false);
-    expect(config.bot.hideToolFileMessages).toBe(false);
-  });
-
-  it("falls back to defaults on invalid values", async () => {
-    vi.stubEnv("HIDE_THINKING_MESSAGES", "banana");
-    vi.stubEnv("SHOW_THINKING_CONTENT", "maybe");
-    vi.stubEnv("HIDE_TOOL_CALL_MESSAGES", "nope");
-    vi.stubEnv("HIDE_TOOL_FILE_MESSAGES", "invalid");
-
-    const config = await loadConfig();
-
-    expect(config.bot.hideThinkingMessages).toBe(false);
-    expect(config.bot.showThinkingContent).toBe(false);
-    expect(config.bot.hideToolCallMessages).toBe(false);
-    expect(config.bot.hideToolFileMessages).toBe(false);
   });
 
   it("uses markdown as default message format mode", async () => {
@@ -126,30 +70,6 @@ describe("config boolean env parsing", () => {
     const config = await loadConfig();
 
     expect(config.bot.messageFormatMode).toBe("markdown");
-  });
-
-  it("disables compact output mode by default", async () => {
-    vi.stubEnv("COMPACT_OUTPUT_MODE", "");
-
-    const config = await loadConfig();
-
-    expect(config.bot.compactOutputMode).toBe(false);
-  });
-
-  it("parses compact output mode as a boolean", async () => {
-    vi.stubEnv("COMPACT_OUTPUT_MODE", "true");
-
-    const config = await loadConfig();
-
-    expect(config.bot.compactOutputMode).toBe(true);
-  });
-
-  it("falls back to disabled compact output mode on invalid value", async () => {
-    vi.stubEnv("COMPACT_OUTPUT_MODE", "compact");
-
-    const config = await loadConfig();
-
-    expect(config.bot.compactOutputMode).toBe(false);
   });
 
   it("parses supported locale from BOT_LOCALE", async () => {

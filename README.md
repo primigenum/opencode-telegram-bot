@@ -38,7 +38,8 @@ Languages: English (`en`), العربية (`ar`), Deutsch (`de`), Español (`es`
 - **Custom Commands** — run OpenCode custom commands (and built-ins like `init`/`review`) from an inline menu with confirmation
 - **Skills Catalog** — browse OpenCode skills from an inline menu and run them immediately or with arguments in the next message
 - **Interactive Q&A** — answer agent questions and approve permissions via inline buttons
-- **Voice prompts** — send voice/audio messages, transcribe them via a Whisper-compatible API, and optionally enable spoken replies with `/tts`
+- **Runtime settings** — use `/settings` to change runtime preferences; see [Runtime Settings](#runtime-settings)
+- **Voice prompts** — send voice/audio messages, transcribe them via a Whisper-compatible API, and optionally enable spoken replies in `/settings`
 - **File attachments** — send images, PDF documents, and text-based files to OpenCode, including multiple files in one Telegram album
 - **Scheduled tasks** — schedule prompts to run later or on a recurring interval; see [Scheduled Tasks](#scheduled-tasks)
 - **Context control** — compact context when it gets too large, right from the chat
@@ -141,7 +142,7 @@ opencode-telegram config
 | `/worktree`       | Switch between existing git worktrees                   |
 | `/open`           | Add a project by browsing directories                   |
 | `/ls`             | List directory contents, then tap to open or download   |
-| `/tts`            | Choose audio reply mode (`off`, `all`, or `auto`)       |
+| `/settings`       | Change bot settings                                     |
 | `/rename`         | Rename the current session                              |
 | `/commands`       | Browse and run custom commands                          |
 | `/skills`         | Browse and run OpenCode skills                          |
@@ -229,15 +230,9 @@ When installed via npm, the configuration wizard handles the initial setup. The 
 | `SCHEDULED_TASK_EXECUTION_TIMEOUT_MINUTES` | Maximum time the bot waits for one scheduled task run before marking it failed                                        |    No    | `120`                    |
 | `SCHEDULED_TASK_DISABLE_NOTIFICATION`      | Send scheduled task result/error messages without Telegram push notifications                                         |    No    | `false`                  |
 | `BASH_TOOL_DISPLAY_MAX_LENGTH`             | Maximum displayed length for `bash` tool commands in Telegram summaries; longer commands are truncated                |    No    | `128`                    |
-| `SERVICE_MESSAGES_INTERVAL_SEC`            | Service messages interval (thinking + tool calls); keep `>=2` to avoid Telegram rate limits, `0` = immediate          |    No    | `5`                      |
-| `HIDE_THINKING_MESSAGES`                   | Hide `💭 Thinking...` service messages                                                                                |    No    | `false`                  |
-| `SHOW_THINKING_CONTENT`                    | Show full model reasoning in the thinking message; uses `RESPONSE_STREAMING_MODE` for edit vs draft streaming         |    No    | `false`                  |
-| `HIDE_TOOL_CALL_MESSAGES`                  | Hide tool-call service messages (`💻 bash ...`, `📖 read ...`, etc.)                                                  |    No    | `false`                  |
-| `HIDE_TOOL_FILE_MESSAGES`                  | Hide file edit documents sent as `.txt` attachments (`edit_*.txt`, `write_*.txt`)                                     |    No    | `false`                  |
 | `TRACK_BACKGROUND_SESSIONS`                | Track detached/non-current sessions in the current selected project/worktree and send short notifications             |    No    | `true`                   |
-| `RESPONSE_STREAMING`                       | Stream assistant replies while they are generated across one or more Telegram messages                                |    No    | `true`                   |
+| `RESPONSE_STREAM_THROTTLE_MS`              | Stream update throttle in milliseconds for assistant, thinking, and tool message edits                                |    No    | `1000`                   |
 | `MESSAGE_FORMAT_MODE`                      | Assistant reply formatting mode: `markdown` (Telegram MarkdownV2) or `raw`                                            |    No    | `markdown`               |
-| `COMPACT_OUTPUT_MODE`                      | Use one edited compact progress message with tool/file counts and no diff documents                                   |    No    | `false`                  |
 | `CODE_FILE_MAX_SIZE_KB`                    | Max file size (KB) to send as document                                                                                |    No    | `100`                    |
 | `STT_API_URL`                              | Whisper-compatible API base URL (enables voice/audio transcription)                                                   |    No    | —                        |
 | `STT_API_KEY`                              | API key for your STT provider                                                                                         |    No    | —                        |
@@ -256,6 +251,16 @@ When installed via npm, the configuration wizard handles the initial setup. The 
 > **Keep your `.env` file private.** It contains your bot token. Never commit it to version control.
 
 Logs are written to `./logs` when running from sources and to the runtime config directory `logs/` folder in `installed` mode. Log rotation depends on runtime mode: `sources` creates one file per bot launch, while `installed` appends to one file per day. Old log files are removed according to `LOG_RETENTION`.
+
+### Runtime Settings
+
+Runtime preferences are changed from `/settings` and stored in `settings.json`:
+
+- Compact output mode
+- Thinking content display
+- Diff file attachments
+- Response streaming mode: `edit` or `draft (experimental)`; applies only to final assistant replies, not thinking messages
+- Audio replies: `off`, `all`, or `auto` when TTS is configured
 
 ### Reverse Proxy (Optional)
 
@@ -316,7 +321,7 @@ If `STT_API_URL` and `STT_API_KEY` are set, the bot will:
 
 If `STT_NOTE_PROMPT` is set to a non-empty value other than `false` or `0`, the bot prepends `[Note: ...]` to the transcription before sending it to the LLM. The recognized text shown in Telegram stays unchanged.
 
-If TTS credentials are configured, you can choose spoken reply behavior with `/tts`: `off` disables audio replies, `all` sends audio for every assistant reply, and `auto` sends audio only after voice/audio prompts. The preference is stored in `settings.json` and persists across restarts.
+If TTS credentials are configured, you can choose spoken reply behavior in `/settings`: `off` disables audio replies, `all` sends audio for every assistant reply, and `auto` sends audio only after voice/audio prompts. The preference is stored in `settings.json` and persists across restarts.
 
 OpenAI-compatible TTS configuration example:
 

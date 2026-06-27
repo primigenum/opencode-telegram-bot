@@ -7,7 +7,7 @@ export const de: I18nDictionary = {
   "cmd.description.detach": "Von aktueller Sitzung trennen",
   "cmd.description.sessions": "Sitzungen auflisten",
   "cmd.description.messages": "Sitzungsnachrichten durchsuchen",
-  "cmd.description.tts": "Audioantwort-Modus wählen",
+  "cmd.description.settings": "Bot-Einstellungen ändern",
   "cmd.description.projects": "Projekte auflisten",
   "cmd.description.worktree": "Git-Worktrees wechseln",
   "cmd.description.task": "Geplante Aufgabe erstellen",
@@ -50,6 +50,7 @@ export const de: I18nDictionary = {
     "⚠️ Dieser Befehl ist erst verfügbar, wenn der aktuelle Frage-Flow abgeschlossen ist.",
 
   "inline.button.cancel": "❌ Abbrechen",
+  "inline.button.close": "❌ Schließen",
   "inline.inactive_callback": "Dieses Menü ist inaktiv",
   "inline.cancelled_callback": "Abgebrochen",
 
@@ -143,13 +144,26 @@ export const de: I18nDictionary = {
   "status.server_unavailable":
     "🔴 OpenCode-Server ist nicht verfügbar\n\nNutze /opencode_start, um den Server zu starten.",
 
-  "tts.prompt": "Audioantwort-Modus auswählen:",
   "tts.off": "🔇 Audioantworten deaktiviert.",
   "tts.all": "🔊 Audioantworten für alle Nachrichten aktiviert.",
   "tts.auto": "🎤 Audioantworten nur für Sprachnachrichten aktiviert.",
   "tts.not_configured":
     "⚠️ Audioantworten sind nicht verfugbar. Setze zuerst `TTS_API_URL` und `TTS_API_KEY`.",
   "tts.failed": "⚠️ Audioreply konnte nicht erzeugt werden.",
+
+  "settings.menu.title":
+    "⚙️ Bot-Einstellungen\nTippen Sie auf eine Einstellung, um ihren Wert umzuschalten:",
+  "settings.compact_output.label": "Kompakte Ausgabe",
+  "settings.thinking_content.label": "Thinking-Inhalt",
+  "settings.response_streaming.label": "Antwort-Streaming",
+  "settings.response_streaming.edit": "edit",
+  "settings.response_streaming.draft": "draft (experimental)",
+  "settings.diff_files.label": "Diff-Dateien",
+  "settings.assistant_footer.label": "Antwort-Footer",
+  "settings.tts.label": "Audioantworten",
+  "settings.value.on": "Ein",
+  "settings.value.off": "Aus",
+  "settings.saved": "✅ Einstellung gespeichert.",
 
   "projects.empty":
     "📭 Keine Projekte gefunden.\n\nÖffne ein Verzeichnis in OpenCode und erstelle mindestens eine Sitzung, dann erscheint es hier.",

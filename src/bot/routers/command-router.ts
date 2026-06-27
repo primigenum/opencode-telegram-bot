@@ -1,6 +1,6 @@
 import type { Bot, Context, NextFunction } from "grammy";
 import { config } from "../../config.js";
-import { ttsCommand } from "../commands/tts-command.js";
+import { settingsCommand } from "../commands/settings-command.js";
 import { opencodeStartCommand } from "../commands/opencode-start-command.js";
 import { opencodeStopCommand } from "../commands/opencode-stop-command.js";
 import { projectsCommand } from "../commands/projects-command.js";
@@ -63,7 +63,7 @@ export function registerCommandRouter(bot: Bot<Context>, deps: CommandRouterDeps
   bot.command("start", startCommand);
   bot.command("help", helpCommand);
   bot.command("status", statusCommand);
-  bot.command("tts", ttsCommand);
+  bot.command("settings", settingsCommand);
   bot.command("opencode_start", opencodeStartCommand);
   bot.command("opencode_stop", opencodeStopCommand);
   bot.command("projects", projectsCommand);

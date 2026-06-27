@@ -58,6 +58,18 @@ describe("bot/menus/inline-menu", () => {
     expect(getCallbackData(lastRow[0])).toBe("inline:cancel:project");
   });
 
+  it("uses close label for settings menu", () => {
+    const keyboard = new InlineKeyboard().text("Compact output", "settings:compact_output");
+
+    appendInlineMenuCancelButton(keyboard, "settings");
+
+    const rows = keyboard.inline_keyboard;
+    const lastRow = rows[rows.length - 1];
+
+    expect(lastRow[0]?.text).toBe(t("inline.button.close"));
+    expect(getCallbackData(lastRow[0])).toBe("inline:cancel:settings");
+  });
+
   it("does not create empty rows when keyboard already has trailing row separator", () => {
     const keyboard = new InlineKeyboard().text("Project A", "project:1").row();
 

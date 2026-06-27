@@ -6,7 +6,6 @@ const runtimePaths = getRuntimePaths();
 dotenv.config({ path: runtimePaths.envFilePath, quiet: true });
 
 export type MessageFormatMode = "raw" | "markdown";
-export type StreamingMode = "edit" | "draft";
 export type TtsProvider = "openai" | "google" | "elevenlabs";
 
 function getEnvVar(key: string, required: boolean = true): string {
@@ -54,24 +53,6 @@ function getOptionalBooleanEnvVar(key: string, defaultValue: boolean): boolean {
 
   if (["0", "false", "no", "off"].includes(normalized)) {
     return false;
-  }
-
-  return defaultValue;
-}
-
-function getOptionalStreamingModeEnvVar(
-  key: string,
-  defaultValue: StreamingMode,
-): StreamingMode {
-  const value = getEnvVar(key, false);
-
-  if (!value) {
-    return defaultValue;
-  }
-
-  const normalized = value.trim().toLowerCase();
-  if (normalized === "edit" || normalized === "draft") {
-    return normalized;
   }
 
   return defaultValue;
@@ -182,16 +163,10 @@ export const config = {
       false,
     ),
     responseStreamThrottleMs: getOptionalPositiveIntEnvVar("RESPONSE_STREAM_THROTTLE_MS", 1000),
-    responseStreamingMode: getOptionalStreamingModeEnvVar("RESPONSE_STREAMING_MODE", "edit"),
     bashToolDisplayMaxLength: getOptionalPositiveIntEnvVar("BASH_TOOL_DISPLAY_MAX_LENGTH", 128),
     locale: getOptionalLocaleEnvVar("BOT_LOCALE", "en"),
-    hideThinkingMessages: getOptionalBooleanEnvVar("HIDE_THINKING_MESSAGES", false),
-    showThinkingContent: getOptionalBooleanEnvVar("SHOW_THINKING_CONTENT", false),
-    hideToolCallMessages: getOptionalBooleanEnvVar("HIDE_TOOL_CALL_MESSAGES", false),
-    hideToolFileMessages: getOptionalBooleanEnvVar("HIDE_TOOL_FILE_MESSAGES", false),
     trackBackgroundSessions: getOptionalBooleanEnvVar("TRACK_BACKGROUND_SESSIONS", true),
     messageFormatMode: getOptionalMessageFormatModeEnvVar("MESSAGE_FORMAT_MODE", "markdown"),
-    compactOutputMode: getOptionalBooleanEnvVar("COMPACT_OUTPUT_MODE", false),
   },
   files: {
     maxFileSizeKb: parseInt(getEnvVar("CODE_FILE_MAX_SIZE_KB", false) || "100", 10),

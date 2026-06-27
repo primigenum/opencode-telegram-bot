@@ -7,7 +7,7 @@ export const zh: I18nDictionary = {
   "cmd.description.detach": "从当前会话分离",
   "cmd.description.sessions": "列出会话",
   "cmd.description.messages": "浏览会话消息",
-  "cmd.description.tts": "选择语音回复模式",
+  "cmd.description.settings": "更改机器人设置",
   "cmd.description.projects": "列出项目",
   "cmd.description.worktree": "切换 git worktree",
   "cmd.description.task": "创建定时任务",
@@ -43,6 +43,7 @@ export const zh: I18nDictionary = {
   "question.blocked.command_not_allowed": "⚠️ 在当前问答流程完成之前不可用此命令。",
 
   "inline.button.cancel": "❌ 取消",
+  "inline.button.close": "❌ 关闭",
   "inline.inactive_callback": "此菜单已失效",
   "inline.cancelled_callback": "已取消",
 
@@ -124,12 +125,24 @@ export const zh: I18nDictionary = {
   "status.session_hint": "使用 /sessions 选择一个会话，或 /new 创建",
   "status.server_unavailable": "🔴 OpenCode 服务器不可用\n\n使用 /opencode_start 启动服务器。",
 
-  "tts.prompt": "请选择语音回复模式：",
   "tts.off": "🔇 语音回复已关闭。",
   "tts.all": "🔊 已为所有消息启用语音回复。",
   "tts.auto": "🎤 仅为语音消息启用语音回复。",
   "tts.not_configured": "⚠️ 语音回复暂不可用。请先设置 `TTS_API_URL` 和 `TTS_API_KEY`。",
   "tts.failed": "⚠️ 生成语音回复失败。",
+
+  "settings.menu.title": "⚙️ 机器人设置\n点按设置项以切换其值：",
+  "settings.compact_output.label": "紧凑输出模式",
+  "settings.thinking_content.label": "思考内容",
+  "settings.response_streaming.label": "回复流式模式",
+  "settings.response_streaming.edit": "edit",
+  "settings.response_streaming.draft": "draft (experimental)",
+  "settings.diff_files.label": "Diff 文件",
+  "settings.assistant_footer.label": "回复页脚",
+  "settings.tts.label": "语音回复",
+  "settings.value.on": "开启",
+  "settings.value.off": "关闭",
+  "settings.saved": "✅ 设置已保存。",
 
   "projects.empty":
     "📭 未找到项目。\n\n在 OpenCode 中打开一个目录并至少创建一个会话，然后它会出现在这里。",

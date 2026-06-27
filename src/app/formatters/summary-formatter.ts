@@ -281,6 +281,27 @@ export function formatCompactToolInfo(toolInfo: ToolInfo, maxLength = 64, fallba
   return `${normalized.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
 }
 
+export function formatCompactToolActivity(toolInfo: ToolInfo, maxLength = 64): string | null {
+  if (!hasCompactToolDetails(toolInfo)) {
+    return null;
+  }
+
+  const formatted = formatCompactToolInfo(toolInfo, maxLength, "").trim();
+  return formatted || null;
+}
+
+function hasCompactToolDetails(toolInfo: ToolInfo): boolean {
+  if (typeof toolInfo.title === "string" && toolInfo.title.trim().length > 0) {
+    return true;
+  }
+
+  if (toolInfo.tool === "todowrite" && Array.isArray(toolInfo.metadata?.todos)) {
+    return true;
+  }
+
+  return getToolDetails(toolInfo.tool, toolInfo.input).trim().length > 0;
+}
+
 function countLines(text: string): number {
   return text.split("\n").length;
 }

@@ -52,8 +52,6 @@ vi.mock("../../../src/config.js", () => ({
       taskLimit: 10,
       locale: "en",
       serviceMessagesIntervalSec: 5,
-      hideThinkingMessages: false,
-      hideToolCallMessages: false,
       responseStreaming: true,
       messageFormatMode: "markdown",
     },

@@ -95,7 +95,6 @@ describe("runtime/bootstrap", () => {
     expect(updated).toContain("OPENCODE_SERVER_USERNAME=opencode");
     expect(updated).toContain("# OPENCODE_SERVER_PASSWORD=");
     expect(updated).toContain("BOT_LOCALE=ru");
-    expect(updated).toContain("# Hide thinking indicator messages (default: false)");
 
     expect(updated.indexOf("# Telegram Bot Token (from @BotFather)")).toBeLessThan(
       updated.indexOf("TELEGRAM_BOT_TOKEN=token:value"),
@@ -108,7 +107,7 @@ describe("runtime/bootstrap", () => {
   it("preserves existing values for template keys outside the wizard", () => {
     const existingContent = [
       "LOG_LEVEL=debug",
-      "HIDE_TOOL_CALL_MESSAGES=true",
+      "CUSTOM_FEATURE_FLAG=true",
       "OPEN_BROWSER_ROOTS=C:/Repos, D:/Work",
       "",
     ].join("\n");
@@ -127,10 +126,9 @@ describe("runtime/bootstrap", () => {
     );
 
     expect(updated).toContain("LOG_LEVEL=debug");
-    expect(updated).toContain("HIDE_TOOL_CALL_MESSAGES=true");
+    expect(updated).toContain("CUSTOM_FEATURE_FLAG=true");
     expect(updated).toContain("OPEN_BROWSER_ROOTS=C:/Repos, D:/Work");
     expect(updated).not.toContain("# LOG_LEVEL=info");
-    expect(updated).not.toContain("# HIDE_TOOL_CALL_MESSAGES=false");
     expect(updated).not.toContain("# OPEN_BROWSER_ROOTS=");
   });
 
