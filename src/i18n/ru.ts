@@ -7,7 +7,7 @@ export const ru: I18nDictionary = {
   "cmd.description.detach": "Отсоединиться от текущей сессии",
   "cmd.description.sessions": "Список сессий",
   "cmd.description.messages": "Сообщения текущей сессии",
-  "cmd.description.tts": "Выбрать режим аудиоответов",
+  "cmd.description.settings": "Изменить настройки бота",
   "cmd.description.projects": "Список проектов",
   "cmd.description.worktree": "Переключить git worktree",
   "cmd.description.task": "Создать задачу по расписанию",
@@ -47,6 +47,7 @@ export const ru: I18nDictionary = {
     "⚠️ Эта команда недоступна, пока не завершен текущий опрос.",
 
   "inline.button.cancel": "❌ Отмена",
+  "inline.button.close": "❌ Закрыть",
   "inline.inactive_callback": "Это меню уже неактивно",
   "inline.cancelled_callback": "Отменено",
 
@@ -136,12 +137,24 @@ export const ru: I18nDictionary = {
   "status.server_unavailable":
     "🔴 OpenCode Server недоступен\n\nИспользуйте /opencode_start для запуска сервера.",
 
-  "tts.prompt": "Выберите режим аудиоответов:",
   "tts.off": "🔇 Аудиоответы выключены.",
   "tts.all": "🔊 Аудиоответы включены для всех сообщений.",
   "tts.auto": "🎤 Аудиоответы включены только для голосовых сообщений.",
   "tts.not_configured": "⚠️ Аудиоответы недоступны. Сначала укажите `TTS_API_URL` и `TTS_API_KEY`.",
   "tts.failed": "⚠️ Не удалось создать аудиоответ.",
+
+  "settings.menu.title": "⚙️ Настройки бота\nНажмите на параметр, чтобы переключить его значение:",
+  "settings.compact_output.label": "Компактный вывод",
+  "settings.thinking_content.label": "Содержимое thinking",
+  "settings.response_streaming.label": "Стриминг ответа",
+  "settings.response_streaming.edit": "edit",
+  "settings.response_streaming.draft": "draft (experimental)",
+  "settings.diff_files.label": "Файлы с diff",
+  "settings.assistant_footer.label": "Футер ответа",
+  "settings.tts.label": "Аудиоответы",
+  "settings.value.on": "Вкл",
+  "settings.value.off": "Выкл",
+  "settings.saved": "✅ Настройка сохранена.",
 
   "projects.empty":
     "📭 Проектов нет.\n\nОткройте директорию в OpenCode и создайте хотя бы одну сессию, после этого она появится здесь.",

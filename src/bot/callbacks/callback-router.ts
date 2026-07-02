@@ -18,6 +18,7 @@ import { handlePermissionCallback } from "./permission-callback-handler.js";
 import { handleProjectSelect } from "./project-callback-handler.js";
 import { handleQuestionCallback } from "./question-callback-handler.js";
 import { handleRenameCancel } from "./rename-callback-handler.js";
+import { handleSettingsCallback } from "./settings-callback-handler.js";
 import {
   handleBackgroundSessionOpen,
   handleSessionSelect,
@@ -27,7 +28,6 @@ import {
   handleTaskCallback,
   handleTaskListCallback,
 } from "./scheduled-task-callback-handler.js";
-import { handleTtsCallback } from "./tts-callback-handler.js";
 import { handleVariantSelect } from "./variant-selection-callback-handler.js";
 import { handleWorktreeCallback } from "./worktree-callback-handler.js";
 import { clearLsPathIndex, clearOpenPathIndex } from "../menus/file-browser-menu.js";
@@ -77,7 +77,7 @@ export function registerCallbackRouter(bot: Bot<Context>, deps: CallbackRouterDe
       const handledModelSearchResults = await handleModelSearchResults(ctx);
       const handledModel = await handleModelSelect(ctx);
       const handledVariant = await handleVariantSelect(ctx);
-      const handledTts = await handleTtsCallback(ctx);
+      const handledSettings = await handleSettingsCallback(ctx);
       const handledCompactConfirm = await handleCompactConfirm(ctx);
       const handledTask = await handleTaskCallback(ctx);
       const handledTaskList = await handleTaskListCallback(ctx);
@@ -97,7 +97,7 @@ export function registerCallbackRouter(bot: Bot<Context>, deps: CallbackRouterDe
       const handledMcps = await handleMcpsCallback(ctx);
 
       logger.debug(
-        `[Bot] Callback handled: backgroundSession=${handledBackgroundSession}, inlineCancel=${handledInlineCancel}, session=${handledSession}, project=${handledProject}, worktree=${handledWorktree}, open=${handledOpen}, ls=${handledLs}, question=${handledQuestion}, permission=${handledPermission}, agent=${handledAgent}, modelSearch=${handledModelSearch}, modelSearchResults=${handledModelSearchResults}, model=${handledModel}, variant=${handledVariant}, tts=${handledTts}, compactConfirm=${handledCompactConfirm}, task=${handledTask}, taskList=${handledTaskList}, rename=${handledRenameCancel}, commands=${handledCommands}, messages=${handledMessages}, skills=${handledSkills}, mcps=${handledMcps}`,
+        `[Bot] Callback handled: backgroundSession=${handledBackgroundSession}, inlineCancel=${handledInlineCancel}, session=${handledSession}, project=${handledProject}, worktree=${handledWorktree}, open=${handledOpen}, ls=${handledLs}, question=${handledQuestion}, permission=${handledPermission}, agent=${handledAgent}, modelSearch=${handledModelSearch}, modelSearchResults=${handledModelSearchResults}, model=${handledModel}, variant=${handledVariant}, settings=${handledSettings}, compactConfirm=${handledCompactConfirm}, task=${handledTask}, taskList=${handledTaskList}, rename=${handledRenameCancel}, commands=${handledCommands}, messages=${handledMessages}, skills=${handledSkills}, mcps=${handledMcps}`,
       );
 
       if (
@@ -115,7 +115,7 @@ export function registerCallbackRouter(bot: Bot<Context>, deps: CallbackRouterDe
         !handledModelSearchResults &&
         !handledModel &&
         !handledVariant &&
-        !handledTts &&
+        !handledSettings &&
         !handledCompactConfirm &&
         !handledTask &&
         !handledTaskList &&

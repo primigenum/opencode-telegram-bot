@@ -36,8 +36,6 @@ vi.mock("#src/config.ts", () => ({
       sessionsListLimit: 10,
       projectsListLimit: 10,
       locale: "en",
-      hideThinkingMessages: false,
-      hideToolCallMessages: false,
     },
     files: { maxFileSizeKb: 100 },
   },

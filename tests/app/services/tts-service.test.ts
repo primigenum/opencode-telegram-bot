@@ -53,8 +53,6 @@ vi.mock("#src/config.ts", () => ({
       taskLimit: 10,
       locale: "en",
       serviceMessagesIntervalSec: 5,
-      hideThinkingMessages: false,
-      hideToolCallMessages: false,
       responseStreaming: true,
       messageFormatMode: "markdown",
     },

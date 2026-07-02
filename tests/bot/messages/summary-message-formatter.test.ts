@@ -4,7 +4,7 @@ const { formatSummary, formatSummaryWithMode } = await loadSut<typeof import("#s
   "#src/bot/messages/summary-message-formatter.ts",
   import.meta.url,
 );
-const { formatToolInfo, prepareCodeFile } = await loadSut<typeof import("#src/app/formatters/summary-formatter.js")>(
+const { formatCompactToolActivity, formatToolInfo, prepareCodeFile } = await loadSut<typeof import("#src/app/formatters/summary-formatter.js")>(
   "#src/app/formatters/summary-formatter.ts",
   import.meta.url,
 );
@@ -226,6 +226,54 @@ describe("bot/messages/summary-message-formatter", () => {
     });
 
     expect(text).toBe("💻 Run tests\nbash npm test");
+  });
+
+  it("skips compact tool activity until details are available", () => {
+    expect(
+      formatCompactToolActivity({
+        sessionId: "s1",
+        messageId: "m4a",
+        callId: "c4a",
+        tool: "read",
+        state: { status: "pending" } as never,
+      }),
+    ).toBeNull();
+
+    expect(
+      formatCompactToolActivity({
+        sessionId: "s1",
+        messageId: "m4b",
+        callId: "c4b",
+        tool: "bash",
+        state: { status: "running" } as never,
+      }),
+    ).toBeNull();
+
+    expect(
+      formatCompactToolActivity({
+        sessionId: "s1",
+        messageId: "m4c",
+        callId: "c4c",
+        tool: "read",
+        state: { status: "completed" } as never,
+        input: {
+          filePath: "D:/repo/.gitignore",
+        },
+      }),
+    ).toBe("📖 read .gitignore");
+
+    expect(
+      formatCompactToolActivity({
+        sessionId: "s1",
+        messageId: "m4d",
+        callId: "c4d",
+        tool: "bash",
+        state: { status: "completed" } as never,
+        input: {
+          command: "npm test",
+        },
+      }),
+    ).toBe("💻 bash npm test");
   });
 
   it("truncates long bash commands with ellipsis", () => {

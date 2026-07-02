@@ -4,9 +4,17 @@ import { Bot, Context, InputFile } from "grammy";
 import { config } from "../../config.js";
 import { t } from "../../i18n/index.js";
 import { summaryAggregator, type ToolInfo } from "../../app/managers/summary-aggregation-manager.js";
-import { formatCompactToolInfo, formatToolInfo } from "../../app/formatters/summary-formatter.js";
+import { formatCompactToolActivity, formatToolInfo } from "../../app/formatters/summary-formatter.js";
 import { renderSubagentCards } from "../../app/formatters/subagent-formatter.js";
 import { ToolMessageBatcher } from "../../app/formatters/tool-message-batcher.js";
+import {
+  getCompactOutputMode,
+  getResponseStreamingMode,
+  getSendDiffFileAttachments,
+  getShowAssistantRunFooter,
+  getShowThinkingContent,
+  type ResponseStreamingMode,
+} from "../../app/stores/settings-store.js";
 import { getCurrentSession } from "../../app/services/session-service.js";
 import { ingestSessionInfoForCache } from "../../app/services/session-cache-service.js";
 import { logger } from "../../utils/logger.js";
@@ -67,8 +75,6 @@ import { stopEventListening, subscribeToEvents } from "../../opencode/events.js"
 
 const TELEGRAM_DOCUMENT_CAPTION_MAX_LENGTH = 1024;
 const RESPONSE_STREAM_THROTTLE_MS = config.bot.responseStreamThrottleMs;
-const RESPONSE_STREAMING_MODE = config.bot.responseStreamingMode;
-const COMPACT_PROGRESS_MODE = config.bot.compactOutputMode;
 const RESPONSE_STREAM_TEXT_LIMIT = 3800;
 const SESSION_RETRY_PREFIX = "🔁";
 const SUBAGENT_STREAM_PREFIX = "🧩";
@@ -79,6 +85,10 @@ const TEMP_DIR = path.join(__dirname, "..", "..", ".tmp");
 async function mkdirAsync(dirPath: string): Promise<void> {
   const proc = Bun.spawn(["mkdir", "-p", dirPath], { stdout: "ignore", stderr: "ignore" });
   await proc.exited;
+}
+
+function isCompactProgressMode(): boolean {
+  return getCompactOutputMode();
 }
 
 type EventStreamItem = {
@@ -104,7 +114,10 @@ class EventSubscriptionService implements BotEventSubscriptionService {
   private readonly thinkingStreamingPayloads = new Map<string, StreamingMessagePayload>();
   private readonly sessionCompletionTasks = new Map<string, Promise<void>>();
   private readonly compactProgressFinalizationTasks = new Map<string, Promise<void>>();
-  private readonly responseStreamer: ResponseStreamer;
+  private readonly assistantEditResponseStreamer: ResponseStreamer;
+  private readonly assistantDraftResponseStreamer: ResponseStreamer;
+  private readonly thinkingResponseStreamer: ResponseStreamer;
+  private readonly assistantResponseStreamModes = new Map<string, ResponseStreamingMode>();
   private readonly toolCallStreamer: ToolCallStreamer;
   private readonly toolMessageBatcher: ToolMessageBatcher;
   private readonly compactProgressStreamer: CompactProgressStreamer;
@@ -165,8 +178,12 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       },
     });
 
-    this.responseStreamer = this.createResponseStreamer();
-    setResponseStreamerForReconciliation(this.responseStreamer);
+    this.assistantEditResponseStreamer = this.createResponseStreamer("edit");
+    this.assistantDraftResponseStreamer = this.createResponseStreamer("draft");
+    this.thinkingResponseStreamer = this.createResponseStreamer("edit");
+    setResponseStreamerForReconciliation({
+      hasActiveStream: (sessionId) => this.hasActiveAssistantResponseStream(sessionId),
+    });
     setPromptResponseModeClearerForReconciliation(clearPromptResponseMode);
 
     this.compactProgressStreamer = new CompactProgressStreamer({
@@ -285,7 +302,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
   clearRuntimeState(reason: string): void {
     backgroundSessionTracker.clear();
     this.nextDraftId = 1;
-    this.responseStreamer.clearAll(reason);
+    this.clearAllResponseStreams(reason);
     this.toolCallStreamer.clearAll(reason);
     this.toolMessageBatcher.clearAll(reason);
     this.compactProgressStreamer.clearAll(reason);
@@ -319,7 +336,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     summaryAggregator.setOnCleared(() => {
       this.toolMessageBatcher.clearAll("summary_aggregator_clear");
       this.toolCallStreamer.clearAll("summary_aggregator_clear");
-      this.responseStreamer.clearAll("summary_aggregator_clear");
+      this.clearAllResponseStreams("summary_aggregator_clear");
       this.compactProgressStreamer.clearAll("summary_aggregator_clear");
       this.compactProgressFinalizationTasks.clear();
       this.thinkingStreamingPayloads.clear();
@@ -335,7 +352,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         return;
       }
 
-      if (COMPACT_PROGRESS_MODE) {
+      if (isCompactProgressMode()) {
         void this.finalizeCompactProgress(sessionId)
           .then(() => {
             const activeSession = getCurrentSession();
@@ -351,7 +368,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
             preparedStreamPayload.sendOptions = { disable_notification: true };
             preparedStreamPayload.editOptions = undefined;
 
-            this.responseStreamer.enqueue(sessionId, messageId, preparedStreamPayload);
+            this.enqueueAssistantResponse(sessionId, messageId, preparedStreamPayload);
           })
           .catch((error) => {
             logger.error("[Bot] Failed to finalize compact progress before assistant stream", error);
@@ -367,7 +384,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       preparedStreamPayload.sendOptions = { disable_notification: true };
       preparedStreamPayload.editOptions = undefined;
 
-      this.responseStreamer.enqueue(sessionId, messageId, preparedStreamPayload);
+      this.enqueueAssistantResponse(sessionId, messageId, preparedStreamPayload);
     });
 
     summaryAggregator.setOnComplete((sessionId, messageId, messageText, completionInfo) => {
@@ -375,7 +392,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         if (!this.botInstance || !this.chatIdInstance) {
           logger.error("Bot or chat ID not available for sending message");
           clearPromptResponseMode(sessionId);
-          this.responseStreamer.clearMessage(sessionId, messageId, "bot_context_missing");
+          this.clearAssistantResponseStream(sessionId, messageId, "bot_context_missing");
           this.clearThinkingStream(sessionId, messageId, "bot_context_missing");
           this.toolCallStreamer.clearSession(sessionId, "bot_context_missing");
           this.compactProgressStreamer.clearSession(sessionId, "bot_context_missing");
@@ -387,7 +404,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         const currentSession = getCurrentSession();
         if (currentSession?.id !== sessionId) {
           clearPromptResponseMode(sessionId);
-          this.responseStreamer.clearMessage(sessionId, messageId, "session_mismatch");
+          this.clearAssistantResponseStream(sessionId, messageId, "session_mismatch");
           this.clearThinkingStream(sessionId, messageId, "session_mismatch");
           this.toolCallStreamer.clearSession(sessionId, "session_mismatch");
           this.compactProgressStreamer.clearSession(sessionId, "session_mismatch");
@@ -409,15 +426,25 @@ class EventSubscriptionService implements BotEventSubscriptionService {
 
           await this.completeThinkingStream(sessionId, messageId);
 
-          if (COMPACT_PROGRESS_MODE) {
+          if (isCompactProgressMode()) {
             await this.finalizeCompactProgress(sessionId);
           }
+
+          const assistantResponseMode = this.getAssistantResponseStreamMode(sessionId, messageId);
 
           await finalizeAssistantResponse({
             sessionId,
             messageId,
             messageText,
-            responseStreamer: this.responseStreamer,
+            responseStreamer: {
+              complete: (completeSessionId, completeMessageId, payload, options) =>
+                this.completeAssistantResponse(
+                  completeSessionId,
+                  completeMessageId,
+                  payload,
+                  options,
+                ),
+            },
             flushPendingServiceMessages: () =>
               Promise.all([
                 this.toolMessageBatcher.flushSession(sessionId, "assistant_message_completed"),
@@ -426,6 +453,8 @@ class EventSubscriptionService implements BotEventSubscriptionService {
             prepareStreamingPayload: this.prepareFinalStreamingPayload,
             renderFinalParts: (text) => renderAssistantFinalPartsSafe(text),
             getReplyKeyboard: this.getCurrentReplyKeyboard,
+            notifyFirstFinalPart:
+              assistantResponseMode === "draft" && !getShowAssistantRunFooter(),
             sendRenderedPart: async (part, options) => {
               await sendRenderedBotPart({
                 api: botApi,
@@ -480,7 +509,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     });
 
     summaryAggregator.setOnRootToolUpdate((toolInfo) => {
-      if (!COMPACT_PROGRESS_MODE) {
+      if (!isCompactProgressMode()) {
         return;
       }
 
@@ -510,19 +539,16 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         return;
       }
 
-      if (COMPACT_PROGRESS_MODE) {
+      if (isCompactProgressMode()) {
         return;
       }
 
-      const shouldIncludeToolInfoInFileCaption =
+      const shouldSendToolFileAttachment =
         toolInfo.hasFileAttachment &&
+        getSendDiffFileAttachments() &&
         (toolInfo.tool === "write" || toolInfo.tool === "edit" || toolInfo.tool === "apply_patch");
 
-      if (
-        config.bot.hideToolCallMessages ||
-        shouldIncludeToolInfoInFileCaption ||
-        toolInfo.tool === "task"
-      ) {
+      if (shouldSendToolFileAttachment || toolInfo.tool === "task") {
         return;
       }
 
@@ -545,11 +571,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         return;
       }
 
-      if (COMPACT_PROGRESS_MODE) {
-        return;
-      }
-
-      if (config.bot.hideToolCallMessages) {
+      if (isCompactProgressMode()) {
         return;
       }
 
@@ -586,11 +608,11 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         return;
       }
 
-      if (COMPACT_PROGRESS_MODE) {
+      if (isCompactProgressMode()) {
         return;
       }
 
-      if (config.bot.hideToolFileMessages) {
+      if (!getSendDiffFileAttachments()) {
         return;
       }
 
@@ -620,7 +642,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         return;
       }
 
-      if (COMPACT_PROGRESS_MODE) {
+      if (isCompactProgressMode()) {
         this.compactProgressStreamer.updateWaitingForQuestion(sessionId);
       }
 
@@ -673,7 +695,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         return;
       }
 
-      if (COMPACT_PROGRESS_MODE) {
+      if (isCompactProgressMode()) {
         this.compactProgressStreamer.updateWaitingForPermission(currentSession.id);
       }
 
@@ -705,7 +727,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         isFirstUpdate: update.isFirstUpdate,
       });
 
-      if (COMPACT_PROGRESS_MODE) {
+      if (isCompactProgressMode()) {
         this.compactProgressStreamer.updateThinking(update.sessionId);
 
         if (update.isFirstUpdate && pinnedMessageManager.isInitialized()) {
@@ -720,7 +742,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         });
       }
 
-      if (!config.bot.hideThinkingMessages && config.bot.showThinkingContent) {
+      if (getShowThinkingContent()) {
         const payload = prepareThinkingStreamingPayload(update.sections, RESPONSE_STREAM_TEXT_LIMIT, {
           expandable: false,
         });
@@ -732,16 +754,14 @@ class EventSubscriptionService implements BotEventSubscriptionService {
             this.getThinkingPayloadKey(update.sessionId, update.messageId),
             payload,
           );
-          this.responseStreamer.enqueue(
+          this.thinkingResponseStreamer.enqueue(
             update.sessionId,
             this.getThinkingStreamId(update.messageId),
             payload,
           );
         }
       } else if (update.isFirstUpdate) {
-        deliverThinkingMessage(update.sessionId, this.toolMessageBatcher, {
-          hideThinkingMessages: config.bot.hideThinkingMessages,
-        });
+        deliverThinkingMessage(update.sessionId, this.toolMessageBatcher);
       }
 
       if (update.isFirstUpdate && pinnedMessageManager.isInitialized()) {
@@ -847,7 +867,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
           this.toolCallStreamer.flushSession(sessionId, "session_idle"),
         ]);
 
-        if (completedRun?.hasCompletedResponse) {
+        if (getShowAssistantRunFooter() && completedRun?.hasCompletedResponse) {
           const agent = completedRun.actualAgent || completedRun.configuredAgent;
           const providerID = completedRun.actualProviderID || completedRun.configuredProviderID;
           const modelID = completedRun.actualModelID || completedRun.configuredModelID;
@@ -889,7 +909,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       const currentSession = getCurrentSession();
       if (!currentSession || currentSession.id !== sessionId) {
         clearPromptResponseMode(sessionId);
-        this.responseStreamer.clearSession(sessionId, "session_error_not_current");
+          this.clearAssistantResponseSession(sessionId, "session_error_not_current");
         this.toolCallStreamer.clearSession(sessionId, "session_error_not_current");
         this.compactProgressStreamer.clearSession(sessionId, "session_error_not_current");
         assistantRunState.clearRun(sessionId, "session_error_not_current");
@@ -898,7 +918,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         return;
       }
 
-      this.responseStreamer.clearSession(sessionId, "session_error");
+      this.clearAssistantResponseSession(sessionId, "session_error");
       this.compactProgressStreamer.clearSession(sessionId, "session_error");
       clearPromptResponseMode(sessionId);
       assistantRunState.clearRun(sessionId, "session_error");
@@ -940,7 +960,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         return;
       }
 
-      if (COMPACT_PROGRESS_MODE) {
+      if (isCompactProgressMode()) {
         this.compactProgressStreamer.updateActivity(sessionId, t("progress.compact.retrying"));
         return;
       }
@@ -956,7 +976,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     });
 
     summaryAggregator.setOnSessionDiff(async (sessionId, diffs) => {
-      if (COMPACT_PROGRESS_MODE) {
+      if (isCompactProgressMode()) {
         for (const diff of diffs) {
           this.compactProgressStreamer.addFileChange(sessionId, diff.file);
         }
@@ -974,7 +994,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     });
 
     summaryAggregator.setOnFileChange((change) => {
-      if (COMPACT_PROGRESS_MODE) {
+      if (isCompactProgressMode()) {
         const currentSession = getCurrentSession();
         if (currentSession) {
           this.compactProgressStreamer.addFileChange(currentSession.id, change.file);
@@ -1035,8 +1055,87 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     });
   };
 
-  private createResponseStreamer(): ResponseStreamer {
-    if (RESPONSE_STREAMING_MODE === "draft") {
+  private getAssistantResponseStreamKey(sessionId: string, messageId: string): string {
+    return `${sessionId}:${messageId}`;
+  }
+
+  private getAssistantResponseStreamer(mode: ResponseStreamingMode): ResponseStreamer {
+    return mode === "draft"
+      ? this.assistantDraftResponseStreamer
+      : this.assistantEditResponseStreamer;
+  }
+
+  private getAssistantResponseStreamMode(sessionId: string, messageId: string): ResponseStreamingMode {
+    return (
+      this.assistantResponseStreamModes.get(this.getAssistantResponseStreamKey(sessionId, messageId)) ??
+      getResponseStreamingMode()
+    );
+  }
+
+  private enqueueAssistantResponse(
+    sessionId: string,
+    messageId: string,
+    payload: StreamingMessagePayload,
+  ): void {
+    const key = this.getAssistantResponseStreamKey(sessionId, messageId);
+    const mode = this.getAssistantResponseStreamMode(sessionId, messageId);
+    this.assistantResponseStreamModes.set(key, mode);
+    this.getAssistantResponseStreamer(mode).enqueue(sessionId, messageId, payload);
+  }
+
+  private async completeAssistantResponse(
+    sessionId: string,
+    messageId: string,
+    payload?: StreamingMessagePayload,
+    options?: Parameters<ResponseStreamer["complete"]>[3],
+  ) {
+    const key = this.getAssistantResponseStreamKey(sessionId, messageId);
+    const mode = this.getAssistantResponseStreamMode(sessionId, messageId);
+    const result = await this.getAssistantResponseStreamer(mode).complete(
+      sessionId,
+      messageId,
+      payload,
+      options,
+    );
+    this.assistantResponseStreamModes.delete(key);
+    return result;
+  }
+
+  private clearAssistantResponseStream(sessionId: string, messageId: string, reason: string): void {
+    this.assistantResponseStreamModes.delete(
+      this.getAssistantResponseStreamKey(sessionId, messageId),
+    );
+    this.assistantEditResponseStreamer.clearMessage(sessionId, messageId, reason);
+    this.assistantDraftResponseStreamer.clearMessage(sessionId, messageId, reason);
+  }
+
+  private clearAssistantResponseSession(sessionId: string, reason: string): void {
+    for (const key of this.assistantResponseStreamModes.keys()) {
+      if (key.startsWith(`${sessionId}:`)) {
+        this.assistantResponseStreamModes.delete(key);
+      }
+    }
+
+    this.assistantEditResponseStreamer.clearSession(sessionId, reason);
+    this.assistantDraftResponseStreamer.clearSession(sessionId, reason);
+  }
+
+  private clearAllResponseStreams(reason: string): void {
+    this.assistantResponseStreamModes.clear();
+    this.assistantEditResponseStreamer.clearAll(reason);
+    this.assistantDraftResponseStreamer.clearAll(reason);
+    this.thinkingResponseStreamer.clearAll(reason);
+  }
+
+  private hasActiveAssistantResponseStream(sessionId: string): boolean {
+    return (
+      this.assistantEditResponseStreamer.hasActiveStream(sessionId) ||
+      this.assistantDraftResponseStreamer.hasActiveStream(sessionId)
+    );
+  }
+
+  private createResponseStreamer(mode: ResponseStreamingMode): ResponseStreamer {
+    if (mode === "draft") {
       return new ResponseStreamer({
         throttleMs: RESPONSE_STREAM_THROTTLE_MS,
         sendPart: async (part) => {
@@ -1179,7 +1278,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
   }
 
   private clearThinkingStream(sessionId: string, messageId: string, reason: string): void {
-    this.responseStreamer.clearMessage(sessionId, this.getThinkingStreamId(messageId), reason);
+    this.thinkingResponseStreamer.clearMessage(sessionId, this.getThinkingStreamId(messageId), reason);
     this.thinkingStreamingPayloads.delete(this.getThinkingPayloadKey(sessionId, messageId));
   }
 
@@ -1187,7 +1286,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     const key = this.getThinkingPayloadKey(sessionId, messageId);
     const payload = this.thinkingStreamingPayloads.get(key);
     const finalPayload = payload ? makeThinkingPayloadExpandable(payload) : undefined;
-    const result = await this.responseStreamer.complete(
+    const result = await this.thinkingResponseStreamer.complete(
       sessionId,
       this.getThinkingStreamId(messageId),
       finalPayload,
@@ -1257,12 +1356,12 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     return "default";
   }
 
-  private getCompactToolActivity(toolInfo: ToolInfo): string {
+  private getCompactToolActivity(toolInfo: ToolInfo): string | null {
     if (toolInfo.tool === "task") {
       return t("progress.compact.task");
     }
 
-    return formatCompactToolInfo(toolInfo, 128, toolInfo.tool);
+    return formatCompactToolActivity(toolInfo, 128);
   }
 
   private formatShortSessionId(sessionId: string): string {

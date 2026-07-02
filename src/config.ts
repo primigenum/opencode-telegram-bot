@@ -34,7 +34,6 @@ try {
 type EnvRecord = Record<string, string | undefined>;
 
 export type MessageFormatMode = "raw" | "markdown";
-export type StreamingMode = "edit" | "draft";
 export type TtsProvider = "openai" | "google" | "elevenlabs";
 
 function getEnvVar(env: EnvRecord, key: string, required: boolean = true): string {

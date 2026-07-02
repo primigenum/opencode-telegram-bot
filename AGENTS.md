@@ -219,6 +219,7 @@ Log files:
 
 - In source mode logs are stored `<project root>/logs` by default.
 - Each source-mode bot run writes to a separate file named `bot-YYYY-MM-DD_HH-MM-SS_<pid>.log`.
+- The `logs/` directory is gitignored, so search inside it directly: use `path: "logs"` with `pattern: "*.log"`.
 - Installed mode writes under the installed app home `logs` directory and uses daily files named `bot-YYYY-MM-DD.log`.
 
 Levels:
