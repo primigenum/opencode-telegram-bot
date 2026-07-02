@@ -48,21 +48,11 @@ export class CompactProgressStreamer {
   }
 
   updateActivity(sessionId: string, activity: string): void {
-    const normalizedActivity = activity.trim();
-    if (!sessionId || !normalizedActivity) {
-      return;
-    }
-
-    const state = this.getOrCreateState(sessionId);
-    state.latestText = t("progress.compact.activity", {
-      header: t("progress.compact.working_header"),
-      activity: normalizedActivity,
-    });
-    this.ensureTimer(state);
+    this.updateActivityState(sessionId, activity, true);
   }
 
   updateThinking(sessionId: string): void {
-    this.updateActivity(sessionId, t("progress.compact.thinking"));
+    this.updateActivityState(sessionId, t("progress.compact.thinking"), false);
   }
 
   updateResponding(sessionId: string): void {
@@ -143,6 +133,24 @@ export class CompactProgressStreamer {
     const state = createInitialState(sessionId);
     this.states.set(sessionId, state);
     return state;
+  }
+
+  private updateActivityState(sessionId: string, activity: string, createIfMissing: boolean): void {
+    const normalizedActivity = activity.trim();
+    if (!sessionId || !normalizedActivity) {
+      return;
+    }
+
+    const state = createIfMissing ? this.getOrCreateState(sessionId) : this.states.get(sessionId);
+    if (!state) {
+      return;
+    }
+
+    state.latestText = t("progress.compact.activity", {
+      header: t("progress.compact.working_header"),
+      activity: normalizedActivity,
+    });
+    this.ensureTimer(state);
   }
 
   private ensureTimer(state: CompactProgressState): void {

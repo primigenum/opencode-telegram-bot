@@ -65,8 +65,6 @@ vi.mock("#src/config.ts", () => ({
       locale: "en",
       sessionsListLimit: 10,
       projectsListLimit: 10,
-      hideThinkingMessages: false,
-      hideToolCallMessages: false,
       messageFormatMode: "markdown",
     },
     files: {

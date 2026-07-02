@@ -7,7 +7,7 @@ export const es: I18nDictionary = {
   "cmd.description.detach": "Desconectar de la sesión actual",
   "cmd.description.sessions": "Listar sesiones",
   "cmd.description.messages": "Ver mensajes de la sesión",
-  "cmd.description.tts": "Elegir modo de respuestas de audio",
+  "cmd.description.settings": "Cambiar ajustes del bot",
   "cmd.description.projects": "Listar proyectos",
   "cmd.description.worktree": "Cambiar worktrees de git",
   "cmd.description.task": "Crear tarea programada",
@@ -50,6 +50,7 @@ export const es: I18nDictionary = {
     "⚠️ Este comando no está disponible hasta que se complete el flujo de la pregunta actual.",
 
   "inline.button.cancel": "❌ Cancelar",
+  "inline.button.close": "❌ Cerrar",
   "inline.inactive_callback": "Este menú está inactivo",
   "inline.cancelled_callback": "Cancelado",
 
@@ -73,7 +74,8 @@ export const es: I18nDictionary = {
   "progress.compact.waiting_permission": "🔐 Esperando permiso...",
   "progress.compact.retrying": "🔁 Reintentando...",
   "progress.compact.task": "🤖 Tarea en ejecución",
-  "progress.compact.done": "{header}\nllamadas de herramientas: {tools} · archivos modificados: {files}",
+  "progress.compact.done":
+    "{header}\nllamadas de herramientas: {tools} · archivos modificados: {files}",
   "bot.project_not_selected":
     "🏗 No hay un proyecto seleccionado.\n\nPrimero selecciona un proyecto con /projects.",
   "bot.creating_session": "🔄 Creando una sesión nueva...",
@@ -143,13 +145,25 @@ export const es: I18nDictionary = {
   "status.server_unavailable":
     "🔴 OpenCode Server no está disponible\n\nUsa /opencode_start para iniciar el servidor.",
 
-  "tts.prompt": "Selecciona el modo de respuestas de audio:",
   "tts.off": "🔇 Respuestas de audio desactivadas.",
   "tts.all": "🔊 Respuestas de audio activadas para todos los mensajes.",
   "tts.auto": "🎤 Respuestas de audio activadas solo para mensajes de voz.",
   "tts.not_configured":
     "⚠️ Las respuestas de audio no estan disponibles. Configura primero `TTS_API_URL` y `TTS_API_KEY`.",
   "tts.failed": "⚠️ No se pudo generar la respuesta de audio.",
+
+  "settings.menu.title": "⚙️ Ajustes del bot\nToca un ajuste para cambiar su valor:",
+  "settings.compact_output.label": "Salida compacta",
+  "settings.thinking_content.label": "Contenido de thinking",
+  "settings.response_streaming.label": "Streaming de respuesta",
+  "settings.response_streaming.edit": "edit",
+  "settings.response_streaming.draft": "draft (experimental)",
+  "settings.diff_files.label": "Archivos diff",
+  "settings.assistant_footer.label": "Pie de respuesta",
+  "settings.tts.label": "Respuestas de audio",
+  "settings.value.on": "Activado",
+  "settings.value.off": "Desactivado",
+  "settings.saved": "✅ Ajuste guardado.",
 
   "projects.empty":
     "📭 No se encontraron proyectos.\n\nAbre un directorio en OpenCode y crea al menos una sesión; entonces aparecerá aquí.",

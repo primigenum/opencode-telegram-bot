@@ -11,17 +11,54 @@ describe("bot/streaming/compact-progress-streamer", () => {
     const editText = vi.fn().mockResolvedValue(undefined);
     const streamer = new CompactProgressStreamer({ throttleMs: 0, sendText, editText });
 
-    streamer.updateThinking("s1");
+    streamer.updateActivity("s1", "working");
     await new Promise((resolve) => setTimeout(resolve, 0));
     await streamer.finalize("s1");
 
     expect(sendText).toHaveBeenCalledTimes(1);
-    expect(sendText).toHaveBeenCalledWith("s1", "⏳ Working\n💭 Thinking...");
+    expect(sendText).toHaveBeenCalledWith("s1", "⏳ Working\nworking");
     expect(editText).toHaveBeenCalledTimes(1);
     expect(editText).toHaveBeenCalledWith(
       "s1",
       10,
       "✅ Finished Work\ntool calls: 0 · changed files: 0",
+    );
+  });
+
+  it("does not create a message for thinking-only activity", async () => {
+    const sendText = vi.fn().mockResolvedValue(10);
+    const editText = vi.fn().mockResolvedValue(undefined);
+    const streamer = new CompactProgressStreamer({ throttleMs: 0, sendText, editText });
+
+    streamer.updateThinking("s1");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await streamer.finalize("s1");
+
+    expect(sendText).not.toHaveBeenCalled();
+    expect(editText).not.toHaveBeenCalled();
+  });
+
+  it("updates active progress when thinking starts", async () => {
+    const sendText = vi.fn().mockResolvedValue(10);
+    const editText = vi.fn().mockResolvedValue(undefined);
+    const streamer = new CompactProgressStreamer({ throttleMs: 0, sendText, editText });
+
+    streamer.updateActivity("s1", "reading");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    streamer.addToolCall("s1", "call-1");
+
+    streamer.updateThinking("s1");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await streamer.finalize("s1");
+
+    expect(sendText).toHaveBeenCalledTimes(1);
+    expect(sendText).toHaveBeenCalledWith("s1", "⏳ Working\nreading");
+    expect(editText).toHaveBeenNthCalledWith(1, "s1", 10, "⏳ Working\n💭 Thinking...");
+    expect(editText).toHaveBeenNthCalledWith(
+      2,
+      "s1",
+      10,
+      "✅ Finished Work\ntool calls: 1 · changed files: 0",
     );
   });
 

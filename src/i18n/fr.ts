@@ -7,7 +7,7 @@ export const fr: I18nDictionary = {
   "cmd.description.detach": "Se détacher de la session actuelle",
   "cmd.description.sessions": "Lister les sessions",
   "cmd.description.messages": "Parcourir les messages de session",
-  "cmd.description.tts": "Choisir le mode des réponses audio",
+  "cmd.description.settings": "Modifier les paramètres du bot",
   "cmd.description.projects": "Lister les projets",
   "cmd.description.worktree": "Changer de worktree git",
   "cmd.description.task": "Créer une tâche planifiée",
@@ -50,6 +50,7 @@ export const fr: I18nDictionary = {
     "⚠️ Cette commande n'est pas disponible tant que le flux de question actuel n'est pas terminé.",
 
   "inline.button.cancel": "❌ Annuler",
+  "inline.button.close": "❌ Fermer",
   "inline.inactive_callback": "Ce menu est inactif",
   "inline.cancelled_callback": "Annulé",
 
@@ -145,13 +146,25 @@ export const fr: I18nDictionary = {
   "status.server_unavailable":
     "🔴 Le serveur OpenCode est indisponible\n\nUtilisez /opencode_start pour démarrer le serveur.",
 
-  "tts.prompt": "Sélectionnez le mode des réponses audio :",
   "tts.off": "🔇 Réponses audio désactivées.",
   "tts.all": "🔊 Réponses audio activées pour tous les messages.",
   "tts.auto": "🎤 Réponses audio activées pour les messages vocaux uniquement.",
   "tts.not_configured":
     "⚠️ Les réponses audio ne sont pas disponibles. Définissez d'abord `TTS_API_URL` et `TTS_API_KEY`.",
   "tts.failed": "⚠️ Impossible de générer la réponse audio.",
+
+  "settings.menu.title": "⚙️ Paramètres du bot\nTouchez un paramètre pour basculer sa valeur :",
+  "settings.compact_output.label": "Sortie compacte",
+  "settings.thinking_content.label": "Contenu thinking",
+  "settings.response_streaming.label": "Streaming de réponse",
+  "settings.response_streaming.edit": "edit",
+  "settings.response_streaming.draft": "draft (experimental)",
+  "settings.diff_files.label": "Fichiers diff",
+  "settings.assistant_footer.label": "Pied de réponse",
+  "settings.tts.label": "Réponses audio",
+  "settings.value.on": "Activé",
+  "settings.value.off": "Désactivé",
+  "settings.saved": "✅ Paramètre enregistré.",
 
   "projects.empty":
     "📭 Aucun projet trouvé.\n\nOuvrez un répertoire dans OpenCode et créez au moins une session, il apparaîtra ensuite ici.",

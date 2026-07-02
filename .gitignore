@@ -35,3 +35,4 @@ settings.json
 # Build output (bun build goes to dist/ but we keep source-only for now)
 dist/
 coverage/
+test-logs/
