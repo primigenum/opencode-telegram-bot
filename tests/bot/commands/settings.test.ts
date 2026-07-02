@@ -1,20 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
+import { mock as bunMock } from "bun:test";
 import type { Context } from "grammy";
-import { settingsCommand } from "../../../src/bot/commands/settings-command.js";
-import { handleSettingsCallback } from "../../../src/bot/callbacks/settings-callback-handler.js";
-import { interactionManager } from "../../../src/app/managers/interaction-manager.js";
-import { t } from "../../../src/i18n/index.js";
-import {
-  SETTINGS_ASSISTANT_FOOTER_CALLBACK,
-  SETTINGS_CALLBACK_PREFIX,
-  SETTINGS_COMPACT_OUTPUT_CALLBACK,
-  SETTINGS_DIFF_FILES_CALLBACK,
-  SETTINGS_RESPONSE_STREAMING_CALLBACK,
-  SETTINGS_THINKING_CONTENT_CALLBACK,
-  SETTINGS_TTS_CALLBACK,
-} from "../../../src/bot/menus/settings-menu.js";
+import { loadSut } from "#helpers/sut-loader.js";
 
-const mocked = vi.hoisted(() => ({
+// Pre-load the real module at module scope so it's cached by Bun. The mock
+// factory then returns a plain object mixing real exports with mocked fns.
+import * as _realSettingsStore from "../../../src/app/stores/settings-store.js";
+
+const mocked = {
   getCompactOutputModeMock: vi.fn(),
   setCompactOutputModeMock: vi.fn(),
   getResponseStreamingModeMock: vi.fn(),
@@ -28,42 +21,87 @@ const mocked = vi.hoisted(() => ({
   getTtsModeMock: vi.fn(),
   setTtsModeMock: vi.fn(),
   isTtsConfiguredMock: vi.fn(),
-}));
+};
 
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
+// mock.module factory must be SYNC — Bun evaluates it synchronously.
+bunMock.module("#src/app/stores/settings-store.ts", () => ({
+  __resetSettingsForTests: _realSettingsStore.__resetSettingsForTests,
+  clearCurrentAgent: _realSettingsStore.clearCurrentAgent,
+  clearCurrentModel: _realSettingsStore.clearCurrentModel,
+  clearPinnedMessageId: _realSettingsStore.clearPinnedMessageId,
+  clearProject: _realSettingsStore.clearProject,
+  clearSession: _realSettingsStore.clearSession,
+  clearSessionDirectoryCache: _realSettingsStore.clearSessionDirectoryCache,
   getCompactOutputMode: mocked.getCompactOutputModeMock,
-  setCompactOutputMode: mocked.setCompactOutputModeMock,
+  getCurrentAgent: _realSettingsStore.getCurrentAgent,
+  getCurrentModel: _realSettingsStore.getCurrentModel,
+  getCurrentProject: _realSettingsStore.getCurrentProject,
+  getCurrentSession: _realSettingsStore.getCurrentSession,
+  getPinnedMessageId: _realSettingsStore.getPinnedMessageId,
   getResponseStreamingMode: mocked.getResponseStreamingModeMock,
-  setResponseStreamingMode: mocked.setResponseStreamingModeMock,
+  getScheduledTaskSessionIgnores: _realSettingsStore.getScheduledTaskSessionIgnores,
+  getScheduledTasks: _realSettingsStore.getScheduledTasks,
   getSendDiffFileAttachments: mocked.getSendDiffFileAttachmentsMock,
-  setSendDiffFileAttachments: mocked.setSendDiffFileAttachmentsMock,
-  getShowThinkingContent: mocked.getShowThinkingContentMock,
-  setShowThinkingContent: mocked.setShowThinkingContentMock,
+  getSessionDirectoryCache: _realSettingsStore.getSessionDirectoryCache,
   getShowAssistantRunFooter: mocked.getShowAssistantRunFooterMock,
-  setShowAssistantRunFooter: mocked.setShowAssistantRunFooterMock,
+  getShowThinkingContent: mocked.getShowThinkingContentMock,
   getTtsMode: mocked.getTtsModeMock,
+  getVisibleProjects: _realSettingsStore.getVisibleProjects,
+  loadSettings: _realSettingsStore.loadSettings,
+  setCompactOutputMode: mocked.setCompactOutputModeMock,
+  setCurrentAgent: _realSettingsStore.setCurrentAgent,
+  setCurrentModel: _realSettingsStore.setCurrentModel,
+  setCurrentProject: _realSettingsStore.setCurrentProject,
+  setCurrentSession: _realSettingsStore.setCurrentSession,
+  setPinnedMessageId: _realSettingsStore.setPinnedMessageId,
+  setResponseStreamingMode: mocked.setResponseStreamingModeMock,
+  setScheduledTaskSessionIgnores: _realSettingsStore.setScheduledTaskSessionIgnores,
+  setScheduledTasks: _realSettingsStore.setScheduledTasks,
+  setSendDiffFileAttachments: mocked.setSendDiffFileAttachmentsMock,
+  setSessionDirectoryCache: _realSettingsStore.setSessionDirectoryCache,
+  setShowAssistantRunFooter: mocked.setShowAssistantRunFooterMock,
+  setShowThinkingContent: mocked.setShowThinkingContentMock,
   setTtsMode: mocked.setTtsModeMock,
+  setVisibleProjects: _realSettingsStore.setVisibleProjects,
 }));
 
-vi.mock("../../../src/app/services/tts-service.js", () => ({
+bunMock.module("#src/app/services/tts-service.ts", () => ({
   isTtsConfigured: mocked.isTtsConfiguredMock,
 }));
 
+// Dynamic imports — must happen AFTER mock.module calls.
+const { settingsCommand } = await loadSut<typeof import("#src/bot/commands/settings-command.js")>(
+  "#src/bot/commands/settings-command.ts",
+  import.meta.url,
+);
+const { handleSettingsCallback } = await loadSut<typeof import("#src/bot/callbacks/settings-callback-handler.js")>(
+  "#src/bot/callbacks/settings-callback-handler.ts",
+  import.meta.url,
+);
+const { interactionManager } = await loadSut<typeof import("#src/app/managers/interaction-manager.js")>(
+  "#src/app/managers/interaction-manager.ts",
+  import.meta.url,
+);
+const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
+  "#src/i18n/index.ts",
+  import.meta.url,
+);
+const {
+  SETTINGS_ASSISTANT_FOOTER_CALLBACK,
+  SETTINGS_CALLBACK_PREFIX,
+  SETTINGS_COMPACT_OUTPUT_CALLBACK,
+  SETTINGS_DIFF_FILES_CALLBACK,
+  SETTINGS_RESPONSE_STREAMING_CALLBACK,
+  SETTINGS_THINKING_CONTENT_CALLBACK,
+  SETTINGS_TTS_CALLBACK,
+} = await loadSut<typeof import("#src/bot/menus/settings-menu.js")>(
+  "#src/bot/menus/settings-menu.ts",
+  import.meta.url,
+);
+
 describe("bot/commands/settings-command", () => {
   beforeEach(() => {
-    mocked.getCompactOutputModeMock.mockReset();
-    mocked.setCompactOutputModeMock.mockReset();
-    mocked.getResponseStreamingModeMock.mockReset();
-    mocked.setResponseStreamingModeMock.mockReset();
-    mocked.getSendDiffFileAttachmentsMock.mockReset();
-    mocked.setSendDiffFileAttachmentsMock.mockReset();
-    mocked.getShowThinkingContentMock.mockReset();
-    mocked.setShowThinkingContentMock.mockReset();
-    mocked.getShowAssistantRunFooterMock.mockReset();
-    mocked.setShowAssistantRunFooterMock.mockReset();
-    mocked.getTtsModeMock.mockReset();
-    mocked.setTtsModeMock.mockReset();
-    mocked.isTtsConfiguredMock.mockReset();
+    Object.values(mocked).forEach((m) => m.mockReset());
     mocked.getResponseStreamingModeMock.mockReturnValue("edit");
     mocked.getSendDiffFileAttachmentsMock.mockReturnValue(true);
     mocked.getShowAssistantRunFooterMock.mockReturnValue(true);
@@ -155,19 +193,7 @@ describe("bot/commands/settings-command", () => {
 
 describe("bot/callbacks/settings-callback-handler", () => {
   beforeEach(() => {
-    mocked.getCompactOutputModeMock.mockReset();
-    mocked.setCompactOutputModeMock.mockReset();
-    mocked.getResponseStreamingModeMock.mockReset();
-    mocked.setResponseStreamingModeMock.mockReset();
-    mocked.getSendDiffFileAttachmentsMock.mockReset();
-    mocked.setSendDiffFileAttachmentsMock.mockReset();
-    mocked.getShowThinkingContentMock.mockReset();
-    mocked.setShowThinkingContentMock.mockReset();
-    mocked.getShowAssistantRunFooterMock.mockReset();
-    mocked.setShowAssistantRunFooterMock.mockReset();
-    mocked.getTtsModeMock.mockReset();
-    mocked.setTtsModeMock.mockReset();
-    mocked.isTtsConfiguredMock.mockReset();
+    Object.values(mocked).forEach((m) => m.mockReset());
     mocked.getResponseStreamingModeMock.mockReturnValue("edit");
     mocked.getSendDiffFileAttachmentsMock.mockReturnValue(true);
     mocked.getShowAssistantRunFooterMock.mockReturnValue(true);
