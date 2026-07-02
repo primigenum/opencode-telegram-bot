@@ -51,12 +51,7 @@ jobs:
             name=$(basename "$f" .test.ts)
             log="test-logs/${name}.log"
             echo "=== $f ==="
-            # response-streamer needs extra time on CI runners
-            if echo "$f" | grep -q "response-streamer"; then
-              timeout 480 bun test "$f" 2>&1 | tee "$log"
-            else
-              timeout 180 bun test "$f" 2>&1 | tee "$log"
-            fi
+            timeout 180 bun test "./$f" 2>&1 | tee "$log"
             status=${PIPESTATUS[0]}
             if [ $status -ne 0 ]; then
               echo "FAILED: $f (exit $status)"

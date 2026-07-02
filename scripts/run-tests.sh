@@ -27,7 +27,7 @@ for f in $(find tests -name "*.test.ts" | sort); do
   name=$(basename "$f" .test.ts)
   echo ""
   echo "=== $f ==="
-  if timeout 300 bun test "$f" 2>&1; then
+  if timeout 300 bun test "./$f" 2>&1; then
     echo "PASS: $f"
     pass_count=$((pass_count + 1))
   else
