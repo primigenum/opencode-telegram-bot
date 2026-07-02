@@ -38,21 +38,25 @@ jobs:
       - name: Build
         run: bun run build
 
-      - name: Test (standard)
+      - name: Test
         # Run each test file in its own bun process. mock.module is
         # process-global in bun, so two test files that mock the same
-        # source module would otherwise pollute each other. Some tests
-        # that use vi.useFakeTimers need more time on shared runners.
+        # source module would otherwise pollute each other.
         timeout-minutes: 15
         run: |
           set +e
           mkdir -p test-logs
           overall_status=0
-          for f in $(find tests -name "*.test.ts" -not -name "response-streamer.test.ts" | sort); do
+          for f in $(find tests -name "*.test.ts" | sort); do
             name=$(basename "$f" .test.ts)
             log="test-logs/${name}.log"
             echo "=== $f ==="
-            timeout 180 bun test "$f" 2>&1 | tee "$log"
+            # response-streamer needs extra time on CI runners
+            if echo "$f" | grep -q "response-streamer"; then
+              timeout 480 bun test "$f" 2>&1 | tee "$log"
+            else
+              timeout 180 bun test "$f" 2>&1 | tee "$log"
+            fi
             status=${PIPESTATUS[0]}
             if [ $status -ne 0 ]; then
               echo "FAILED: $f (exit $status)"
@@ -62,14 +66,6 @@ jobs:
           echo "---"
           awk -F/ '/^Results:/ {print}' test-logs/*.log | sort | uniq -c
           exit $overall_status
-
-      - name: Test (response-streamer — slow on CI)
-        timeout-minutes: 10
-        run: |
-          mkdir -p test-logs
-          echo "=== tests/bot/streaming/response-streamer.test.ts ==="
-          timeout 480 bun test tests/bot/streaming/response-streamer.test.ts 2>&1 | tee test-logs/response-streamer.log
-          exit ${PIPESTATUS[0]}
 
       - name: Upload test logs
         if: always()
