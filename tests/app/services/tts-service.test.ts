@@ -28,7 +28,7 @@ vi.mock("@google-cloud/text-to-speech", () => {
 });
 
 const mockEdgeSynth = vi.hoisted(() => vi.fn());
-vi.mock("../../../src/app/services/edge-tts.js", () => ({
+vi.mock("#src/app/services/edge-tts.js", () => ({
   synthesizeWithEdgeTts: mockEdgeSynth,
 }));
 

@@ -196,7 +196,8 @@ describe("app/services/file-download-service", () => {
       expect(isTextMimeType("")).toBe(false);
     });
 
-    it("returns true for unknown MIME with known code file extension", () => {
+    it("returns true for unknown MIME with known code file extension", async () => {
+      const { isTextMimeType } = await getSut();
       expect(isTextMimeType("application/octet-stream", "component.svelte")).toBe(true);
       expect(isTextMimeType("application/octet-stream", "App.vue")).toBe(true);
       expect(isTextMimeType("application/octet-stream", "main.tsx")).toBe(true);
@@ -204,25 +205,30 @@ describe("app/services/file-download-service", () => {
       expect(isTextMimeType("application/octet-stream", "script.py")).toBe(true);
     });
 
-    it("returns false for unknown MIME with unknown extension", () => {
+    it("returns false for unknown MIME with unknown extension", async () => {
+      const { isTextMimeType } = await getSut();
       expect(isTextMimeType("application/octet-stream", "file.xyz")).toBe(false);
       expect(isTextMimeType("application/octet-stream", "archive.7z")).toBe(false);
     });
 
-    it("returns false for unknown MIME without filename", () => {
+    it("returns false for unknown MIME without filename", async () => {
+      const { isTextMimeType } = await getSut();
       expect(isTextMimeType("application/octet-stream")).toBe(false);
     });
 
-    it("returns false for undefined MIME even with known extension", () => {
+    it("returns false for undefined MIME even with known extension", async () => {
+      const { isTextMimeType } = await getSut();
       expect(isTextMimeType(undefined, "file.svelte")).toBe(false);
     });
 
-    it("handles files with multiple dots correctly", () => {
+    it("handles files with multiple dots correctly", async () => {
+      const { isTextMimeType } = await getSut();
       expect(isTextMimeType("application/octet-stream", "Component.test.svelte")).toBe(true);
       expect(isTextMimeType("application/octet-stream", "some.file.with.dots.py")).toBe(true);
     });
 
-    it("handles files with no extension", () => {
+    it("handles files with no extension", async () => {
+      const { isTextMimeType } = await getSut();
       expect(isTextMimeType("application/octet-stream", "Dockerfile")).toBe(false);
     });
   });
