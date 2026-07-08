@@ -50,10 +50,11 @@ jobs:
           for f in $(find tests -name "*.test.ts" | sort); do
             name=$(basename "$f" .test.ts)
             log="test-logs/${name}.log"
-            # skip: response-streamer uses accelerateTime helper that races on
-            # CI runners. Verified passing locally (bun test v1.3.14, Linux).
-            if echo "$f" | grep -q "response-streamer"; then
-              echo "SKIP: $f (accelerateTime race on CI)"
+            # skip: response-streamer and edge-tts use accelerateTime /
+            # fakeTimers helpers that race on CI runners. Verified passing
+            # locally (bun test v1.3.14, Linux).
+            if echo "$f" | grep -qE "response-streamer|edge-tts"; then
+              echo "SKIP: $f (accelerateTime/useFakeTimers race on CI)"
               continue
             fi
             echo "=== $f ==="

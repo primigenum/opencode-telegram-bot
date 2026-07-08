@@ -155,6 +155,29 @@ function formatDateTime(dateIso: string | null, timezone: string): string {
   }
 }
 
+const TASK_DETAIL_PROMPT_BYTE_BUDGET = 3400;
+
+function truncatePromptForDetails(prompt: string): string {
+  if (Buffer.byteLength(prompt, "utf-8") <= TASK_DETAIL_PROMPT_BYTE_BUDGET) {
+    return prompt;
+  }
+
+  const budget = TASK_DETAIL_PROMPT_BYTE_BUDGET - 3;
+  let lo = 0;
+  let hi = prompt.length;
+
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >>> 1;
+    if (Buffer.byteLength(prompt.slice(0, mid), "utf-8") <= budget) {
+      lo = mid;
+    } else {
+      hi = mid - 1;
+    }
+  }
+
+  return `${prompt.slice(0, lo)}...`;
+}
+
 function formatTaskDetails(task: ScheduledTask): string {
   const agentDisplay = getAgentDisplayName(task.model.agent ?? "build");
   const variant = task.model.variant ? ` (${task.model.variant})` : "";
@@ -163,7 +186,7 @@ function formatTaskDetails(task: ScheduledTask): string {
     task.kind === "cron" ? `${t("tasklist.details.cron", { cron: task.cron })}\n` : "";
 
   return t("tasklist.details", {
-    prompt: task.prompt,
+    prompt: truncatePromptForDetails(task.prompt),
     project: `${task.projectWorktree}\n${t("status.line.model", { model })}`,
     schedule: task.scheduleSummary,
     cronLine,
