@@ -1,6 +1,6 @@
 {
   "name": "@primigenum/opencode-telegram-bot",
-  "version": "0.22.0",
+  "version": "0.22.1",
   "description": "Telegram bot client for OpenCode to run and monitor coding tasks from chat. Bun port of @grinev/opencode-telegram-bot.",
   "type": "module",
   "main": "./src/index.ts",
@@ -35,7 +35,7 @@
     "start:foreground": "bun run src/cli.ts start",
     "release:prepare": "bun run scripts/release-prepare.mjs",
     "release:rc": "bun run scripts/release-prepare.mjs rc",
-    "release:notes:preview": "bun run scripts/release-notes-preview.mjs",
+    "release:notes:preview": "bun run scripts/release-preview.mjs",
     "lint": "eslint src --ext .ts --max-warnings=0",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
     "test": "bash scripts/run-tests.sh",
@@ -70,10 +70,12 @@
     "mdast-util-to-string": "^4.0.0",
     "remark-gfm": "^4.0.1",
     "remark-parse": "^11.0.0",
-    "unified": "^11.0.5"
+    "unified": "^11.0.5",
+    "ws": "^8.21.0"
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^8.53.0",
     "@typescript-eslint/parser": "^8.53.0",
     "eslint": "^8.57.1",

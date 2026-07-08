@@ -35,7 +35,7 @@ type EnvRecord = Record<string, string | undefined>;
 
 export type MessageFormatMode = "raw" | "markdown";
 export type StreamingMode = "edit" | "draft";
-export type TtsProvider = "openai" | "google" | "elevenlabs";
+export type TtsProvider = "openai" | "google" | "elevenlabs" | "edge";
 
 function getEnvVar(env: EnvRecord, key: string, required: boolean = true): string {
   const value = env[key];
@@ -133,7 +133,7 @@ function getOptionalMessageFormatModeEnvVar(
   return defaultValue;
 }
 
-const VALID_TTS_PROVIDERS: TtsProvider[] = ["openai", "google", "elevenlabs"];
+const VALID_TTS_PROVIDERS: TtsProvider[] = ["openai", "google", "elevenlabs", "edge"];
 
 function getOptionalTtsProviderEnvVar(
   env: EnvRecord,
@@ -202,7 +202,9 @@ export function createConfig(env: EnvRecord) {
       ? "en-US-Studio-O"
       : provider === "elevenlabs"
         ? "21m00Tcm4TlvDq8ikWAM"
-        : "alloy";
+        : provider === "edge"
+          ? "en-US-EmmaMultilingualNeural"
+          : "alloy";
   const defaultModel = provider === "elevenlabs" ? "eleven_flash_v2_5" : "gpt-4o-mini-tts";
 
   return {
