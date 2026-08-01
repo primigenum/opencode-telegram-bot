@@ -22,6 +22,10 @@ const sut = await loadSut<typeof import("#src/app/managers/summary-aggregation-m
   import.meta.url,
 );
 
+// Upstream's test bodies reference the singleton directly; the fork loads it
+// through loadSut (needed so mock.module intercepts the static imports).
+const { summaryAggregator } = sut;
+
 describe("summary/aggregator", () => {
   beforeEach(() => {
     mocked.getCurrentProjectMock.mockReset();

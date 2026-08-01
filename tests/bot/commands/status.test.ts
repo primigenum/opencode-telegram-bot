@@ -1,10 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
 import { loadSut } from "#helpers/sut-loader.js";
-const { statusCommand } = await loadSut<typeof import("#src/bot/commands/status-command.js")>(
-  "#src/bot/commands/status-command.ts",
-  import.meta.url,
-);
 
 const mocked = vi.hoisted(() => ({
   healthMock: vi.fn(),
@@ -29,7 +25,7 @@ const mocked = vi.hoisted(() => ({
   loggerErrorMock: vi.fn(),
 }));
 
-vi.mock("../../../src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.ts", () => ({
   logger: {
     debug: mocked.loggerDebugMock,
     info: mocked.loggerInfoMock,
@@ -50,10 +46,26 @@ vi.mock("#src/app/services/session-service.ts", () => ({
   getCurrentSession: mocked.getCurrentSessionMock,
 }));
 
-vi.mock("#src/app/stores/settings-store.ts", () => ({
-  getCurrentProject: mocked.getCurrentProjectMock,
-  getTtsMode: mocked.getTtsModeMock,
-}));
+vi.mock("#src/app/stores/settings-store.ts", () => {
+  const settingsStoreMock = {
+    getCurrentProject: mocked.getCurrentProjectMock,
+    getTtsMode: mocked.getTtsModeMock,
+  };
+  // status-command's graph reads the session directory cache too; without it
+  // bun throws "Export named ... not found" when the mock replaces the module.
+  const extraNames = [
+    "getCurrentSession",
+    "setCurrentSession",
+    "clearSession",
+    "getSessionDirectoryCache",
+    "setSessionDirectoryCache",
+    "clearSessionDirectoryCache",
+  ] as const;
+  for (const name of extraNames) {
+    settingsStoreMock[name] = vi.fn();
+  }
+  return settingsStoreMock;
+});
 
 vi.mock("#src/app/services/agent-selection-service.ts", () => ({
   fetchCurrentAgent: mocked.fetchCurrentAgentMock,
@@ -88,6 +100,11 @@ vi.mock("#src/bot/pinned/pinned-message-manager.ts", () => ({
 vi.mock("#src/bot/messages/telegram-text.ts", () => ({
   sendBotText: mocked.sendBotTextMock,
 }));
+
+const { statusCommand } = await loadSut<typeof import("#src/bot/commands/status-command.js")>(
+  "#src/bot/commands/status-command.ts",
+  import.meta.url,
+);
 
 describe("bot/commands/status-command", () => {
   beforeEach(() => {

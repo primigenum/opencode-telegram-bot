@@ -23,6 +23,14 @@ for f in $(find tests -name "*.test.ts" | sort); do
   if [ -n "$pattern" ] && ! echo "$f" | grep -qE "$pattern"; then
     continue
   fi
+  # skip: response-streamer and edge-tts use accelerateTime / fakeTimers
+  # helpers that hang the process after the last test on bun (fake timer
+  # heap corruption). Same skip list as CI. Verified passing when run
+  # individually (bun test v1.3.14, Linux).
+  if echo "$f" | grep -qE "response-streamer|edge-tts"; then
+    echo "SKIP: $f (accelerateTime/useFakeTimers hang on bun)"
+    continue
+  fi
   test_count=$((test_count + 1))
   name=$(basename "$f" .test.ts)
   echo ""

@@ -75,8 +75,43 @@ export async function transcribeAudio(audioBuffer: Buffer, filename: string): Pr
       `[STT] Sending transcription request (json): url=${url}, model=${config.stt.model}, format=${getAudioFormat(filename)}, size=${audioBuffer.length} bytes`,
     );
   } else {
+    // Convert non-WAV audio (e.g. Telegram OGG/OPUS) to 16kHz mono WAV for
+    // compatibility with Whisper servers that reject other containers.
+    let uploadBuffer = audioBuffer;
+    let uploadFilename = filename;
+    if (!filename.endsWith(".wav") && !filename.endsWith(".WAV")) {
+      const tmpIn = `/tmp/stt-convert-${Date.now()}.ogg`;
+      const tmpOut = `/tmp/stt-convert-${Date.now()}.wav`;
+      try {
+        await Bun.write(tmpIn, audioBuffer);
+        const proc = Bun.spawnSync(
+          ["ffmpeg", "-i", tmpIn, "-f", "wav", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", "-y", tmpOut],
+          {},
+        );
+        if (proc.exitCode === 0) {
+          const wavBuf = await Bun.file(tmpOut).arrayBuffer();
+          uploadBuffer = Buffer.from(wavBuf);
+          uploadFilename = filename.replace(/\.[^.]+$/, ".wav");
+          logger.debug(
+            `[STT] Converted audio to WAV: ${uploadBuffer.length} bytes (was ${audioBuffer.length})`,
+          );
+        } else {
+          logger.warn(`[STT] ffmpeg conversion failed (${proc.exitCode}), sending original format`);
+        }
+      } catch (err) {
+        logger.warn(`[STT] ffmpeg conversion error: ${err}, sending original format`);
+      } finally {
+        try {
+          await Bun.file(tmpIn).delete();
+        } catch {}
+        try {
+          await Bun.file(tmpOut).delete();
+        } catch {}
+      }
+    }
+
     const formData = new FormData();
-    formData.append("file", new Blob([new Uint8Array(audioBuffer)]), filename);
+    formData.append("file", new Blob([new Uint8Array(uploadBuffer)]), uploadFilename);
     formData.append("model", config.stt.model);
     formData.append("response_format", "json");
 
@@ -87,7 +122,7 @@ export async function transcribeAudio(audioBuffer: Buffer, filename: string): Pr
     body = formData;
 
     logger.debug(
-      `[STT] Sending transcription request (multipart): url=${url}, model=${config.stt.model}, filename=${filename}, size=${audioBuffer.length} bytes`,
+      `[STT] Sending transcription request (multipart): url=${url}, model=${config.stt.model}, filename=${uploadFilename}, size=${uploadBuffer.length} bytes`,
     );
   }
 
@@ -115,9 +150,15 @@ export async function transcribeAudio(audioBuffer: Buffer, filename: string): Pr
       throw new Error("STT API response does not contain a text field");
     }
 
-    logger.debug(`[STT] Transcription result: ${data.text.length} chars`);
+    // Strip ASR formatting tags (llama.cpp Qwen3-ASR outputs "language X<asr_text>...")
+    const cleanText = data.text
+      .replace(/^language \w+<asr_text>\s*/, "")
+      .replace(/<\|im_end\|>\s*$/, "")
+      .trim();
 
-    return { text: data.text };
+    logger.debug(`[STT] Transcription result: ${cleanText.length} chars (raw: ${data.text.length})`);
+
+    return { text: cleanText };
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
       throw new Error(`STT request timed out after ${STT_REQUEST_TIMEOUT_MS}ms`);

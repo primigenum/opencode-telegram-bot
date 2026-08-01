@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from "#vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
 import { fileURLToPath } from "bun";
 import { registerMock } from "#helpers/mock-plugin.js";
 import { loadSut } from "#helpers/sut-loader.js";

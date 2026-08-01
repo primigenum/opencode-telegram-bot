@@ -7,6 +7,20 @@ const { setRuntimeMode } = await loadSut<typeof import("#src/runtime/mode.js")>(
   "#src/runtime/mode.ts",
   import.meta.url,
 );
+// bun caches modules per process: the INITIAL_SETTINGS_PRESET tests can't
+// re-evaluate settings-store with a fresh env (vi.resetModules is a no-op),
+// so the preset travels through a mutable config mock instead.
+const configMock = vi.hoisted(() => ({
+  telegram: { token: "test-token", allowedUserId: 123 },
+  opencode: { apiUrl: "http://localhost:4096", username: "opencode", password: "" },
+  server: { logLevel: "info" },
+  bot: { initialSettingsPreset: {} as Record<string, unknown> },
+  files: { maxFileSizeKb: 100 },
+  open: { browserRoots: "" },
+  stt: { apiUrl: "", apiKey: "" },
+  tts: { apiUrl: "", apiKey: "" },
+}));
+vi.mock("#src/config.ts", () => ({ config: configMock }));
 const { __resetSettingsForTests, flushSettings, getCompactOutputMode, getResponseStreamingMode, getScheduledTasks, getSendDiffFileAttachments, getShowAssistantRunFooter, getShowThinkingContent, getTtsMode, loadSettings, setCompactOutputMode, setResponseStreamingMode, setScheduledTasks, setSendDiffFileAttachments, setShowAssistantRunFooter, setShowThinkingContent } = await loadSut<typeof import("#src/app/stores/settings-store.js")>(
   "#src/app/stores/settings-store.ts",
   import.meta.url,
@@ -73,24 +87,26 @@ describe("app/stores/settings-store", () => {
   });
 
   it("applies INITIAL_SETTINGS_PRESET for settings not yet persisted", async () => {
-    vi.resetModules();
-    vi.stubEnv(
-      "INITIAL_SETTINGS_PRESET",
-      '{"showAssistantRunFooter":false,"compactOutputMode":true,"ttsMode":"auto","responseStreamingMode":"draft","sendDiffFileAttachments":false,"showThinkingContent":false}',
-    );
+    configMock.bot.initialSettingsPreset = {
+      showAssistantRunFooter: false,
+      compactOutputMode: true,
+      ttsMode: "auto",
+      responseStreamingMode: "draft",
+      sendDiffFileAttachments: false,
+      showThinkingContent: false,
+    };
+    __resetSettingsForTests();
 
-    const store = await import("../../../src/app/stores/settings-store.js");
-    await store.loadSettings();
+    await loadSettings();
 
-    expect(store.getShowAssistantRunFooter()).toBe(false);
-    expect(store.getCompactOutputMode()).toBe(true);
-    expect(store.getTtsMode()).toBe("auto");
-    expect(store.getResponseStreamingMode()).toBe("draft");
-    expect(store.getSendDiffFileAttachments()).toBe(false);
-    expect(store.getShowThinkingContent()).toBe(false);
+    expect(getShowAssistantRunFooter()).toBe(false);
+    expect(getCompactOutputMode()).toBe(true);
+    expect(getTtsMode()).toBe("auto");
+    expect(getResponseStreamingMode()).toBe("draft");
+    expect(getSendDiffFileAttachments()).toBe(false);
+    expect(getShowThinkingContent()).toBe(false);
 
-    vi.unstubAllEnvs();
-    vi.resetModules();
+    configMock.bot.initialSettingsPreset = {};
   });
 
   it("does not overwrite a persisted setting with INITIAL_SETTINGS_PRESET", async () => {
@@ -112,29 +128,21 @@ describe("app/stores/settings-store", () => {
   });
 
   it("throws on unknown keys in INITIAL_SETTINGS_PRESET", async () => {
-    vi.resetModules();
-    vi.stubEnv("INITIAL_SETTINGS_PRESET", '{"unknownKey":true,"compactOutputMode":true}');
+    configMock.bot.initialSettingsPreset = { unknownKey: true, compactOutputMode: true };
+    __resetSettingsForTests();
 
-    await expect((async () => {
-      const store = await import("../../../src/app/stores/settings-store.js");
-      await store.loadSettings();
-    })()).rejects.toThrow(/unknown key "unknownKey"/);
+    await expect(loadSettings()).rejects.toThrow(/unknown key "unknownKey"/);
 
-    vi.unstubAllEnvs();
-    vi.resetModules();
+    configMock.bot.initialSettingsPreset = {};
   });
 
   it("throws when a preset key has the wrong type", async () => {
-    vi.resetModules();
-    vi.stubEnv("INITIAL_SETTINGS_PRESET", '{"compactOutputMode":"yes"}');
+    configMock.bot.initialSettingsPreset = { compactOutputMode: "yes" };
+    __resetSettingsForTests();
 
-    await expect((async () => {
-      const store = await import("../../../src/app/stores/settings-store.js");
-      await store.loadSettings();
-    })()).rejects.toThrow(/"compactOutputMode" must be a boolean/);
+    await expect(loadSettings()).rejects.toThrow(/"compactOutputMode" must be a boolean/);
 
-    vi.unstubAllEnvs();
-    vi.resetModules();
+    configMock.bot.initialSettingsPreset = {};
   });
 
   it("loads thinking content setting from settings.json", async () => {

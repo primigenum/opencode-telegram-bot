@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "#vitest";
 import { getUnsupportedNodeVersionMessage } from "../../src/runtime/node-version.js";
 
 describe("getUnsupportedNodeVersionMessage", () => {

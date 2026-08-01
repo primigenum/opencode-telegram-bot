@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "#vitest";
+import { loadSut } from "#helpers/sut-loader.js";
 
-vi.mock("../../../src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.ts", () => ({
   logger: {
     debug: vi.fn(),
     info: vi.fn(),
@@ -14,7 +15,7 @@ const mockDocExtractor = vi.hoisted(() => ({
   apiKey: "",
 }));
 
-vi.mock("../../../src/config.js", () => ({
+vi.mock("#src/config.ts", () => ({
   config: {
     docExtractor: mockDocExtractor,
     telegram: { token: "test", allowedUserId: 0, proxyUrl: "" },
@@ -34,10 +35,9 @@ vi.mock("../../../src/config.js", () => ({
   },
 }));
 
-import {
-  isDocExtractorConfigured,
-  extractDocument,
-} from "../../../src/app/services/document-extractor-service.js";
+const { isDocExtractorConfigured, extractDocument } = await loadSut<
+  typeof import("#src/app/services/document-extractor-service.js")
+>("#src/app/services/document-extractor-service.ts", import.meta.url);
 
 describe("isDocExtractorConfigured", () => {
   beforeEach(() => {

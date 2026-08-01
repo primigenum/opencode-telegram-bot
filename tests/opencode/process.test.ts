@@ -1,4 +1,7 @@
 import { describe, expect, it } from "#vitest";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 import { loadSut } from "#helpers/sut-loader.js";
 const { createOpencodeServeSpawnCommand, findUnixListeningPidInSs, findWindowsListeningPidInNetstat } = await loadSut<typeof import("#src/opencode/process.js")>(

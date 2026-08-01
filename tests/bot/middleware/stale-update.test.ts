@@ -1,5 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context, NextFunction } from "grammy";
+import { loadSut } from "#helpers/sut-loader.js";
 
 const mocked = vi.hoisted(() => ({
   loggerDebugMock: vi.fn(),
@@ -8,7 +9,7 @@ const mocked = vi.hoisted(() => ({
   loggerErrorMock: vi.fn(),
 }));
 
-vi.mock("../../../src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.ts", () => ({
   logger: {
     debug: mocked.loggerDebugMock,
     info: mocked.loggerInfoMock,
@@ -17,7 +18,9 @@ vi.mock("../../../src/utils/logger.js", () => ({
   },
 }));
 
-import { staleUpdateMiddleware } from "../../../src/bot/middleware/stale-update.js";
+const { staleUpdateMiddleware } = await loadSut<
+  typeof import("#src/bot/middleware/stale-update.js")
+>("#src/bot/middleware/stale-update.ts", import.meta.url);
 
 const NOW_MS = Date.UTC(2026, 6, 27, 12, 0, 0);
 const NOW_SECONDS = Math.floor(NOW_MS / 1000);

@@ -1,22 +1,21 @@
-import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, afterEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
+import { loadSut } from "#helpers/sut-loader.js";
 
 const processUserPromptMock = vi.hoisted(() => vi.fn());
 const loggerErrorMock = vi.hoisted(() => vi.fn());
 
-vi.mock("../../../src/bot/handlers/prompt.js", () => ({
+vi.mock("#src/bot/handlers/prompt.ts", () => ({
   processUserPrompt: processUserPromptMock,
 }));
 
-vi.mock("../../../src/utils/logger.js", () => ({
+vi.mock("#src/utils/logger.ts", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: loggerErrorMock },
 }));
 
-import {
-  queuePromptForMerging,
-  flushPendingPrompt,
-  __resetMessageMergerForTests,
-} from "../../../src/bot/handlers/message-merger.js";
+const { queuePromptForMerging, flushPendingPrompt, __resetMessageMergerForTests } = await loadSut<
+  typeof import("#src/bot/handlers/message-merger.js")
+>("#src/bot/handlers/message-merger.ts", import.meta.url);
 
 const DEPS = { bot: {} as never, ensureEventSubscription: vi.fn() };
 const LARGE_TEXT = "x".repeat(4000);

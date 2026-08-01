@@ -107,6 +107,20 @@ const callbackSut = await loadSut<
   import.meta.url,
 );
 
+// Upstream's test bodies call these directly; expose them from the SUTs.
+const {
+  buildModelSelectionMenu,
+  buildProviderModelsMenuView,
+  buildProvidersMenuView,
+  showModelSelectionMenu,
+} = menuSut;
+const {
+  handleModelProvidersCallback,
+  handleModelSearchResults,
+  handleModelSelect,
+  handleModelSearchTextInput,
+} = callbackSut;
+
 function mockContext(overrides: Record<string, unknown> = {}) {
   return {
     callbackQuery: undefined,

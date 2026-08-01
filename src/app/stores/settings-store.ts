@@ -63,7 +63,6 @@ async function readSettingsFile(): Promise<Settings> {
         primaryError,
       );
     }
-    }
 
     try {
       const backupSettings = await readSettingsFileAt(backupFilePath);

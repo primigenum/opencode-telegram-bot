@@ -44,8 +44,12 @@ function setPlatform(platform: NodeJS.Platform): () => void {
 
 // Makes the Bun.spawn mock return a subprocess whose stdout streams `output`.
 // The SUT's execAsync reads stdout via `new Response(proc.stdout).text()`.
-function mockSpawnOutput(output: string, exitCode = 0): void {
-  bunSpawnSpy.mockImplementation((_cmd, _opts) => {
+function mockSpawnOutput(
+  spawn: ReturnType<typeof vi.spyOn>,
+  output: string,
+  exitCode = 0,
+): void {
+  spawn.mockImplementation((_cmd, _opts) => {
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
         if (output.length > 0) {
@@ -62,7 +66,7 @@ function mockSpawnOutput(output: string, exitCode = 0): void {
       ref: vi.fn(),
       stdin: null,
       stdout: stream,
-      stderr: new ReadableStream<Uint8Array>(),
+      stderr: null,
     } as unknown as ReturnType<typeof Bun.spawn>;
   });
 }
@@ -280,7 +284,7 @@ describe("runtime/service/manager", () => {
 
     vi.spyOn(process, "kill").mockImplementation(() => true);
 
-    mockSpawnOutput("20260719095542.123456+180\n");
+    mockSpawnOutput(bunSpawnSpy, "20260719095542.123456+180\n");
 
     try {
       const status = await getBotServiceStatus();
@@ -323,7 +327,7 @@ describe("runtime/service/manager", () => {
       String(daemonStartedAt.getMinutes()).padStart(2, "0") +
       String(daemonStartedAt.getSeconds()).padStart(2, "0") +
       ".000000+180";
-    mockSpawnOutput(`${creationDateStr}\n`);
+    mockSpawnOutput(bunSpawnSpy, `${creationDateStr}\n`);
 
     try {
       const status = await getBotServiceStatus();
@@ -333,7 +337,7 @@ describe("runtime/service/manager", () => {
         service: expect.objectContaining({ pid, mode: "daemon" }),
         cleanupReason: null,
       });
-      await expect(fs.access(getServiceStateFilePath())).resolves.toBeUndefined();
+      await expect(fs.access(getServiceStateFilePath())).resolves.toBeDefined();
     } finally {
       restorePlatform();
     }
@@ -356,7 +360,7 @@ describe("runtime/service/manager", () => {
     vi.spyOn(process, "kill").mockImplementation(() => true);
 
     // Non-zero exit makes execAsync throw, so the creation-time check is skipped.
-    mockSpawnOutput("", 1);
+    mockSpawnOutput(bunSpawnSpy, "", 1);
 
     try {
       const status = await getBotServiceStatus();

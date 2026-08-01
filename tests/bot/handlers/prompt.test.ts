@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Bot, Context } from "grammy";
 import { loadSut } from "#helpers/sut-loader.js";
-const { consumePromptResponseMode, processUserPrompt, ProcessPromptDeps } = await loadSut<typeof import("#src/bot/handlers/prompt.js")>(
+import type { ProcessPromptDeps } from "#src/bot/handlers/prompt.js";
+const { consumePromptResponseMode, processUserPrompt } = await loadSut<typeof import("#src/bot/handlers/prompt.js")>(
   "#src/bot/handlers/prompt.ts",
   import.meta.url,
 );

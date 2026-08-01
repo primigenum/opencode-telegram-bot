@@ -1,27 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context, NextFunction } from "grammy";
 import { loadSut } from "#helpers/sut-loader.js";
+import type { MediaGroupHandlerDeps } from "#src/bot/handlers/media-group-handler.js";
 
-// Capture real timer refs at module level.
-const _$rt = globalThis.setTimeout;
-
-function accelerateTime(): { restore: () => void } {
-  const _origDn = Date.now;
-  let _ft = _origDn();
-  Date.now = () => _ft;
-  globalThis.setTimeout = ((cb: (...args: unknown[]) => void, ms?: number, ...args: unknown[]) => {
-    if ((ms ?? 0) > 0) _ft += ms!;
-    return _$rt(cb, 0, ...args);
-  }) as typeof globalThis.setTimeout;
-  return {
-    restore() {
-      globalThis.setTimeout = _$rt;
-      Date.now = _origDn;
-    },
-  };
-}
-
-const { MediaGroupAttachmentHandler, MediaGroupHandlerDeps } = await loadSut<typeof import("#src/bot/handlers/media-group-handler.js")>(
+const { MediaGroupAttachmentHandler } = await loadSut<typeof import("#src/bot/handlers/media-group-handler.js")>(
   "#src/bot/handlers/media-group-handler.ts",
   import.meta.url,
 );

@@ -56,7 +56,6 @@ export async function resetSingletonState(): Promise<void> {
     { pinnedMessageManager },
     { stopEventListening },
     { __resetSessionDirectoryCacheForTests },
-    { __resetMessageMergerForTests },
     loggerModule,
   ] = await Promise.all([
     import("../../src/app/managers/question-manager.js"),
@@ -68,7 +67,6 @@ export async function resetSingletonState(): Promise<void> {
     import("../../src/bot/pinned/pinned-message-manager.js"),
     import("../../src/opencode/events.js"),
     import("../../src/app/services/session-cache-service.js"),
-    import("../../src/bot/handlers/message-merger.js"),
     import("../../src/utils/logger.js"),
   ]);
 
@@ -78,7 +76,21 @@ export async function resetSingletonState(): Promise<void> {
   renameManager.clear();
   interactionManager.clear("test_reset");
   summaryAggregator.clear();
-  __resetMessageMergerForTests();
+
+  // message-merger's graph pulls in prompt.ts → session-service. When the
+  // current test mocks any module in that chain, bun's mock.module replaces
+  // the whole module and the import link can fail — so load it separately
+  // and treat failure as "nothing to reset" (same spirit as the logger).
+  try {
+    const { __resetMessageMergerForTests } = await import(
+      "../../src/bot/handlers/message-merger.js"
+    );
+    if (typeof __resetMessageMergerForTests === "function") {
+      __resetMessageMergerForTests();
+    }
+  } catch {
+    // module graph mocked away — nothing to reset
+  }
 
   const aggregator = summaryAggregator as unknown as SummaryAggregatorPrivateState;
   aggregator.onCompleteCallback = null;

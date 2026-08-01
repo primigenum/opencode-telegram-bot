@@ -197,6 +197,8 @@ const {
   "__resetModelCatalogCacheForTests",
   "getFavoriteModels",
   "getModelSelectionLists",
+  "getProviderModels",
+  "getProviders",
   "reconcileStoredModelSelection",
   "searchModels",
 ] as const);

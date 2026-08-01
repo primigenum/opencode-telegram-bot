@@ -59,6 +59,7 @@ vi.mock("#src/opencode/ready-refresh.ts", () => ({
 
 const settingsStoreMock = createSettingsStoreMock();
 settingsStoreMock.loadSettings = mocked.loadSettingsMock;
+settingsStoreMock.flushSettings = mocked.flushSettingsMock;
 vi.mock("#src/app/stores/settings-store.ts", () => settingsStoreMock);
 
 vi.mock("#src/app/services/scheduled-task-runtime-service.ts", () => ({
