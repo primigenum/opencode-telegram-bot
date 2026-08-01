@@ -24,6 +24,32 @@ function isPermissionReply(value: string): value is PermissionReply {
   return value === "once" || value === "always" || value === "reject";
 }
 
+function isPermissionRequestNotFound(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const candidate = error as {
+    _tag?: unknown;
+    name?: unknown;
+    message?: unknown;
+    data?: { message?: unknown };
+  };
+
+  if (candidate._tag === "PermissionNotFoundError") {
+    return true;
+  }
+
+  if (candidate.name === "NotFoundError") {
+    return true;
+  }
+
+  return [candidate.message, candidate.data?.message].some(
+    (message) =>
+      typeof message === "string" && message.toLowerCase().includes("permission request not found"),
+  );
+}
+
 export async function handlePermissionCallback(ctx: Context): Promise<boolean> {
   const data = ctx.callbackQuery?.data;
   if (!data) return false;
@@ -46,8 +72,8 @@ export async function handlePermissionCallback(ctx: Context): Promise<boolean> {
     return true;
   }
 
-  const requestID = permissionManager.getRequestID(callbackMessageId);
-  if (!requestID) {
+  const requestIDs = permissionManager.getRequestIDs(callbackMessageId);
+  if (requestIDs.length === 0) {
     await ctx.answerCallbackQuery({ text: t("permission.inactive_callback"), show_alert: true });
     return true;
   }
@@ -64,7 +90,7 @@ export async function handlePermissionCallback(ctx: Context): Promise<boolean> {
   }
 
   try {
-    await handlePermissionReply(ctx, action, requestID, callbackMessageId);
+    await handlePermissionReply(ctx, action, requestIDs, callbackMessageId);
   } catch (err) {
     logger.error("[PermissionHandler] Error handling callback:", err);
     await ctx.answerCallbackQuery({
@@ -79,7 +105,7 @@ export async function handlePermissionCallback(ctx: Context): Promise<boolean> {
 async function handlePermissionReply(
   ctx: Context,
   reply: PermissionReply,
-  requestID: string,
+  requestIDs: string[],
   callbackMessageId: number | null,
 ): Promise<void> {
   const currentProject = getCurrentProject();
@@ -109,18 +135,49 @@ async function handlePermissionReply(
 
   summaryAggregator.stopTypingIndicator();
 
-  logger.info(`[PermissionHandler] Sending permission reply: ${reply}, requestID=${requestID}`);
+  logger.info(
+    `[PermissionHandler] Sending permission reply: ${reply}, requestIDs=${requestIDs.join(",")}`,
+  );
 
   safeBackgroundTask({
     taskName: "permission.reply",
-    task: () =>
-      opencodeClient.permission.reply({
-        requestID,
-        directory,
-        reply,
-      }),
+    task: async () => {
+      let firstError: unknown = null;
+      let lastResponse: Awaited<ReturnType<typeof opencodeClient.permission.reply>> | null = null;
+
+      for (const requestID of requestIDs) {
+        const response = await opencodeClient.permission.reply({
+          requestID,
+          directory,
+          reply,
+        });
+        lastResponse = response;
+
+        if (!response.error) {
+          continue;
+        }
+
+        if (requestIDs.length > 1 && isPermissionRequestNotFound(response.error)) {
+          logger.debug(
+            `[PermissionHandler] Ignoring duplicate permission reply miss: requestID=${requestID}`,
+          );
+          continue;
+        }
+
+        firstError ??= response.error;
+      }
+
+      return { ...lastResponse, error: firstError };
+    },
     onSuccess: ({ error }) => {
       if (error) {
+        if (isPermissionRequestNotFound(error)) {
+          logger.debug(
+            `[PermissionHandler] Permission request already resolved: requestIDs=${requestIDs.join(",")}`,
+          );
+          return;
+        }
+
         logger.error("[PermissionHandler] Failed to send permission reply:", error);
         if (ctx.api && chatId) {
           void ctx.api.sendMessage(chatId, t("permission.send_reply_error")).catch(() => {});
@@ -140,6 +197,6 @@ async function handlePermissionReply(
   }
 
   syncPermissionInteractionState({
-    lastRepliedRequestID: requestID,
+    lastRepliedRequestIDs: requestIDs,
   });
 }

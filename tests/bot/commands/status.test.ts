@@ -1,10 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
 import { loadSut } from "#helpers/sut-loader.js";
-const { statusCommand } = await loadSut<typeof import("#src/bot/commands/status-command.js")>(
-  "#src/bot/commands/status-command.ts",
-  import.meta.url,
-);
 
 const mocked = vi.hoisted(() => ({
   healthMock: vi.fn(),
@@ -23,6 +19,19 @@ const mocked = vi.hoisted(() => ({
   pinnedRefreshContextLimitMock: vi.fn(),
   pinnedGetContextInfoMock: vi.fn(),
   sendBotTextMock: vi.fn(),
+  loggerDebugMock: vi.fn(),
+  loggerInfoMock: vi.fn(),
+  loggerWarnMock: vi.fn(),
+  loggerErrorMock: vi.fn(),
+}));
+
+vi.mock("#src/utils/logger.ts", () => ({
+  logger: {
+    debug: mocked.loggerDebugMock,
+    info: mocked.loggerInfoMock,
+    warn: mocked.loggerWarnMock,
+    error: mocked.loggerErrorMock,
+  },
 }));
 
 vi.mock("#src/opencode/client.ts", () => ({
@@ -37,10 +46,26 @@ vi.mock("#src/app/services/session-service.ts", () => ({
   getCurrentSession: mocked.getCurrentSessionMock,
 }));
 
-vi.mock("#src/app/stores/settings-store.ts", () => ({
-  getCurrentProject: mocked.getCurrentProjectMock,
-  getTtsMode: mocked.getTtsModeMock,
-}));
+vi.mock("#src/app/stores/settings-store.ts", () => {
+  const settingsStoreMock = {
+    getCurrentProject: mocked.getCurrentProjectMock,
+    getTtsMode: mocked.getTtsModeMock,
+  };
+  // status-command's graph reads the session directory cache too; without it
+  // bun throws "Export named ... not found" when the mock replaces the module.
+  const extraNames = [
+    "getCurrentSession",
+    "setCurrentSession",
+    "clearSession",
+    "getSessionDirectoryCache",
+    "setSessionDirectoryCache",
+    "clearSessionDirectoryCache",
+  ] as const;
+  for (const name of extraNames) {
+    settingsStoreMock[name] = vi.fn();
+  }
+  return settingsStoreMock;
+});
 
 vi.mock("#src/app/services/agent-selection-service.ts", () => ({
   fetchCurrentAgent: mocked.fetchCurrentAgentMock,
@@ -76,6 +101,11 @@ vi.mock("#src/bot/messages/telegram-text.ts", () => ({
   sendBotText: mocked.sendBotTextMock,
 }));
 
+const { statusCommand } = await loadSut<typeof import("#src/bot/commands/status-command.js")>(
+  "#src/bot/commands/status-command.ts",
+  import.meta.url,
+);
+
 describe("bot/commands/status-command", () => {
   beforeEach(() => {
     mocked.healthMock.mockReset();
@@ -94,6 +124,10 @@ describe("bot/commands/status-command", () => {
     mocked.pinnedRefreshContextLimitMock.mockReset();
     mocked.pinnedGetContextInfoMock.mockReset();
     mocked.sendBotTextMock.mockReset();
+    mocked.loggerDebugMock.mockReset();
+    mocked.loggerInfoMock.mockReset();
+    mocked.loggerWarnMock.mockReset();
+    mocked.loggerErrorMock.mockReset();
 
     mocked.healthMock.mockResolvedValue({ data: { healthy: true, version: "1.0.0" }, error: null });
     mocked.getCurrentSessionMock.mockReturnValue({ id: "s1", title: "S", directory: "/repo" });
@@ -152,5 +186,51 @@ describe("bot/commands/status-command", () => {
     const message = mocked.sendBotTextMock.mock.calls[0]?.[0]?.text as string;
     expect(message).toContain("Project: /repo-main: feature/mobile");
     expect(message).toContain("Worktree: /repo-feature");
+  });
+
+  it("logs expected server unavailability as a warning", async () => {
+    mocked.healthMock.mockResolvedValue({
+      data: undefined,
+      error: new TypeError("fetch failed"),
+    });
+
+    const reply = vi.fn();
+    const ctx = {
+      chat: { id: 42, type: "private" },
+      message: { text: "/status" },
+      api: {},
+      reply,
+    } as unknown as Context;
+
+    await statusCommand(ctx as never);
+
+    expect(mocked.loggerErrorMock).not.toHaveBeenCalled();
+    expect(mocked.loggerWarnMock).toHaveBeenCalledTimes(1);
+    expect(reply).toHaveBeenCalledTimes(1);
+    expect(reply.mock.calls[0]?.[0]).toContain("OpenCode Server is unavailable");
+  });
+
+  it("logs unexpected failures as errors", async () => {
+    const unexpectedError = new Error("boom");
+    mocked.healthMock.mockResolvedValue({ data: undefined, error: unexpectedError });
+
+    const reply = vi.fn();
+    const ctx = {
+      chat: { id: 42, type: "private" },
+      message: { text: "/status" },
+      api: {},
+      reply,
+    } as unknown as Context;
+
+    await statusCommand(ctx as never);
+
+    expect(mocked.loggerWarnMock).not.toHaveBeenCalled();
+    expect(mocked.loggerErrorMock).toHaveBeenCalledTimes(1);
+    expect(mocked.loggerErrorMock).toHaveBeenCalledWith(
+      "[Bot] Error checking server status:",
+      unexpectedError,
+    );
+    expect(reply).toHaveBeenCalledTimes(1);
+    expect(reply.mock.calls[0]?.[0]).toContain("OpenCode Server is unavailable");
   });
 });

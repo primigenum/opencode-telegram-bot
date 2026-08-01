@@ -25,6 +25,8 @@ opencode.json
 logs/
 run/
 settings.json
+settings.json.bak
+settings.json.tmp
 .tmp/
 
 # Packaging artifacts

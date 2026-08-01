@@ -10,6 +10,7 @@ interface SummaryAggregatorPrivateState {
   onSessionCompactedCallback: null;
   onSessionErrorCallback: null;
   onPermissionCallback: null;
+  onPermissionRepliedCallback: null;
   onSessionDiffCallback: null;
   onFileChangeCallback: null;
   bot: null;
@@ -76,6 +77,21 @@ export async function resetSingletonState(): Promise<void> {
   interactionManager.clear("test_reset");
   summaryAggregator.clear();
 
+  // message-merger's graph pulls in prompt.ts → session-service. When the
+  // current test mocks any module in that chain, bun's mock.module replaces
+  // the whole module and the import link can fail — so load it separately
+  // and treat failure as "nothing to reset" (same spirit as the logger).
+  try {
+    const { __resetMessageMergerForTests } = await import(
+      "../../src/bot/handlers/message-merger.js"
+    );
+    if (typeof __resetMessageMergerForTests === "function") {
+      __resetMessageMergerForTests();
+    }
+  } catch {
+    // module graph mocked away — nothing to reset
+  }
+
   const aggregator = summaryAggregator as unknown as SummaryAggregatorPrivateState;
   aggregator.onCompleteCallback = null;
   aggregator.onPartialCallback = null;
@@ -88,6 +104,7 @@ export async function resetSingletonState(): Promise<void> {
   aggregator.onSessionCompactedCallback = null;
   aggregator.onSessionErrorCallback = null;
   aggregator.onPermissionCallback = null;
+  aggregator.onPermissionRepliedCallback = null;
   aggregator.onSessionDiffCallback = null;
   aggregator.onFileChangeCallback = null;
   aggregator.bot = null;

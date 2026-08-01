@@ -213,14 +213,6 @@ export function useRealTimers(): void {
   fakeTimersActive = false;
 }
 
-function resolveCurrentMockedTime(): number {
-  try {
-    return bunTest.jest.now();
-  } catch {
-    return Date.now();
-  }
-}
-
 let fakeTimersActive = false;
 
 export function advanceTimersByTime(ms: number): void {
@@ -278,17 +270,6 @@ export async function runAllTimersAsync(): Promise<void> {
   // `vi.advanceTimersByTime(ms)` to advance the clock to that
   // timer's deadline first. runAllTimersAsync's only job here is to
   // let the SUT's pending microtasks run on the next event loop turn.
-  await Promise.resolve();
-}
-
-async function flushMicrotasks(): Promise<void> {
-  // Retained for the legacy `runAllTimersAsync` path. We deliberately
-  // do NOT use `setImmediate` here: every setImmediate queued while
-  // `useFakeTimers` is active consumes a slot in bun's internal fake
-  // timer heap, and the heap corrupts after ~3700 such calls (bun
-  // then throws "Fake timers are not active" mid-test). A single
-  // resolved-promise microtask is enough to give the SUT a turn on
-  // the event loop without leaking into the fake timer queue.
   await Promise.resolve();
 }
 
@@ -367,6 +348,7 @@ export const beforeAll = bunTest.beforeAll;
 export const beforeEach = bunTest.beforeEach;
 export const afterAll = bunTest.afterAll;
 export const afterEach = bunTest.afterEach;
+export type MockInstance = AnyMock;
 export { mock as bunMock, spyOn as bunSpyOn };
 
 export const shim = {

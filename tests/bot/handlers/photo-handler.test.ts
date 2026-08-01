@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
 import { loadSut } from "#helpers/sut-loader.js";
+import type { PhotoHandlerDeps } from "#src/bot/handlers/photo-handler.js";
 const { handlePhotoMessage } = await loadSut<typeof import("#src/bot/handlers/photo-handler.js")>(
   "#src/bot/handlers/photo-handler.ts",
   import.meta.url,
@@ -9,6 +10,13 @@ const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
   "#src/i18n/index.ts",
   import.meta.url,
 );
+
+const flushPendingPromptMock = vi.hoisted(() => vi.fn());
+
+vi.mock("#src/bot/handlers/message-merger.ts", () => ({
+  flushPendingPrompt: flushPendingPromptMock,
+  __resetMessageMergerForTests: vi.fn(),
+}));
 
 function createPhotoContext(caption = "Describe this"): { ctx: Context; replyMock: ReturnType<typeof vi.fn> } {
   const replyMock = vi.fn().mockResolvedValue({ message_id: 100 });
@@ -56,6 +64,7 @@ function createDeps(overrides: Partial<PhotoHandlerDeps> = {}): {
 describe("bot/handlers/photo-handler", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    flushPendingPromptMock.mockClear();
   });
 
   it("downloads the largest photo and sends it as a file part", async () => {
@@ -64,6 +73,7 @@ describe("bot/handlers/photo-handler", () => {
 
     await handlePhotoMessage(ctx, deps);
 
+    expect(flushPendingPromptMock).toHaveBeenCalledWith(777);
     expect(replyMock).toHaveBeenCalledWith(t("bot.photo_downloading"));
     expect(downloadMock).toHaveBeenCalledWith(ctx.api, "large-photo");
     expect(processPromptMock).toHaveBeenCalledWith(

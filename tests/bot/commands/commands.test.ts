@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Bot, Context } from "grammy";
 import { loadSut } from "#helpers/sut-loader.js";
+import type { ExecuteCommandDeps } from "#src/bot/callbacks/command-catalog-callback-handler.js";
 const { commandsCommand } = await loadSut<typeof import("#src/bot/commands/command-catalog-command.js")>(
   "#src/bot/commands/command-catalog-command.ts",
   import.meta.url,
 );
-const { handleCommandsCallback, ExecuteCommandDeps } = await loadSut<typeof import("#src/bot/callbacks/command-catalog-callback-handler.js")>(
+const { handleCommandsCallback } = await loadSut<typeof import("#src/bot/callbacks/command-catalog-callback-handler.js")>(
   "#src/bot/callbacks/command-catalog-callback-handler.ts",
   import.meta.url,
 );

@@ -9,6 +9,7 @@ import { getAgentDisplayName } from "../../app/types/agent.js";
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
 import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
 import { logger } from "../../utils/logger.js";
+import { isExpectedOpencodeUnavailableError } from "../../utils/opencode-error.js";
 import { t } from "../../i18n/index.js";
 import { sendBotText } from "../messages/telegram-text.js";
 
@@ -45,7 +46,7 @@ export async function statusCommand(ctx: CommandContext<Context>) {
 
     // Add model information
     const currentModel = fetchCurrentModel();
-    const modelDisplay = `🤖 ${currentModel.providerID}/${currentModel.modelID}`;
+    const modelDisplay = `🧠 ${currentModel.providerID}/${currentModel.modelID}`;
     message += `${t("status.line.model", { model: modelDisplay })}\n`;
 
     const currentProject = getCurrentProject();
@@ -111,7 +112,11 @@ export async function statusCommand(ctx: CommandContext<Context>) {
       await ctx.reply(message, { reply_markup: keyboard });
     }
   } catch (error) {
-    logger.error("[Bot] Error checking server status:", error);
+    if (isExpectedOpencodeUnavailableError(error)) {
+      logger.warn("[Bot] OpenCode server unavailable; cannot report status");
+    } else {
+      logger.error("[Bot] Error checking server status:", error);
+    }
     await ctx.reply(t("status.server_unavailable"));
   }
 }

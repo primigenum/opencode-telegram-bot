@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
+import type { MessagesCallbackDeps } from "#src/bot/callbacks/message-history-callback-handler.js";
 import { loadSut } from "#helpers/sut-loader.js";
 const { calculateMessagesPaginationRange, parseMessagePageCallback } = await loadSut<typeof import("#src/bot/menus/message-history-menu.js")>(
   "#src/bot/menus/message-history-menu.ts",
@@ -104,7 +105,7 @@ const testDeps = {
     },
   },
   ensureEventSubscription: vi.fn().mockResolvedValue(undefined),
-};
+} as unknown as MessagesCallbackDeps;
 
 function makeUserMessage(id: string, text: string, created: number) {
   return {

@@ -18,6 +18,12 @@ export interface FavoriteModel {
   modelID: string;
 }
 
+export interface ProviderInfo {
+  id: string;
+  name: string;
+  modelCount: number;
+}
+
 export interface ModelSelectionLists {
   favorites: FavoriteModel[];
   recent: FavoriteModel[];
@@ -35,7 +41,7 @@ export function formatModelForButton(providerID: string, modelID: string): strin
   const displayProviderId =
     providerID.length > 15 ? `${providerID.substring(0, 12)}...` : providerID;
 
-  return `🤖 ${displayProviderId}\n${displayModelId}`;
+  return `🧠 ${displayProviderId}\n${displayModelId}`;
 }
 
 /**

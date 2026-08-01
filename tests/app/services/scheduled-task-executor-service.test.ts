@@ -1,13 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
 import type { ScheduledOnceTask } from "#src/app/types/scheduled-task.js";
 
-// Capture real timers at module level — before any vi.useFakeTimers() call
-// modifies the global. Tests that accelerate time use these references.
-const _realTimerRefs = {
-  setTimeout: globalThis.setTimeout,
-  dateNow: Date.now,
-};
-
 // Capture real setTimeout at module level for accelerateTime
 const _$rt = globalThis.setTimeout;
 

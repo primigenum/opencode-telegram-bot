@@ -7,6 +7,17 @@ export interface SttResult {
   text: string;
 }
 
+const AUDIO_FORMAT_BY_EXTENSION: Record<string, string> = {
+  oga: "ogg",
+  ogg: "ogg",
+  mp3: "mp3",
+  wav: "wav",
+  m4a: "m4a",
+  flac: "flac",
+  aac: "aac",
+  webm: "webm",
+};
+
 /**
  * Returns true if STT is configured (API URL and API key are set).
  */
@@ -14,13 +25,20 @@ export function isSttConfigured(): boolean {
   return Boolean(config.stt.apiUrl && config.stt.apiKey);
 }
 
+function getAudioFormat(filename: string): string {
+  const extension = (filename.split(".").pop() || "").toLowerCase();
+  return AUDIO_FORMAT_BY_EXTENSION[extension] || "ogg";
+}
+
 /**
- * Transcribes an audio buffer using a Whisper-compatible API (OpenAI / Groq / etc.).
+ * Transcribes an audio buffer using a Whisper-compatible API.
  *
- * Sends a multipart/form-data POST to `{STT_API_URL}/audio/transcriptions`.
+ * Two request formats are supported via `STT_REQUEST_FORMAT`:
+ * - `multipart` (default): standard OpenAI/Groq `multipart/form-data` upload.
+ * - `json`: base64 audio in an `input_audio` JSON body (e.g. OpenRouter).
  *
  * @param audioBuffer - Raw audio file bytes (ogg, mp3, wav, m4a, webm, etc.)
- * @param filename    - Original filename with extension (used by the API to detect format)
+ * @param filename    - Original filename with extension (used to detect format)
  * @returns Transcribed text
  * @throws Error if STT is not configured, the request fails, or the response is invalid
  */
@@ -30,19 +48,83 @@ export async function transcribeAudio(audioBuffer: Buffer, filename: string): Pr
   }
 
   const url = `${config.stt.apiUrl}/audio/transcriptions`;
+  const useJsonFormat = config.stt.requestFormat === "json";
 
-  const formData = new FormData();
-  formData.append("file", new Blob([new Uint8Array(audioBuffer)]), filename);
-  formData.append("model", config.stt.model);
-  formData.append("response_format", "json");
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${config.stt.apiKey}`,
+  };
+  let body: FormData | string;
 
-  if (config.stt.language) {
-    formData.append("language", config.stt.language);
+  if (useJsonFormat) {
+    const payload: Record<string, unknown> = {
+      model: config.stt.model,
+      input_audio: {
+        data: Buffer.from(audioBuffer).toString("base64"),
+        format: getAudioFormat(filename),
+      },
+    };
+
+    if (config.stt.language) {
+      payload.language = config.stt.language;
+    }
+
+    headers["Content-Type"] = "application/json";
+    body = JSON.stringify(payload);
+
+    logger.debug(
+      `[STT] Sending transcription request (json): url=${url}, model=${config.stt.model}, format=${getAudioFormat(filename)}, size=${audioBuffer.length} bytes`,
+    );
+  } else {
+    // Convert non-WAV audio (e.g. Telegram OGG/OPUS) to 16kHz mono WAV for
+    // compatibility with Whisper servers that reject other containers.
+    let uploadBuffer = audioBuffer;
+    let uploadFilename = filename;
+    if (!filename.endsWith(".wav") && !filename.endsWith(".WAV")) {
+      const tmpIn = `/tmp/stt-convert-${Date.now()}.ogg`;
+      const tmpOut = `/tmp/stt-convert-${Date.now()}.wav`;
+      try {
+        await Bun.write(tmpIn, audioBuffer);
+        const proc = Bun.spawnSync(
+          ["ffmpeg", "-i", tmpIn, "-f", "wav", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", "-y", tmpOut],
+          {},
+        );
+        if (proc.exitCode === 0) {
+          const wavBuf = await Bun.file(tmpOut).arrayBuffer();
+          uploadBuffer = Buffer.from(wavBuf);
+          uploadFilename = filename.replace(/\.[^.]+$/, ".wav");
+          logger.debug(
+            `[STT] Converted audio to WAV: ${uploadBuffer.length} bytes (was ${audioBuffer.length})`,
+          );
+        } else {
+          logger.warn(`[STT] ffmpeg conversion failed (${proc.exitCode}), sending original format`);
+        }
+      } catch (err) {
+        logger.warn(`[STT] ffmpeg conversion error: ${err}, sending original format`);
+      } finally {
+        try {
+          await Bun.file(tmpIn).delete();
+        } catch {}
+        try {
+          await Bun.file(tmpOut).delete();
+        } catch {}
+      }
+    }
+
+    const formData = new FormData();
+    formData.append("file", new Blob([new Uint8Array(uploadBuffer)]), uploadFilename);
+    formData.append("model", config.stt.model);
+    formData.append("response_format", "json");
+
+    if (config.stt.language) {
+      formData.append("language", config.stt.language);
+    }
+
+    body = formData;
+
+    logger.debug(
+      `[STT] Sending transcription request (multipart): url=${url}, model=${config.stt.model}, filename=${uploadFilename}, size=${uploadBuffer.length} bytes`,
+    );
   }
-
-  logger.debug(
-    `[STT] Sending transcription request: url=${url}, model=${config.stt.model}, filename=${filename}, size=${audioBuffer.length} bytes`,
-  );
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), STT_REQUEST_TIMEOUT_MS);
@@ -50,10 +132,8 @@ export async function transcribeAudio(audioBuffer: Buffer, filename: string): Pr
   try {
     const response = await fetch(url, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${config.stt.apiKey}`,
-      },
-      body: formData,
+      headers,
+      body,
       signal: controller.signal,
     });
 
@@ -70,9 +150,15 @@ export async function transcribeAudio(audioBuffer: Buffer, filename: string): Pr
       throw new Error("STT API response does not contain a text field");
     }
 
-    logger.debug(`[STT] Transcription result: ${data.text.length} chars`);
+    // Strip ASR formatting tags (llama.cpp Qwen3-ASR outputs "language X<asr_text>...")
+    const cleanText = data.text
+      .replace(/^language \w+<asr_text>\s*/, "")
+      .replace(/<\|im_end\|>\s*$/, "")
+      .trim();
 
-    return { text: data.text };
+    logger.debug(`[STT] Transcription result: ${cleanText.length} chars (raw: ${data.text.length})`);
+
+    return { text: cleanText };
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
       throw new Error(`STT request timed out after ${STT_REQUEST_TIMEOUT_MS}ms`);

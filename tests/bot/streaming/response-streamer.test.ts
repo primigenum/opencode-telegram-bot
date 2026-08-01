@@ -302,7 +302,7 @@ describe("bot/streaming/response-streamer", () => {
   });
 
   it("waits for an in-flight first streamed send before finalizing short responses", async () => {
-    let resolveSend: ((messageId: number) => void) | null = null;
+    let resolveSend!: (messageId: number) => void;
     const sendPart = vi.fn(
       () =>
         new Promise<{ messageId: number; deliveredSignature: string }>((resolve) => {
@@ -332,7 +332,7 @@ describe("bot/streaming/response-streamer", () => {
     expect(editPart).not.toHaveBeenCalled();
     expect(deleteText).not.toHaveBeenCalled();
 
-    resolveSend?.(1);
+    resolveSend(1);
 
     const result = await completionPromise;
     expect(result.streamed).toBe(true);

@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from "#vitest";
+import os from "node:os";
+import path from "node:path";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { beforeEach, describe, expect, it, vi, type MockInstance } from "#vitest";
 
 import { loadSut } from "#helpers/sut-loader.js";
 import { createSettingsStoreMock } from "#helpers/settings-store-mock.js";
@@ -10,6 +13,7 @@ const mocked = vi.hoisted(() => ({
   notifyOpencodeReadyIfHealthyMock: vi.fn(),
   registerOpenCodeReadyRefreshHandlerMock: vi.fn(),
   loadSettingsMock: vi.fn(),
+  flushSettingsMock: vi.fn(),
   scheduledTaskInitializeMock: vi.fn(),
   scheduledTaskShutdownMock: vi.fn(),
   reconcileStoredModelSelectionMock: vi.fn(),
@@ -55,6 +59,7 @@ vi.mock("#src/opencode/ready-refresh.ts", () => ({
 
 const settingsStoreMock = createSettingsStoreMock();
 settingsStoreMock.loadSettings = mocked.loadSettingsMock;
+settingsStoreMock.flushSettings = mocked.flushSettingsMock;
 vi.mock("#src/app/stores/settings-store.ts", () => settingsStoreMock);
 
 vi.mock("#src/app/services/scheduled-task-runtime-service.ts", () => ({
@@ -117,6 +122,28 @@ function createBot() {
   };
 }
 
+// Unlike createBot(), this one keeps bot.start() pending so the process handlers
+// stay registered while the test exercises them.
+function createPendingBot() {
+  let releaseStart: () => void = () => undefined;
+
+  const bot = {
+    api: {
+      deleteWebhook: vi.fn().mockResolvedValue(undefined),
+      getWebhookInfo: vi.fn().mockResolvedValue({ url: "" }),
+    },
+    start: vi.fn().mockImplementation(async ({ onStart }) => {
+      onStart?.({ username: "test_bot" });
+      await new Promise<void>((resolve) => {
+        releaseStart = resolve;
+      });
+    }),
+    stop: vi.fn(),
+  };
+
+  return { bot, releaseStart: () => releaseStart() };
+}
+
 async function flushBackgroundTasks(): Promise<void> {
   await Promise.resolve();
   await Promise.resolve();
@@ -124,6 +151,32 @@ async function flushBackgroundTasks(): Promise<void> {
 }
 
 describe("app/start-bot-app", () => {
+  const registeredProcessHandlers = new Map<string, (...args: unknown[]) => void>();
+  let processExitSpy: MockInstance;
+
+  function expectHandler(event: string): (...args: unknown[]) => void {
+    const handler = registeredProcessHandlers.get(event);
+    if (!handler) {
+      throw new Error(`No handler registered for "${event}"`);
+    }
+
+    return handler;
+  }
+
+  async function startAppWithPendingBot() {
+    const { bot, releaseStart } = createPendingBot();
+    mocked.createBotMock.mockReturnValue(bot);
+
+    const appPromise = startBotApp();
+    // bot.start() runs after every handler registration, so this also means the
+    // handlers are captured and releaseStart is wired up.
+    await vi.waitFor(() => {
+      expect(bot.start).toHaveBeenCalledTimes(1);
+    });
+
+    return { bot, releaseStart, appPromise };
+  }
+
   beforeEach(() => {
     mocked.createBotMock.mockReset();
     mocked.cleanupBotRuntimeMock.mockReset();
@@ -132,6 +185,7 @@ describe("app/start-bot-app", () => {
     mocked.notifyOpencodeReadyIfHealthyMock.mockReset();
     mocked.registerOpenCodeReadyRefreshHandlerMock.mockReset();
     mocked.loadSettingsMock.mockReset();
+    mocked.flushSettingsMock.mockReset();
     mocked.scheduledTaskInitializeMock.mockReset();
     mocked.scheduledTaskShutdownMock.mockReset();
     mocked.reconcileStoredModelSelectionMock.mockReset();
@@ -149,11 +203,24 @@ describe("app/start-bot-app", () => {
     mocked.autoRestartStartMock.mockResolvedValue(false);
     mocked.notifyOpencodeReadyIfHealthyMock.mockResolvedValue(false);
     mocked.loadSettingsMock.mockResolvedValue(undefined);
+    mocked.flushSettingsMock.mockResolvedValue(undefined);
     mocked.scheduledTaskInitializeMock.mockResolvedValue(undefined);
     mocked.reconcileStoredModelSelectionMock.mockResolvedValue(undefined);
     mocked.isServiceChildProcessMock.mockReturnValue(false);
     mocked.initializeLoggerMock.mockResolvedValue(undefined);
     mocked.getLogFilePathMock.mockReturnValue(null);
+
+    registeredProcessHandlers.clear();
+    vi.spyOn(process, "on").mockImplementation(((
+      event: string,
+      handler: (...args: unknown[]) => void,
+    ) => {
+      registeredProcessHandlers.set(event, handler);
+      return process;
+    }) as unknown as typeof process.on);
+    processExitSpy = vi
+      .spyOn(process, "exit")
+      .mockImplementation((() => undefined) as unknown as typeof process.exit);
   });
 
   it("registers ready refresh and performs startup health notification", async () => {
@@ -191,5 +258,116 @@ describe("app/start-bot-app", () => {
     resolveAutoRestart(false);
     await flushBackgroundTasks();
     expect(mocked.notifyOpencodeReadyIfHealthyMock).toHaveBeenCalledWith("startup");
+  });
+
+  it("logs an unhandled rejection and keeps the process alive", async () => {
+    const { releaseStart, appPromise } = await startAppWithPendingBot();
+    const reason = new Error("background task failed");
+
+    expectHandler("unhandledRejection")(reason);
+    // The old implementation exited only after a microtask tick, so the flush is
+    // what makes this assertion catch a reintroduced process.exit.
+    await flushBackgroundTasks();
+
+    expect(mocked.loggerErrorMock).toHaveBeenCalledWith(
+      "[App] Unhandled promise rejection",
+      reason,
+    );
+    expect(processExitSpy).not.toHaveBeenCalled();
+    expect(mocked.clearServiceStateFileMock).not.toHaveBeenCalled();
+
+    releaseStart();
+    await appPromise;
+  });
+
+  it("survives repeated unhandled rejections", async () => {
+    const { releaseStart, appPromise } = await startAppWithPendingBot();
+    const handler = expectHandler("unhandledRejection");
+
+    handler(new Error("first"));
+    handler(new Error("second"));
+    handler(new Error("third"));
+    await flushBackgroundTasks();
+
+    expect(mocked.loggerErrorMock).toHaveBeenCalledTimes(3);
+    expect(processExitSpy).not.toHaveBeenCalled();
+
+    releaseStart();
+    await appPromise;
+  });
+
+  it("flushes settings before exiting on uncaught exception", async () => {
+    let resolveFlush: () => void = () => undefined;
+    mocked.flushSettingsMock.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveFlush = resolve;
+      }),
+    );
+    const { releaseStart, appPromise } = await startAppWithPendingBot();
+
+    expectHandler("uncaughtException")(new Error("boom"));
+    await vi.waitFor(() => {
+      expect(mocked.flushSettingsMock).toHaveBeenCalledTimes(1);
+    });
+
+    expect(processExitSpy).not.toHaveBeenCalled();
+
+    resolveFlush();
+    await vi.waitFor(() => {
+      expect(processExitSpy).toHaveBeenCalledWith(1);
+    });
+
+    releaseStart();
+    await appPromise;
+  });
+
+  it("exits on uncaught exception even when clearing service state fails", async () => {
+    const stateDir = await mkdtemp(path.join(os.tmpdir(), "opencode-telegram-service-state-"));
+    const stateFilePath = path.join(stateDir, "bot-service.json");
+    await writeFile(stateFilePath, "{}");
+    mocked.isServiceChildProcessMock.mockReturnValue(true);
+    mocked.getServiceStateFilePathFromEnvMock.mockReturnValue(stateFilePath);
+    mocked.clearServiceStateFileMock.mockRejectedValue(new Error("state file is locked"));
+
+    const { releaseStart, appPromise } = await startAppWithPendingBot();
+
+    expectHandler("uncaughtException")(new Error("boom"));
+    await vi.waitFor(() => {
+      expect(processExitSpy).toHaveBeenCalledWith(1);
+    });
+
+    // Without the catch around clearManagedServiceState the rejection would skip
+    // the rest of the chain, so the flush is what proves the guard is in place.
+    expect(mocked.flushSettingsMock).toHaveBeenCalledTimes(1);
+
+    releaseStart();
+    await appPromise;
+    await rm(stateDir, { recursive: true, force: true });
+  });
+
+  it("flushes settings before the forced shutdown exit", async () => {
+    const { releaseStart, appPromise } = await startAppWithPendingBot();
+
+    vi.useFakeTimers();
+    expectHandler("SIGINT")();
+    await vi.advanceTimersByTimeAsync(5000);
+    await flushBackgroundTasks();
+
+    expect(mocked.loggerWarnMock).toHaveBeenCalledWith(expect.stringContaining("forcing exit"));
+    expect(mocked.flushSettingsMock).toHaveBeenCalledTimes(1);
+    expect(processExitSpy).toHaveBeenCalledWith(0);
+
+    vi.useRealTimers();
+    releaseStart();
+    await appPromise;
+  });
+
+  it("flushes settings after the scheduler shuts down on normal exit", async () => {
+    await startBotApp();
+
+    expect(mocked.flushSettingsMock).toHaveBeenCalledTimes(1);
+    expect(mocked.flushSettingsMock.mock.invocationCallOrder[0]).toBeGreaterThan(
+      mocked.scheduledTaskShutdownMock.mock.invocationCallOrder[0],
+    );
   });
 });

@@ -36,6 +36,7 @@ type EnvRecord = Record<string, string | undefined>;
 export type MessageFormatMode = "raw" | "markdown";
 export type StreamingMode = "edit" | "draft";
 export type TtsProvider = "openai" | "google" | "elevenlabs" | "edge";
+export type SttRequestFormat = "multipart" | "json";
 
 function getEnvVar(env: EnvRecord, key: string, required: boolean = true): string {
   const value = env[key];
@@ -66,6 +67,26 @@ function getOptionalPositiveIntEnvVar(
   return parsedValue;
 }
 
+// Like getOptionalPositiveIntEnvVar, but also accepts 0 (used to disable a feature).
+function getOptionalNonNegativeIntEnvVar(
+  env: EnvRecord,
+  key: string,
+  defaultValue: number,
+): number {
+  const value = getEnvVar(env, key, false);
+
+  if (!value) {
+    return defaultValue;
+  }
+
+  const parsedValue = Number.parseInt(value, 10);
+  if (Number.isNaN(parsedValue) || parsedValue < 0) {
+    return defaultValue;
+  }
+
+  return parsedValue;
+}
+
 function getOptionalLocaleEnvVar(env: EnvRecord, key: string, defaultValue: Locale): Locale {
   const value = getEnvVar(env, key, false);
   return normalizeLocale(value, defaultValue);
@@ -83,7 +104,6 @@ function getOptionalBooleanEnvVar(
   }
 
   const normalized = value.trim().toLowerCase();
-
   if (["1", "true", "yes", "on"].includes(normalized)) {
     return true;
   }
@@ -149,6 +169,48 @@ function getOptionalTtsProviderEnvVar(
   const normalized = value.trim().toLowerCase();
   if (VALID_TTS_PROVIDERS.includes(normalized as TtsProvider)) {
     return normalized as TtsProvider;
+  }
+
+  return defaultValue;
+}
+
+export function parseInitialSettingsPreset(env: EnvRecord): Record<string, unknown> {
+  const raw = getEnvVar(env, "INITIAL_SETTINGS_PRESET", false).trim();
+  if (!raw) {
+    return {};
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(
+      "INITIAL_SETTINGS_PRESET contains invalid JSON. Fix or unset the variable.",
+    );
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    throw new Error(
+      "INITIAL_SETTINGS_PRESET must be a JSON object.",
+    );
+  }
+  return parsed as Record<string, unknown>;
+}
+
+const VALID_STT_REQUEST_FORMATS: SttRequestFormat[] = ["multipart", "json"];
+
+function getOptionalSttRequestFormatEnvVar(
+  env: EnvRecord,
+  key: string,
+  defaultValue: SttRequestFormat,
+): SttRequestFormat {
+  const value = getEnvVar(env, key, false);
+
+  if (!value) {
+    return defaultValue;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (VALID_STT_REQUEST_FORMATS.includes(normalized as SttRequestFormat)) {
+    return normalized as SttRequestFormat;
   }
 
   return defaultValue;
@@ -228,6 +290,7 @@ export function createConfig(env: EnvRecord) {
       messagesListLimit: getOptionalPositiveIntEnvVar(env, "MESSAGES_LIST_LIMIT", 10),
       projectsListLimit: getOptionalPositiveIntEnvVar(env, "PROJECTS_LIST_LIMIT", 10),
       commandsListLimit: getOptionalPositiveIntEnvVar(env, "COMMANDS_LIST_LIMIT", 10),
+      modelsListLimit: getOptionalPositiveIntEnvVar(env, "MODELS_LIST_LIMIT", 10),
       taskLimit: getOptionalPositiveIntEnvVar(env, "TASK_LIMIT", 10),
       scheduledTaskExecutionTimeoutMinutes: getOptionalPositiveIntEnvVar(
         env,
@@ -250,6 +313,10 @@ export function createConfig(env: EnvRecord) {
       trackBackgroundSessions: getOptionalBooleanEnvVar(env, "TRACK_BACKGROUND_SESSIONS", true),
       messageFormatMode: getOptionalMessageFormatModeEnvVar(env, "MESSAGE_FORMAT_MODE", "markdown"),
       compactOutputMode: getOptionalBooleanEnvVar(env, "COMPACT_OUTPUT_MODE", false),
+      // Buffer near-limit text for this window so Telegram-split chunks can be merged.
+      // Short messages are processed immediately; 0 disables merging entirely.
+      messageMergeWindowMs: getOptionalNonNegativeIntEnvVar(env, "MESSAGE_MERGE_WINDOW_MS", 1500),
+      initialSettingsPreset: parseInitialSettingsPreset(env),
     },
     files: {
       maxFileSizeKb: parseInt(getEnvVar(env, "CODE_FILE_MAX_SIZE_KB", false) || "100", 10),
@@ -263,6 +330,13 @@ export function createConfig(env: EnvRecord) {
       model: getEnvVar(env, "STT_MODEL", false) || "whisper-large-v3-turbo",
       language: getEnvVar(env, "STT_LANGUAGE", false),
       notePrompt: getEnvVar(env, "STT_NOTE_PROMPT", false),
+      // "multipart" (default) = standard OpenAI/Groq Whisper form-data upload.
+      // "json" = base64 audio in an `input_audio` JSON body (e.g. OpenRouter).
+      requestFormat: getOptionalSttRequestFormatEnvVar(env, "STT_REQUEST_FORMAT", "multipart"),
+    },
+    docExtractor: {
+      apiUrl: getEnvVar(env, "DOC_EXTRACTOR_URL", false),
+      apiKey: getEnvVar(env, "DOC_EXTRACTOR_API_KEY", false),
     },
     tts: {
       apiUrl: getEnvVar(env, "TTS_API_URL", false),

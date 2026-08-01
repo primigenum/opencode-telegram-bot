@@ -31,6 +31,7 @@ const ENTITY_TYPE_PRIORITY: Record<MessageEntity["type"], number> = {
   pre: 109,
   text_mention: 110,
   custom_emoji: 111,
+  date_time: 112,
 };
 
 interface InlineRenderState {

@@ -8,6 +8,7 @@ import type {
   ScheduledTaskSessionIgnoreInfo,
   Settings,
 } from "../types/settings.js";
+import { config } from "../../config.js";
 import { getRuntimePaths } from "../../runtime/paths.js";
 import { logger } from "../../utils/logger.js";
 
@@ -25,15 +26,94 @@ function getSettingsFilePath(): string {
   return getRuntimePaths().settingsFilePath;
 }
 
+function getSettingsBackupFilePath(): string {
+  return `${getSettingsFilePath()}.bak`;
+}
+
+// Lives next to the target file so the rename never crosses a volume boundary.
+function getSettingsTempFilePath(): string {
+  return `${getSettingsFilePath()}.tmp`;
+}
+
+// Set when settings were recovered from the backup: the target file still holds
+// the damaged content, so rotating it into the backup would destroy the only
+// good copy. Cleared by the first successful write.
+let skipNextBackupRotation = false;
+
+function isFileNotFound(error: unknown): boolean {
+  return (error as NodeJS.ErrnoException).code === "ENOENT";
+}
+
+async function readSettingsFileAt(filePath: string): Promise<Settings> {
+  const fs = await import("fs/promises");
+  const content = await fs.readFile(filePath, "utf-8");
+  return JSON.parse(content) as Settings;
+}
+
 async function readSettingsFile(): Promise<Settings> {
+  const settingsFilePath = getSettingsFilePath();
+  const backupFilePath = getSettingsBackupFilePath();
+
   try {
-    const content = await Bun.file(getSettingsFilePath()).text();
-    return JSON.parse(content) as Settings;
-  } catch (error) {
-    if (error instanceof Error && (error as Error & { code?: string }).code !== "ENOENT") {
-      logger.error("[SettingsManager] Error reading settings file:", error);
+    return await readSettingsFileAt(settingsFilePath);
+  } catch (primaryError) {
+    if (!isFileNotFound(primaryError)) {
+      logger.warn(
+        `[SettingsManager] Cannot read settings file ${settingsFilePath}:`,
+        primaryError,
+      );
     }
-    return {};
+
+    try {
+      const backupSettings = await readSettingsFileAt(backupFilePath);
+      logger.warn(`[SettingsManager] Recovered settings from backup ${backupFilePath}`);
+      skipNextBackupRotation = true;
+      return backupSettings;
+    } catch (backupError) {
+      if (isFileNotFound(primaryError) && isFileNotFound(backupError)) {
+        return {};
+      }
+
+      logger.error(
+        `[SettingsManager] Settings file ${settingsFilePath} and its backup ${backupFilePath} are both unusable.`,
+        { primaryError, backupError },
+      );
+      throw new Error(
+        `Cannot read settings: ${settingsFilePath} and its backup ${backupFilePath} are both unusable. ` +
+          "Both files were left untouched - fix or remove them manually and start the bot again.",
+      );
+    }
+  }
+}
+
+async function writeSettingsFileAtomically(settings: Settings): Promise<void> {
+  const fs = await import("fs/promises");
+  const settingsFilePath = getSettingsFilePath();
+  const tempFilePath = getSettingsTempFilePath();
+
+  await fs.mkdir(path.dirname(settingsFilePath), { recursive: true });
+
+  try {
+    await fs.writeFile(tempFilePath, JSON.stringify(settings, null, 2));
+
+    if (!skipNextBackupRotation) {
+      try {
+        await fs.rename(settingsFilePath, getSettingsBackupFilePath());
+      } catch (error) {
+        // Nothing to back up on the very first write.
+        if (!isFileNotFound(error)) {
+          throw error;
+        }
+      }
+    }
+
+    await fs.rename(tempFilePath, settingsFilePath);
+    skipNextBackupRotation = false;
+  } catch (error) {
+    await fs.rm(tempFilePath, { force: true }).catch(() => {
+      // Best-effort cleanup of the temporary file.
+    });
+    throw error;
   }
 }
 
@@ -46,17 +126,19 @@ function writeSettingsFile(settings: Settings): Promise<void> {
     })
     .then(async () => {
       try {
-        const settingsFilePath = getSettingsFilePath();
-        await Bun.spawn(["mkdir", "-p", path.dirname(settingsFilePath)], {
-          stdout: "ignore",
-          stderr: "ignore",
-        }).exited;
-        await Bun.write(settingsFilePath, JSON.stringify(settings, null, 2));
+        await writeSettingsFileAtomically(settings);
       } catch (err) {
         logger.error("[SettingsManager] Error writing settings file:", err);
       }
     });
 
+  return settingsWriteQueue;
+}
+
+// Awaits the writes queued at the moment of the call; writes queued later are not
+// covered. That is enough for shutdown, where everything able to write is already
+// stopped. The queue never rejects - writeSettingsFile handles its own errors.
+export function flushSettings(): Promise<void> {
   return settingsWriteQueue;
 }
 
@@ -236,6 +318,76 @@ export function setScheduledTaskSessionIgnores(
 export function __resetSettingsForTests(): void {
   currentSettings = {};
   settingsWriteQueue = Promise.resolve();
+  skipNextBackupRotation = false;
+}
+
+const VALID_TTS_MODES: readonly TtsMode[] = ["off", "all", "auto"];
+const VALID_STREAMING_MODES: readonly ResponseStreamingMode[] = ["edit", "draft"];
+
+function applyInitialSettingsPreset(preset: Record<string, unknown>): void {
+  const knownKeys = new Set([
+    "ttsMode",
+    "compactOutputMode",
+    "showThinkingContent",
+    "showAssistantRunFooter",
+    "responseStreamingMode",
+    "sendDiffFileAttachments",
+  ]);
+
+  for (const [key, value] of Object.entries(preset)) {
+    if (!knownKeys.has(key)) {
+      throw new Error(
+        `INITIAL_SETTINGS_PRESET: unknown key "${key}". Supported keys: ${[...knownKeys].join(", ")}.`,
+      );
+    }
+    if (key === "ttsMode") {
+      if (typeof value !== "string" || !VALID_TTS_MODES.includes(value as TtsMode)) {
+        throw new Error(
+          `INITIAL_SETTINGS_PRESET: invalid value for "ttsMode"; expected one of ${VALID_TTS_MODES.join(", ")}.`,
+        );
+      }
+      if (currentSettings.ttsMode === undefined) {
+        currentSettings.ttsMode = value as TtsMode;
+      }
+    } else if (key === "responseStreamingMode") {
+      if (
+        typeof value !== "string" ||
+        !VALID_STREAMING_MODES.includes(value as ResponseStreamingMode)
+      ) {
+        throw new Error(
+          `INITIAL_SETTINGS_PRESET: invalid value for "responseStreamingMode"; expected one of ${VALID_STREAMING_MODES.join(", ")}.`,
+        );
+      }
+      if (currentSettings.responseStreamingMode === undefined) {
+        currentSettings.responseStreamingMode = value as ResponseStreamingMode;
+      }
+    } else {
+      // Boolean settings: compactOutputMode, showThinkingContent, showAssistantRunFooter, sendDiffFileAttachments
+      if (typeof value !== "boolean") {
+        throw new Error(
+          `INITIAL_SETTINGS_PRESET: "${key}" must be a boolean.`,
+        );
+      }
+      switch (key) {
+        case "compactOutputMode":
+          if (currentSettings.compactOutputMode === undefined)
+            currentSettings.compactOutputMode = value;
+          break;
+        case "showThinkingContent":
+          if (currentSettings.showThinkingContent === undefined)
+            currentSettings.showThinkingContent = value;
+          break;
+        case "showAssistantRunFooter":
+          if (currentSettings.showAssistantRunFooter === undefined)
+            currentSettings.showAssistantRunFooter = value;
+          break;
+        case "sendDiffFileAttachments":
+          if (currentSettings.sendDiffFileAttachments === undefined)
+            currentSettings.sendDiffFileAttachments = value;
+          break;
+      }
+    }
+  }
 }
 
 export async function loadSettings(): Promise<void> {
@@ -268,6 +420,8 @@ export async function loadSettings(): Promise<void> {
   currentSettings.scheduledTasks = cloneScheduledTasks(loadedSettings.scheduledTasks) ?? [];
   currentSettings.scheduledTaskSessionIgnores =
     cloneScheduledTaskSessionIgnores(loadedSettings.scheduledTaskSessionIgnores) ?? [];
+
+  applyInitialSettingsPreset(config.bot.initialSettingsPreset);
 
   if (requiresRewrite) {
     void writeSettingsFile(currentSettings);

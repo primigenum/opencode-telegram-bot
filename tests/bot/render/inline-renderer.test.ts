@@ -8,7 +8,17 @@ const { renderInlineNodes, renderInlineNodesValidated } = await loadSut<typeof i
   "#src/bot/render/inline-renderer.ts",
   import.meta.url,
 );
-import type { InlineNode } from "#src/bot/render/types.js";
+import type { InlineNode, TelegramBlock } from "#src/bot/render/types.js";
+
+function expectParagraph(block: TelegramBlock): Extract<TelegramBlock, { type: "paragraph" }> {
+  expect(block).toMatchObject({ type: "paragraph" });
+
+  if (block.type !== "paragraph") {
+    throw new Error(`Expected a paragraph block, got "${block.type}"`);
+  }
+
+  return block;
+}
 
 describe("bot/render/inline-renderer", () => {
   it("renders supported inline nodes into text and entities", () => {
@@ -132,10 +142,7 @@ describe("bot/render/inline-renderer", () => {
     const blocks = parseTelegramBlocks(
       "Hello **bold** *italic* ~~strike~~ `code` [site](https://example.com)",
     );
-    const paragraph = blocks[0];
-
-    expect(paragraph).toMatchObject({ type: "paragraph" });
-    expect(paragraph.type).toBe("paragraph");
+    const paragraph = expectParagraph(blocks[0]);
 
     const rendered = renderInlineNodesValidated(paragraph.inlines);
 
@@ -151,10 +158,7 @@ describe("bot/render/inline-renderer", () => {
 
   it("preserves local markdown link targets as plain text without breaking validation", () => {
     const blocks = parseTelegramBlocks("See [security](#безопасность)");
-    const paragraph = blocks[0];
-
-    expect(paragraph).toMatchObject({ type: "paragraph" });
-    expect(paragraph.type).toBe("paragraph");
+    const paragraph = expectParagraph(blocks[0]);
 
     expect(renderInlineNodesValidated(paragraph.inlines)).toEqual({
       text: "See security (#безопасность)",
@@ -164,10 +168,7 @@ describe("bot/render/inline-renderer", () => {
 
   it("preserves localhost links as plain text without text_link entities", () => {
     const blocks = parseTelegramBlocks("Open [dev server](http://localhost:3000) now");
-    const paragraph = blocks[0];
-
-    expect(paragraph).toMatchObject({ type: "paragraph" });
-    expect(paragraph.type).toBe("paragraph");
+    const paragraph = expectParagraph(blocks[0]);
 
     expect(renderInlineNodesValidated(paragraph.inlines)).toEqual({
       text: "Open dev server (http://localhost:3000) now",
@@ -177,10 +178,7 @@ describe("bot/render/inline-renderer", () => {
 
   it("does not duplicate bare localhost autolinks", () => {
     const blocks = parseTelegramBlocks("Open http://localhost:3000 now");
-    const paragraph = blocks[0];
-
-    expect(paragraph).toMatchObject({ type: "paragraph" });
-    expect(paragraph.type).toBe("paragraph");
+    const paragraph = expectParagraph(blocks[0]);
 
     expect(renderInlineNodesValidated(paragraph.inlines)).toEqual({
       text: "Open http://localhost:3000 now",
