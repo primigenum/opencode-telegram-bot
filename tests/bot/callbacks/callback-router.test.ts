@@ -12,6 +12,7 @@ const mocked = vi.hoisted(() => ({
   handleInlineMenuCancel: vi.fn(),
   handleMcpsCallback: vi.fn(),
   handleMessagesCallback: vi.fn(),
+  handleModelProvidersCallback: vi.fn(),
   handleModelSearchCallback: vi.fn(),
   handleModelSearchResults: vi.fn(),
   handleModelSelect: vi.fn(),
@@ -73,6 +74,7 @@ vi.mock("#src/bot/callbacks/message-history-callback-handler.ts", () => ({
   handleMessagesCallback: mocked.handleMessagesCallback,
 }));
 vi.mock("#src/bot/callbacks/model-selection-callback-handler.ts", () => ({
+  handleModelProvidersCallback: mocked.handleModelProvidersCallback,
   handleModelSearchCallback: mocked.handleModelSearchCallback,
   handleModelSearchResults: mocked.handleModelSearchResults,
   handleModelSelect: mocked.handleModelSelect,
@@ -125,6 +127,7 @@ const allHandlers = [
   mocked.handleInlineMenuCancel,
   mocked.handleMcpsCallback,
   mocked.handleMessagesCallback,
+  mocked.handleModelProvidersCallback,
   mocked.handleModelSearchCallback,
   mocked.handleModelSearchResults,
   mocked.handleModelSelect,
@@ -158,6 +161,17 @@ describe("bot/callbacks/callback-router", () => {
     expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({ text: "callback.unknown_command" });
   });
 
+  it("does not answer as unknown when the provider browser handles the callback", async () => {
+    mocked.handleModelProvidersCallback.mockResolvedValue(true);
+    const callback = registerAndGetCallback();
+    const ctx = createCallbackContext("model:providers:0");
+
+    await callback(ctx);
+
+    expect(mocked.handleModelProvidersCallback).toHaveBeenCalled();
+    expect(ctx.answerCallbackQuery).not.toHaveBeenCalled();
+  });
+
   it("clears interaction state when a callback handler throws", async () => {
     mocked.handleAgentSelect.mockRejectedValueOnce(new Error("boom"));
     const callback = registerAndGetCallback();
@@ -179,9 +193,9 @@ function registerAndGetCallback() {
   return bot.on.mock.calls[0][1] as (ctx: Context) => Promise<void>;
 }
 
-function createCallbackContext(): Context {
+function createCallbackContext(data = "unknown"): Context {
   return {
-    callbackQuery: { data: "unknown" },
+    callbackQuery: { data },
     from: { id: 1 },
     chat: { id: 2 },
     answerCallbackQuery: vi.fn().mockResolvedValue(undefined),

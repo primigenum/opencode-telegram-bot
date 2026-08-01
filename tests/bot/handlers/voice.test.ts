@@ -18,6 +18,7 @@ const mocked = vi.hoisted(() => ({
   loggerInfoMock: vi.fn(),
   loggerWarnMock: vi.fn(),
   loggerErrorMock: vi.fn(),
+  flushPendingPromptMock: vi.fn(),
 }));
 
 const configMock = vi.hoisted(() => ({
@@ -90,6 +91,11 @@ vi.mock("#src/utils/logger.ts", () => ({
     warn: mocked.loggerWarnMock,
     error: mocked.loggerErrorMock,
   },
+}));
+
+vi.mock("#src/bot/handlers/message-merger.ts", () => ({
+  flushPendingPrompt: mocked.flushPendingPromptMock,
+  __resetMessageMergerForTests: vi.fn(),
 }));
 
 async function getSut() {
@@ -176,6 +182,7 @@ describe("bot/handlers/voice-handler", () => {
 
     await handleVoiceMessage(ctx, deps);
 
+    expect(mocked.flushPendingPromptMock).toHaveBeenCalledWith(777);
     expect(replyMock).toHaveBeenCalledWith(t("stt.recognizing"));
     expect(processPromptMock).toHaveBeenCalledWith(ctx, "run tests", deps, [], {
       responseMode: "text_only",

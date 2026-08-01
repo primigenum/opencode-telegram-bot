@@ -110,12 +110,13 @@ export const de: I18nDictionary = {
   "bot.file_too_large": "⚠️ Datei ist zu groß (max. {maxSizeMb}MB)",
   "bot.file_download_error": "🔴 Datei konnte nicht heruntergeladen werden",
   "bot.file_type_unsupported":
-    "⚠️ Dieser Dateityp wird nicht unterstützt. Sende ein Bild, PDF oder eine Text-/Code-Datei.",
+    "⚠️ Dieser Dateityp wird nicht unterstützt. Sende ein Bild, Dokument (PDF, DOCX, PPTX) oder eine Text-/Code-Datei.",
   "bot.media_group_not_processed":
     "⚠️ Eine oder mehrere Dateien in diesem Album können nicht verarbeitet werden. Es wurde nichts an OpenCode gesendet.",
   "bot.media_group_download_error":
     "🔴 Eine der Dateien konnte nicht heruntergeladen werden. Es wurde nichts an OpenCode gesendet.",
   "bot.model_no_pdf": "⚠️ Das aktuelle Modell unterstützt keine PDF-Eingabe. Sende nur Text.",
+  "bot.document_extraction_error": "🔴 Dokumenttext konnte nicht extrahiert werden.",
   "bot.text_file_too_large": "⚠️ Textdatei ist zu groß (max. {maxSizeKb}KB)",
 
   "status.header_running": "🟢 OpenCode-Server läuft",
@@ -332,6 +333,17 @@ export const de: I18nDictionary = {
   "model.search.no_results": 'Keine Modelle gefunden für "{query}"',
   "model.search.search_again": "↩ Erneut suchen",
   "model.search.error": "Suche fehlgeschlagen",
+  "model.button.back": "⬅️ Zurück",
+  "model.providers.button": "🗂 Anbieter",
+  "model.providers.title": "Anbieter aus der Liste auswählen:",
+  "model.providers.empty": "⚠️ Keine verbundenen Anbieter",
+  "model.providers.error": "Anbieterliste konnte nicht geladen werden",
+  "model.providers.page_indicator": "Seite {current}/{total}",
+  "model.providers.prev_page": "⬅️ Zurück",
+  "model.providers.next_page": "Weiter ➡️",
+  "model.provider_models.title": "{provider} — Modell auswählen:",
+  "model.provider_models.empty": "⚠️ Keine Modelle für {provider} verfügbar",
+  "model.provider_models.page_indicator": "Seite {current}/{total}",
 
   "variant.model_not_selected_callback": "Fehler: Modell ist nicht ausgewählt",
   "variant.changed_callback": "Variante geändert: {name}",
@@ -364,6 +376,7 @@ export const de: I18nDictionary = {
   "permission.blocked.command_not_allowed":
     "⚠️ Dieser Befehl ist erst verfügbar, wenn du die Berechtigungsanfrage beantwortet hast.",
   "permission.header": "{emoji} Berechtigungsanfrage: {name}\n\n",
+  "permission.grouped_count": "\n⚠️ {count} identische Anfragen ausstehend – deine Antwort gilt für alle.\n",
   "permission.button.allow": "✅ Einmal erlauben",
   "permission.button.always": "🔓 Immer erlauben",
   "permission.button.reject": "❌ Ablehnen",

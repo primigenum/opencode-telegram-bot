@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "#vitest";
 import { mockDep } from "#helpers/mock-dep.js";
 import { loadSut } from "#helpers/sut-loader.js";
 
-const mocked = {
-  isScheduledTaskSessionIgnoredMock: vi.fn(() => false),
-};
+const mocked = vi.hoisted(() => ({
+  isScheduledTaskSessionIgnoredMock: vi.fn((_sessionId: string) => false),
+}));
 
 mockDep(
   "#src/app/services/scheduled-task-session-ignore-service.ts",

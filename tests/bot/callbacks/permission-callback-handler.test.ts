@@ -90,6 +90,7 @@ function createPermissionRequest(
 function createBotApi(messageId: number = 500): Context["api"] {
   return {
     sendMessage: vi.fn().mockResolvedValue({ message_id: messageId }),
+    editMessageText: vi.fn().mockResolvedValue(true),
     deleteMessage: vi.fn().mockResolvedValue(true),
   } as unknown as Context["api"];
 }
@@ -122,6 +123,8 @@ function getCallbackData(button: unknown): string | undefined {
 }
 
 async function flushMicrotasks(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
   await Promise.resolve();
   await Promise.resolve();
 }
@@ -179,7 +182,11 @@ describe("bot permission menu/callbacks", () => {
     const sendMessageMock = botApi.sendMessage as unknown as ReturnType<typeof vi.fn>;
     sendMessageMock.mockResolvedValueOnce({ message_id: 501 });
 
-    await showPermissionRequest(botApi, 777, createPermissionRequest("perm-2"));
+    await showPermissionRequest(
+      botApi,
+      777,
+      createPermissionRequest("perm-2", { patterns: ["npm run build"] }),
+    );
 
     const deleteMessageMock = botApi.deleteMessage as unknown as ReturnType<typeof vi.fn>;
     expect(deleteMessageMock).not.toHaveBeenCalled();
@@ -197,6 +204,61 @@ describe("bot permission menu/callbacks", () => {
     expect(state?.metadata.pendingCount).toBe(2);
   });
 
+  it("does not show a permission request that was already resolved", async () => {
+    const botApi = createBotApi(502);
+    permissionManager.resolveRequest("perm-resolved");
+
+    await showPermissionRequest(botApi, 777, createPermissionRequest("perm-resolved"));
+
+    expect(botApi.sendMessage).not.toHaveBeenCalled();
+    expect(permissionManager.isActive()).toBe(false);
+    expect(interactionManager.getSnapshot()).toBeNull();
+  });
+
+  it("does not send a permission message from a cleared lifecycle", async () => {
+    const botApi = createBotApi(503);
+    const generation = permissionManager.getGeneration();
+    permissionManager.clear();
+
+    await showPermissionRequest(
+      botApi,
+      777,
+      createPermissionRequest("perm-old-lifecycle"),
+      generation,
+    );
+
+    expect(botApi.sendMessage).not.toHaveBeenCalled();
+    expect(permissionManager.isActive()).toBe(false);
+  });
+
+  it("discards an in-flight permission message after state is cleared", async () => {
+    let resolveSend: (message: { message_id: number }) => void = () => {};
+    const pendingSend = new Promise<{ message_id: number }>((resolve) => {
+      resolveSend = resolve;
+    });
+    const botApi = {
+      sendMessage: vi.fn().mockReturnValue(pendingSend),
+      deleteMessage: vi.fn().mockResolvedValue(true),
+    } as unknown as Context["api"];
+
+    const showTask = showPermissionRequest(
+      botApi,
+      777,
+      createPermissionRequest("perm-old-session"),
+    );
+    await vi.waitFor(() => {
+      expect(botApi.sendMessage).toHaveBeenCalledTimes(1);
+    });
+    permissionManager.clear();
+    resolveSend({ message_id: 503 });
+
+    await showTask;
+
+    expect(botApi.deleteMessage).toHaveBeenCalledWith(777, 503);
+    expect(permissionManager.isActive()).toBe(false);
+    expect(interactionManager.getSnapshot()).toBeNull();
+  });
+
   it("rejects callback from unknown permission message", async () => {
     const botApi = createBotApi(500);
 
@@ -204,7 +266,11 @@ describe("bot permission menu/callbacks", () => {
 
     const sendMessageMock = botApi.sendMessage as unknown as ReturnType<typeof vi.fn>;
     sendMessageMock.mockResolvedValueOnce({ message_id: 501 });
-    await showPermissionRequest(botApi, 777, createPermissionRequest("perm-2"));
+    await showPermissionRequest(
+      botApi,
+      777,
+      createPermissionRequest("perm-2", { patterns: ["npm run build"] }),
+    );
 
     const staleCtx = createPermissionCallbackContext("permission:once", 499);
     const handled = await handlePermissionCallback(staleCtx);
@@ -244,6 +310,122 @@ describe("bot permission menu/callbacks", () => {
     expect(interactionManager.getSnapshot()).toBeNull();
   });
 
+  it("deduplicates equivalent permission requests behind one Telegram message", async () => {
+    const botApi = createBotApi(650);
+
+    await showPermissionRequest(botApi, 777, createPermissionRequest("perm-1"));
+    await showPermissionRequest(botApi, 777, createPermissionRequest("perm-duplicate"));
+
+    const sendMessageMock = botApi.sendMessage as unknown as ReturnType<typeof vi.fn>;
+    expect(sendMessageMock).toHaveBeenCalledTimes(1);
+    expect(permissionManager.getPendingCount()).toBe(1);
+    expect(permissionManager.getRequestID(650)).toBe("perm-1");
+    expect(permissionManager.getRequestIDs(650)).toEqual(["perm-1", "perm-duplicate"]);
+
+    const ctx = createPermissionCallbackContext("permission:always", 650);
+    const handled = await handlePermissionCallback(ctx);
+
+    expect(handled).toBe(true);
+    expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({ text: t("permission.reply.always") });
+
+    await flushMicrotasks();
+
+    expect(mocked.permissionReplyMock).toHaveBeenCalledTimes(2);
+    expect(mocked.permissionReplyMock).toHaveBeenNthCalledWith(1, {
+      requestID: "perm-1",
+      directory: "D:/repo",
+      reply: "always",
+    });
+    expect(mocked.permissionReplyMock).toHaveBeenNthCalledWith(2, {
+      requestID: "perm-duplicate",
+      directory: "D:/repo",
+      reply: "always",
+    });
+    expect(permissionManager.isActive()).toBe(false);
+    expect(interactionManager.getSnapshot()).toBeNull();
+  });
+
+  it("shows the grouped request count on the visible permission message", async () => {
+    const botApi = createBotApi(651);
+
+    await showPermissionRequest(botApi, 777, createPermissionRequest("perm-1"));
+    await showPermissionRequest(botApi, 777, createPermissionRequest("perm-duplicate"));
+
+    const editMessageTextMock = botApi.editMessageText as unknown as ReturnType<typeof vi.fn>;
+    expect(editMessageTextMock).toHaveBeenCalledTimes(1);
+
+    const [chatId, messageId, text] = editMessageTextMock.mock.calls[0];
+    expect(chatId).toBe(777);
+    expect(messageId).toBe(651);
+    expect(text).toContain(t("permission.grouped_count", { count: 2 }));
+  });
+
+  it("refuses to group stale or already resolved equivalent requests", async () => {
+    const botApi = createBotApi(652);
+
+    await showPermissionRequest(botApi, 777, createPermissionRequest("perm-1"));
+    const generation = permissionManager.getGeneration();
+
+    permissionManager.resolveRequest("perm-resolved");
+    expect(
+      permissionManager.addEquivalentRequest(createPermissionRequest("perm-resolved")),
+    ).toBeNull();
+    expect(
+      permissionManager.addEquivalentRequest(createPermissionRequest("perm-stale"), generation - 1),
+    ).toBeNull();
+
+    expect(permissionManager.getRequestIDs(652)).toEqual(["perm-1"]);
+  });
+
+  it("does not group behind a message whose request was replaced", async () => {
+    const botApi = createBotApi(653);
+
+    await showPermissionRequest(botApi, 777, createPermissionRequest("perm-replaced"));
+    // Same Telegram message id, different scope: the replaced request's
+    // signature must no longer group new requests behind it.
+    permissionManager.startPermission(createPermissionRequest("perm-2", { patterns: ["ls"] }), 653);
+
+    await showPermissionRequest(botApi, 777, createPermissionRequest("perm-3"));
+
+    const sendMessageMock = botApi.sendMessage as unknown as ReturnType<typeof vi.fn>;
+    expect(sendMessageMock).toHaveBeenCalledTimes(2);
+    expect(botApi.editMessageText).not.toHaveBeenCalled();
+  });
+
+  it("resolves a grouped permission prompt by any grouped request id", async () => {
+    const botApi = createBotApi(655);
+
+    await showPermissionRequest(botApi, 777, createPermissionRequest("perm-1"));
+    await showPermissionRequest(botApi, 777, createPermissionRequest("perm-duplicate"));
+
+    expect(permissionManager.resolveRequest("perm-duplicate")).toEqual([655]);
+    expect(permissionManager.isActive()).toBe(false);
+    expect(permissionManager.getRequestIDs(655)).toEqual([]);
+  });
+
+  it("ignores duplicate permission not-found errors after replying grouped requests", async () => {
+    const botApi = createBotApi(660);
+    mocked.permissionReplyMock
+      .mockResolvedValueOnce({ error: null })
+      .mockResolvedValueOnce({
+        error: {
+          _tag: "PermissionNotFoundError",
+          requestID: "perm-duplicate",
+          message: "Permission request not found: perm-duplicate",
+        },
+      });
+
+    await showPermissionRequest(botApi, 777, createPermissionRequest("perm-1"));
+    await showPermissionRequest(botApi, 777, createPermissionRequest("perm-duplicate"));
+
+    const ctx = createPermissionCallbackContext("permission:always", 660);
+    await handlePermissionCallback(ctx);
+    await flushMicrotasks();
+
+    expect(mocked.permissionReplyMock).toHaveBeenCalledTimes(2);
+    expect(ctx.api.sendMessage).not.toHaveBeenCalled();
+  });
+
   it("keeps permission interaction active until all requests are replied", async () => {
     const botApi = createBotApi(700);
 
@@ -251,7 +433,11 @@ describe("bot permission menu/callbacks", () => {
 
     const sendMessageMock = botApi.sendMessage as unknown as ReturnType<typeof vi.fn>;
     sendMessageMock.mockResolvedValueOnce({ message_id: 701 });
-    await showPermissionRequest(botApi, 777, createPermissionRequest("perm-2"));
+    await showPermissionRequest(
+      botApi,
+      777,
+      createPermissionRequest("perm-2", { patterns: ["npm run build"] }),
+    );
 
     const firstCtx = createPermissionCallbackContext("permission:once", 700);
     const firstHandled = await handlePermissionCallback(firstCtx);
@@ -294,6 +480,39 @@ describe("bot permission menu/callbacks", () => {
 
     expect(permissionManager.isActive()).toBe(false);
     expect(interactionManager.getSnapshot()).toBeNull();
+  });
+
+  it("does not report an error when the permission request was already resolved", async () => {
+    const botApi = createBotApi(750);
+    await showPermissionRequest(botApi, 777, createPermissionRequest("perm-stale"));
+    mocked.permissionReplyMock.mockResolvedValueOnce({
+      error: {
+        name: "NotFoundError",
+        data: { message: "Permission request not found" },
+      },
+    });
+
+    const ctx = createPermissionCallbackContext("permission:always", 750);
+    await handlePermissionCallback(ctx);
+    await flushMicrotasks();
+
+    expect(ctx.api.sendMessage).not.toHaveBeenCalled();
+    expect(permissionManager.isActive()).toBe(false);
+    expect(interactionManager.getSnapshot()).toBeNull();
+  });
+
+  it("keeps reporting non-stale permission reply errors", async () => {
+    const botApi = createBotApi(751);
+    await showPermissionRequest(botApi, 777, createPermissionRequest("perm-error"));
+    mocked.permissionReplyMock.mockResolvedValueOnce({
+      error: { name: "ServerError", data: { message: "Permission service unavailable" } },
+    });
+
+    const ctx = createPermissionCallbackContext("permission:once", 751);
+    await handlePermissionCallback(ctx);
+    await flushMicrotasks();
+
+    expect(ctx.api.sendMessage).toHaveBeenCalledWith(777, t("permission.send_reply_error"));
   });
 
   it("clears states when permission message cannot be sent", async () => {

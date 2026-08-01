@@ -30,6 +30,13 @@ const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
   import.meta.url,
 );
 
+const flushPendingPromptMock = vi.hoisted(() => vi.fn());
+
+vi.mock("#src/bot/handlers/message-merger.ts", () => ({
+  flushPendingPrompt: flushPendingPromptMock,
+  __resetMessageMergerForTests: vi.fn(),
+}));
+
 function createBaseContext(message: Record<string, unknown>): {
   ctx: Context;
   replyMock: ReturnType<typeof vi.fn>;
@@ -150,6 +157,7 @@ async function addToHandler(handler: MediaGroupAttachmentHandler, ctx: Context):
 describe("bot/handlers/media-group", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    flushPendingPromptMock.mockClear();
   });
 
   afterEach(() => {
@@ -177,6 +185,7 @@ describe("bot/handlers/media-group", () => {
     await addToHandler(handler, second.ctx);
     await handler.flushAll();
 
+    expect(flushPendingPromptMock).toHaveBeenCalledWith(777);
     expect(first.replyMock).toHaveBeenCalledWith(t("bot.files_downloading"));
     expect(processPromptMock).toHaveBeenCalledTimes(1);
     expect(processPromptMock).toHaveBeenCalledWith(

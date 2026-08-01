@@ -12,7 +12,6 @@ vi.mock("../../../src/utils/logger.js", () => ({
 import {
   generateSecMsGec,
   splitTextByByteLength,
-  synthesizeWithEdgeTts,
   EDGE_DEFAULT_VOICE,
   SEC_MS_GEC_VERSION,
   _resetClockSkew,
@@ -162,7 +161,7 @@ describe("synthesizeWithEdgeTts (WebSocket flow)", () => {
 
   function installMockWs(): void {
     vi.doMock("ws", () => ({
-      WebSocket: vi.fn(() => {
+      WebSocket: vi.fn(function () {
         const ws = createFakeWs();
         sockets.push(ws);
         return ws;

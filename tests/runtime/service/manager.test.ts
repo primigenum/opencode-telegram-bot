@@ -42,6 +42,31 @@ function setPlatform(platform: NodeJS.Platform): () => void {
   };
 }
 
+// Makes the Bun.spawn mock return a subprocess whose stdout streams `output`.
+// The SUT's execAsync reads stdout via `new Response(proc.stdout).text()`.
+function mockSpawnOutput(output: string, exitCode = 0): void {
+  bunSpawnSpy.mockImplementation((_cmd, _opts) => {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        if (output.length > 0) {
+          controller.enqueue(new TextEncoder().encode(output));
+        }
+        controller.close();
+      },
+    });
+    return {
+      pid: 4000,
+      exited: Promise.resolve(exitCode),
+      killed: false,
+      unref: vi.fn(),
+      ref: vi.fn(),
+      stdin: null,
+      stdout: stream,
+      stderr: new ReadableStream<Uint8Array>(),
+    } as unknown as ReturnType<typeof Bun.spawn>;
+  });
+}
+
 describe("runtime/service/manager", () => {
   let tempDirPath: string;
   let originalArgv1: string | undefined;
@@ -198,24 +223,22 @@ describe("runtime/service/manager", () => {
       }),
     );
 
-    vi.spyOn(process, "kill").mockImplementation(
-      (_pid: number, signal?: NodeJS.Signals | number) => {
-        if (signal === 0 || signal === undefined) {
-          if (isRunning) {
-            return true;
-          }
-
-          throw new Error("ESRCH");
-        }
-
-        if (signal === "SIGTERM") {
-          isRunning = false;
+    vi.spyOn(process, "kill").mockImplementation((_pid: number, signal?: string | number) => {
+      if (signal === 0 || signal === undefined) {
+        if (isRunning) {
           return true;
         }
 
+        throw new Error("ESRCH");
+      }
+
+      if (signal === "SIGTERM") {
+        isRunning = false;
         return true;
-      },
-    );
+      }
+
+      return true;
+    });
 
     try {
       const result = await stopBotDaemon(50);
@@ -233,6 +256,116 @@ describe("runtime/service/manager", () => {
         }),
       );
       await expect(fs.access(getServiceStateFilePath())).rejects.toMatchObject({ code: "ENOENT" });
+    } finally {
+      restorePlatform();
+    }
+  });
+
+  it("detects recycled PID via process creation time", async () => {
+    const restorePlatform = setPlatform("win32");
+
+    const daemonStartedAt = new Date("2026-07-18T20:56:06.413Z");
+    const stolenPid = 11236;
+
+    await fs.mkdir(path.dirname(getServiceStateFilePath()), { recursive: true });
+    await fs.writeFile(
+      getServiceStateFilePath(),
+      JSON.stringify({
+        pid: stolenPid,
+        startedAt: daemonStartedAt.toISOString(),
+        logFilePath: path.join(tempDirPath, "logs", "bot-service.log"),
+        mode: "daemon",
+      }),
+    );
+
+    vi.spyOn(process, "kill").mockImplementation(() => true);
+
+    mockSpawnOutput("20260719095542.123456+180\n");
+
+    try {
+      const status = await getBotServiceStatus();
+
+      expect(status).toEqual({
+        status: "stopped",
+        service: null,
+        cleanupReason: "stale",
+      });
+      await expect(fs.access(getServiceStateFilePath())).rejects.toMatchObject({ code: "ENOENT" });
+    } finally {
+      restorePlatform();
+    }
+  });
+
+  it("returns running when PID exists and creation time matches", async () => {
+    const restorePlatform = setPlatform("win32");
+
+    const daemonStartedAt = new Date("2026-07-18T20:56:06.413Z");
+    const pid = 11236;
+
+    await fs.mkdir(path.dirname(getServiceStateFilePath()), { recursive: true });
+    await fs.writeFile(
+      getServiceStateFilePath(),
+      JSON.stringify({
+        pid,
+        startedAt: daemonStartedAt.toISOString(),
+        logFilePath: path.join(tempDirPath, "logs", "bot-service.log"),
+        mode: "daemon",
+      }),
+    );
+
+    vi.spyOn(process, "kill").mockImplementation(() => true);
+
+    const creationDateStr =
+      daemonStartedAt.getFullYear().toString() +
+      String(daemonStartedAt.getMonth() + 1).padStart(2, "0") +
+      String(daemonStartedAt.getDate()).padStart(2, "0") +
+      String(daemonStartedAt.getHours()).padStart(2, "0") +
+      String(daemonStartedAt.getMinutes()).padStart(2, "0") +
+      String(daemonStartedAt.getSeconds()).padStart(2, "0") +
+      ".000000+180";
+    mockSpawnOutput(`${creationDateStr}\n`);
+
+    try {
+      const status = await getBotServiceStatus();
+
+      expect(status).toEqual({
+        status: "running",
+        service: expect.objectContaining({ pid, mode: "daemon" }),
+        cleanupReason: null,
+      });
+      await expect(fs.access(getServiceStateFilePath())).resolves.toBeUndefined();
+    } finally {
+      restorePlatform();
+    }
+  });
+
+  it("falls back to PID-only check when creation time cannot be determined", async () => {
+    const restorePlatform = setPlatform("win32");
+
+    await fs.mkdir(path.dirname(getServiceStateFilePath()), { recursive: true });
+    await fs.writeFile(
+      getServiceStateFilePath(),
+      JSON.stringify({
+        pid: 9999,
+        startedAt: new Date().toISOString(),
+        logFilePath: path.join(tempDirPath, "logs", "bot-service.log"),
+        mode: "daemon",
+      }),
+    );
+
+    vi.spyOn(process, "kill").mockImplementation(() => true);
+
+    // Non-zero exit makes execAsync throw, so the creation-time check is skipped.
+    mockSpawnOutput("", 1);
+
+    try {
+      const status = await getBotServiceStatus();
+
+      expect(status).toEqual({
+        status: "running",
+        service: expect.objectContaining({ pid: 9999, mode: "daemon" }),
+        cleanupReason: null,
+      });
     } finally {
       restorePlatform();
     }

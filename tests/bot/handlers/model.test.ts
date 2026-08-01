@@ -1,25 +1,42 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import { InlineKeyboard } from "grammy";
+import type { InlineKeyboardButton } from "grammy/types";
 import { mockDep } from "#helpers/mock-dep.js";
 import { loadSut } from "#helpers/sut-loader.js";
 
 const mocked = {
   getModelSelectionListsMock: vi.fn(),
+  getProvidersMock: vi.fn(),
+  getProviderModelsMock: vi.fn(),
+  fetchCurrentModelMock: vi.fn(),
   searchModelsMock: vi.fn(),
   interactionManagerGetSnapshotMock: vi.fn(),
   interactionManagerStartMock: vi.fn(),
   interactionManagerTransitionMock: vi.fn(),
   interactionManagerClearMock: vi.fn(),
   ensureActiveInlineMenuMock: vi.fn(),
+  selectModelMock: vi.fn(),
+  resolveProjectAgentMock: vi.fn(),
+  keyboardInitializeMock: vi.fn(),
+  keyboardUpdateModelMock: vi.fn(),
+  keyboardUpdateAgentMock: vi.fn(),
+  keyboardUpdateContextMock: vi.fn(),
+  pinnedRefreshContextLimitMock: vi.fn(),
+  pinnedGetContextInfoMock: vi.fn(),
+  pinnedGetContextLimitMock: vi.fn(),
+  createMainKeyboardMock: vi.fn(),
+  replyWithInlineMenuMock: vi.fn(),
 };
 
 mockDep(
   "#src/app/services/model-selection-service.ts",
   () => ({
     getModelSelectionLists: mocked.getModelSelectionListsMock,
+    getProviders: mocked.getProvidersMock,
+    getProviderModels: mocked.getProviderModelsMock,
     searchModels: mocked.searchModelsMock,
-    selectModel: vi.fn(),
-    fetchCurrentModel: vi.fn(),
+    selectModel: mocked.selectModelMock,
+    fetchCurrentModel: mocked.fetchCurrentModelMock,
     getStoredModel: vi.fn(),
     reconcileStoredModelSelection: vi.fn(),
     getFavoriteModels: vi.fn(),
@@ -27,6 +44,32 @@ mockDep(
   }),
   import.meta.url,
 );
+
+vi.mock("#src/app/services/agent-selection-service.ts", () => ({
+  getStoredAgent: vi.fn(() => "build"),
+  resolveProjectAgent: mocked.resolveProjectAgentMock,
+}));
+
+vi.mock("#src/bot/keyboards/keyboard-manager.ts", () => ({
+  keyboardManager: {
+    initialize: mocked.keyboardInitializeMock,
+    updateModel: mocked.keyboardUpdateModelMock,
+    updateAgent: mocked.keyboardUpdateAgentMock,
+    updateContext: mocked.keyboardUpdateContextMock,
+  },
+}));
+
+vi.mock("#src/bot/keyboards/main-reply-keyboard.ts", () => ({
+  createMainKeyboard: mocked.createMainKeyboardMock,
+}));
+
+vi.mock("#src/bot/pinned/pinned-message-manager.ts", () => ({
+  pinnedMessageManager: {
+    refreshContextLimit: mocked.pinnedRefreshContextLimitMock,
+    getContextInfo: mocked.pinnedGetContextInfoMock,
+    getContextLimit: mocked.pinnedGetContextLimitMock,
+  },
+}));
 
 mockDep(
   "#src/app/managers/interaction-manager.ts",
@@ -46,7 +89,8 @@ mockDep(
   () => ({
     ensureActiveInlineMenu: mocked.ensureActiveInlineMenuMock,
     clearActiveInlineMenu: vi.fn(),
-    replyWithInlineMenu: vi.fn(),
+    replyWithInlineMenu: mocked.replyWithInlineMenuMock,
+    appendInlineMenuCancelButton: (keyboard: InlineKeyboard) => keyboard,
   }),
   import.meta.url,
 );
@@ -75,19 +119,40 @@ function mockContext(overrides: Record<string, unknown> = {}) {
   } as unknown as import("grammy").Context;
 }
 
+function getCallbackData(button: InlineKeyboardButton): string | undefined {
+  return "callback_data" in button ? button.callback_data : undefined;
+}
+
 describe("bot model selection", () => {
   beforeEach(() => {
     mocked.getModelSelectionListsMock.mockReset();
+    mocked.getProvidersMock.mockReset().mockResolvedValue([]);
+    mocked.getProviderModelsMock.mockReset().mockResolvedValue([]);
+    mocked.fetchCurrentModelMock
+      .mockReset()
+      .mockReturnValue({ providerID: "openai", modelID: "gpt-4o", variant: "default" });
     mocked.searchModelsMock.mockReset();
     mocked.interactionManagerGetSnapshotMock.mockReset();
     mocked.interactionManagerStartMock.mockReset();
     mocked.interactionManagerTransitionMock.mockReset();
     mocked.interactionManagerClearMock.mockReset();
     mocked.ensureActiveInlineMenuMock.mockReset();
+    mocked.ensureActiveInlineMenuMock.mockResolvedValue(true);
+    mocked.selectModelMock.mockReset();
+    mocked.resolveProjectAgentMock.mockReset().mockResolvedValue("build");
+    mocked.keyboardInitializeMock.mockReset();
+    mocked.keyboardUpdateModelMock.mockReset();
+    mocked.keyboardUpdateAgentMock.mockReset();
+    mocked.keyboardUpdateContextMock.mockReset();
+    mocked.pinnedRefreshContextLimitMock.mockReset().mockResolvedValue(undefined);
+    mocked.pinnedGetContextInfoMock.mockReset().mockReturnValue(null);
+    mocked.pinnedGetContextLimitMock.mockReset().mockReturnValue(0);
+    mocked.createMainKeyboardMock.mockReset().mockReturnValue({ keyboard: [["main"]] });
+    mocked.replyWithInlineMenuMock.mockReset().mockResolvedValue(999);
   });
 
   describe("buildModelSelectionMenu", () => {
-    it("includes search button as the first row", async () => {
+    it("includes search and providers buttons as the first row", async () => {
       mocked.getModelSelectionListsMock.mockResolvedValue({
         favorites: [{ providerID: "openai", modelID: "gpt-4o" }],
         recent: [{ providerID: "google", modelID: "gemini-pro" }],
@@ -99,7 +164,9 @@ describe("bot model selection", () => {
       const rows = keyboard.inline_keyboard;
       expect(rows.length).toBeGreaterThanOrEqual(1);
       expect(rows[0][0].text).toBe("🔍 Search");
-      expect(rows[0][0].callback_data).toBe("model:search");
+      expect(getCallbackData(rows[0][0])).toBe("model:search");
+      expect(rows[0][1].text).toBe("🗂 Providers");
+      expect(getCallbackData(rows[0][1])).toBe("model:providers:0");
     });
 
     it("still returns keyboard with search button when no favorites or recent", async () => {
@@ -112,7 +179,121 @@ describe("bot model selection", () => {
 
       expect(keyboard.inline_keyboard.length).toBeGreaterThanOrEqual(1);
       expect(keyboard.inline_keyboard[0][0].text).toBe("🔍 Search");
-      expect(keyboard.inline_keyboard[0][0].callback_data).toBe("model:search");
+      expect(getCallbackData(keyboard.inline_keyboard[0][0])).toBe("model:search");
+    });
+
+    it("uses short callback data for long model IDs", async () => {
+      const longModelID = "accounts/hubabuba3227-1hvtqlh/deployments/kpwpvuky";
+      mocked.getModelSelectionListsMock.mockResolvedValue({
+        favorites: [],
+        recent: [{ providerID: "fireworks", modelID: longModelID }],
+      });
+
+      const keyboard = await buildModelSelectionMenu();
+      const callbackData = getCallbackData(keyboard.inline_keyboard[1][0]);
+
+      expect(callbackData).toBe("model:list:recent:0");
+      expect(Buffer.byteLength(callbackData ?? "", "utf-8")).toBeLessThanOrEqual(64);
+      expect(callbackData).not.toContain(longModelID);
+    });
+
+    it("stores the rendered model lists with the active menu", async () => {
+      const modelLists = {
+        favorites: [{ providerID: "openai", modelID: "gpt-4o" }],
+        recent: [{ providerID: "google", modelID: "gemini-pro" }],
+      };
+      mocked.getModelSelectionListsMock.mockResolvedValue(modelLists);
+      const ctx = mockContext();
+
+      await showModelSelectionMenu(ctx);
+
+      expect(mocked.replyWithInlineMenuMock).toHaveBeenCalledWith(
+        ctx,
+        expect.objectContaining({
+          menuKind: "model",
+          metadata: { modelLists },
+        }),
+      );
+    });
+  });
+
+  describe("handleModelSelect", () => {
+    it("resolves short list callback data from the rendered menu snapshot", async () => {
+      const longModelID = "accounts/hubabuba3227-1hvtqlh/deployments/kpwpvuky";
+      mocked.interactionManagerGetSnapshotMock.mockReturnValue({
+        kind: "inline",
+        metadata: {
+          menuKind: "model",
+          messageId: 999,
+          modelLists: {
+            favorites: [],
+            recent: [{ providerID: "fireworks", modelID: longModelID }],
+          },
+        },
+      });
+      mocked.getModelSelectionListsMock.mockResolvedValue({
+        favorites: [],
+        recent: [{ providerID: "openai", modelID: "different-model" }],
+      });
+
+      const ctx = mockContext({
+        callbackQuery: {
+          data: "model:list:recent:0",
+          message: { message_id: 999 },
+        },
+        api: {},
+      });
+
+      const result = await handleModelSelect(ctx);
+
+      expect(result).toBe(true);
+      expect(mocked.selectModelMock).toHaveBeenCalledWith({
+        providerID: "fireworks",
+        modelID: longModelID,
+        variant: "default",
+      });
+      expect(mocked.getModelSelectionListsMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects stale search result callbacks instead of parsing them as legacy models", async () => {
+      const ctx = mockContext({
+        callbackQuery: {
+          data: "model:result:0",
+          message: { message_id: 999 },
+        },
+        api: {},
+      });
+
+      const result = await handleModelSelect(ctx);
+
+      expect(result).toBe(true);
+      expect(mocked.selectModelMock).not.toHaveBeenCalled();
+      expect(ctx.answerCallbackQuery).toHaveBeenCalled();
+    });
+
+    it("rejects unresolved short list callbacks instead of parsing them as legacy models", async () => {
+      mocked.interactionManagerGetSnapshotMock.mockReturnValue({
+        kind: "inline",
+        metadata: {
+          menuKind: "model",
+          messageId: 999,
+          modelLists: { favorites: [], recent: [] },
+        },
+      });
+
+      const ctx = mockContext({
+        callbackQuery: {
+          data: "model:list:recent:0",
+          message: { message_id: 999 },
+        },
+        api: {},
+      });
+
+      const result = await handleModelSelect(ctx);
+
+      expect(result).toBe(true);
+      expect(mocked.selectModelMock).not.toHaveBeenCalled();
+      expect(ctx.answerCallbackQuery).toHaveBeenCalled();
     });
   });
 
@@ -193,6 +374,39 @@ describe("bot model selection", () => {
 
       expect(result).toBe(false);
     });
+
+    it("uses short callback data for long model IDs in search results", async () => {
+      const longModelID = "accounts/hubabuba3227-1hvtqlh/deployments/kpwpvuky";
+      mocked.interactionManagerGetSnapshotMock.mockReturnValue({
+        kind: "custom",
+        metadata: { flow: "model-search", stage: "input" },
+      });
+      mocked.searchModelsMock.mockResolvedValue([
+        { providerID: "fireworks", modelID: longModelID },
+      ]);
+
+      const ctx = mockContext({
+        message: { text: "fireworks" },
+      });
+
+      const result = await handleModelSearchTextInput(ctx);
+      const replyOptions = vi.mocked(ctx.reply).mock.calls[0][1] as {
+        reply_markup: { inline_keyboard: Array<Array<{ callback_data?: string }>> };
+      };
+      const callbackData = replyOptions.reply_markup.inline_keyboard[0][0].callback_data;
+
+      expect(result).toBe(true);
+      expect(callbackData).toBe("model:result:0");
+      expect(Buffer.byteLength(callbackData ?? "", "utf-8")).toBeLessThanOrEqual(64);
+      expect(callbackData).not.toContain(longModelID);
+      expect(mocked.interactionManagerTransitionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            models: [{ providerID: "fireworks", modelID: longModelID, variant: "default" }],
+          }),
+        }),
+      );
+    });
   });
 
   describe("handleModelSearchResults", () => {
@@ -244,6 +458,315 @@ describe("bot model selection", () => {
       const result = await callbackSut.handleModelSearchResults(ctx);
 
       expect(result).toBe(false);
+    });
+
+    it("resolves short search result callback data to the original long model ID", async () => {
+      const longModelID = "accounts/hubabuba3227-1hvtqlh/deployments/kpwpvuky";
+      mocked.interactionManagerGetSnapshotMock.mockReturnValue({
+        kind: "custom",
+        metadata: {
+          flow: "model-search",
+          stage: "results",
+          messageId: 999,
+          models: [{ providerID: "fireworks", modelID: longModelID, variant: "default" }],
+        },
+      });
+
+      const ctx = mockContext({
+        callbackQuery: {
+          data: "model:result:0",
+          message: { message_id: 999 },
+        },
+        api: {},
+      });
+
+      const result = await handleModelSearchResults(ctx);
+
+      expect(result).toBe(true);
+      expect(mocked.interactionManagerClearMock).toHaveBeenCalledWith("model_search_selected");
+      expect(mocked.selectModelMock).toHaveBeenCalledWith({
+        providerID: "fireworks",
+        modelID: longModelID,
+        variant: "default",
+      });
+    });
+
+    it("rejects stale short list callbacks instead of parsing them as legacy models", async () => {
+      mocked.interactionManagerGetSnapshotMock.mockReturnValue({
+        kind: "custom",
+        metadata: {
+          flow: "model-search",
+          stage: "results",
+          messageId: 999,
+          models: [],
+        },
+      });
+
+      const ctx = mockContext({
+        callbackQuery: {
+          data: "model:list:recent:0",
+          message: { message_id: 999 },
+        },
+        api: {},
+      });
+
+      const result = await handleModelSearchResults(ctx);
+
+      expect(result).toBe(true);
+      expect(mocked.selectModelMock).not.toHaveBeenCalled();
+      expect(ctx.answerCallbackQuery).toHaveBeenCalled();
+    });
+  });
+
+  describe("buildProvidersMenuView", () => {
+    const providers = Array.from({ length: 12 }, (_, index) => ({
+      id: `provider-${index}`,
+      name: `Provider ${index}`,
+      modelCount: index + 1,
+    }));
+
+    it("renders one button per provider and a back button to the model root menu", () => {
+      const view = buildProvidersMenuView(providers.slice(0, 2), 0);
+
+      expect(view.text).toBe("Select provider from the list:");
+      expect(view.keyboard.inline_keyboard).toHaveLength(3);
+      expect(view.keyboard.inline_keyboard[0][0].text).toBe("Provider 0 (1)");
+      expect(getCallbackData(view.keyboard.inline_keyboard[0][0])).toBe("model:provider:0:0");
+      expect(view.keyboard.inline_keyboard[2][0].text).toBe("⬅️ Back");
+      expect(getCallbackData(view.keyboard.inline_keyboard[2][0])).toBe("model:root");
+    });
+
+    it("paginates providers and exposes the normalized page", () => {
+      const view = buildProvidersMenuView(providers, 1);
+
+      expect(view.page).toBe(1);
+      expect(view.text).toContain("Page 2/2");
+
+      const providerButtons = view.keyboard.inline_keyboard.filter((row) =>
+        getCallbackData(row[0])?.startsWith("model:provider:"),
+      );
+      expect(providerButtons).toHaveLength(2);
+      expect(getCallbackData(providerButtons[0][0])).toBe("model:provider:10:0");
+
+      const paginationRow = view.keyboard.inline_keyboard.at(-2);
+      expect(getCallbackData(paginationRow![0])).toBe("model:providers:0");
+    });
+
+    it("clamps an out-of-range page", () => {
+      const view = buildProvidersMenuView(providers, 99);
+
+      expect(view.page).toBe(1);
+    });
+
+    it("shows a placeholder when there are no providers", () => {
+      const view = buildProvidersMenuView([], 0);
+
+      expect(view.text).toBe("⚠️ No connected providers");
+      expect(view.keyboard.inline_keyboard).toHaveLength(1);
+      expect(getCallbackData(view.keyboard.inline_keyboard[0][0])).toBe("model:root");
+    });
+  });
+
+  describe("buildProviderModelsMenuView", () => {
+    const provider = { id: "openai", name: "OpenAI", modelCount: 12 };
+    const models = Array.from({ length: 12 }, (_, index) => ({
+      providerID: "openai",
+      modelID: `model-${index}`,
+    }));
+
+    it("marks the active model and goes back to the providers page it came from", () => {
+      const view = buildProviderModelsMenuView(provider, 3, models.slice(0, 2), 0, 2, {
+        providerID: "openai",
+        modelID: "model-1",
+      });
+
+      expect(view.text).toBe("OpenAI — select model:");
+      expect(view.pageModels).toHaveLength(2);
+      expect(view.keyboard.inline_keyboard[0][0].text).toBe("model-0");
+      expect(getCallbackData(view.keyboard.inline_keyboard[0][0])).toBe("model:pick:0");
+      expect(view.keyboard.inline_keyboard[1][0].text).toBe("✅ model-1");
+      expect(getCallbackData(view.keyboard.inline_keyboard[2][0])).toBe("model:providers:2");
+    });
+
+    it("paginates models with per-page indices", () => {
+      const view = buildProviderModelsMenuView(provider, 3, models, 1, 0);
+
+      expect(view.page).toBe(1);
+      expect(view.text).toContain("Page 2/2");
+      expect(view.pageModels).toEqual([
+        { providerID: "openai", modelID: "model-10" },
+        { providerID: "openai", modelID: "model-11" },
+      ]);
+      expect(getCallbackData(view.keyboard.inline_keyboard[0][0])).toBe("model:pick:0");
+
+      const paginationRow = view.keyboard.inline_keyboard.at(-2);
+      expect(getCallbackData(paginationRow![0])).toBe("model:provider:3:0");
+    });
+
+    it("shows a placeholder when the provider has no models", () => {
+      const view = buildProviderModelsMenuView(provider, 0, [], 0, 0);
+
+      expect(view.text).toBe("⚠️ No models available for OpenAI");
+      expect(view.pageModels).toEqual([]);
+    });
+  });
+
+  describe("handleModelProvidersCallback", () => {
+    const activeMenuSnapshot = (metadata: Record<string, unknown>) => ({
+      kind: "inline",
+      metadata: { menuKind: "model", messageId: 999, ...metadata },
+    });
+
+    function providerMenuContext(data: string) {
+      return mockContext({
+        callbackQuery: { data, message: { message_id: 999 } },
+        editMessageText: vi.fn().mockResolvedValue(undefined),
+        api: {},
+      });
+    }
+
+    it("ignores callbacks that are not part of the provider browser", async () => {
+      const ctx = providerMenuContext("model:list:recent:0");
+
+      await expect(handleModelProvidersCallback(ctx)).resolves.toBe(false);
+    });
+
+    it("opens the providers list and stores it with the active menu", async () => {
+      mocked.interactionManagerGetSnapshotMock.mockReturnValue(activeMenuSnapshot({}));
+      const providers = [{ id: "openai", name: "OpenAI", modelCount: 2 }];
+      mocked.getProvidersMock.mockResolvedValue(providers);
+
+      const ctx = providerMenuContext("model:providers:0");
+      const result = await handleModelProvidersCallback(ctx);
+
+      expect(result).toBe(true);
+      expect(ctx.editMessageText).toHaveBeenCalledWith(
+        "Select provider from the list:",
+        expect.objectContaining({ reply_markup: expect.anything() }),
+      );
+      expect(mocked.interactionManagerTransitionMock).toHaveBeenCalledWith({
+        expectedInput: "callback",
+        metadata: {
+          menuKind: "model",
+          messageId: 999,
+          providers,
+          providersPage: 0,
+        },
+      });
+    });
+
+    it("opens the models of the selected provider and stores the rendered page", async () => {
+      const providers = [{ id: "openai", name: "OpenAI", modelCount: 2 }];
+      mocked.interactionManagerGetSnapshotMock.mockReturnValue(
+        activeMenuSnapshot({ providers, providersPage: 1 }),
+      );
+      mocked.getProviderModelsMock.mockResolvedValue([
+        { providerID: "openai", modelID: "gpt-4o" },
+        { providerID: "openai", modelID: "gpt-5" },
+      ]);
+
+      const ctx = providerMenuContext("model:provider:0:0");
+      const result = await handleModelProvidersCallback(ctx);
+
+      expect(result).toBe(true);
+      expect(mocked.getProviderModelsMock).toHaveBeenCalledWith("openai");
+      expect(ctx.editMessageText).toHaveBeenCalledWith(
+        "OpenAI — select model:",
+        expect.objectContaining({ reply_markup: expect.anything() }),
+      );
+      expect(mocked.interactionManagerTransitionMock).toHaveBeenCalledWith({
+        expectedInput: "callback",
+        metadata: {
+          menuKind: "model",
+          messageId: 999,
+          providers,
+          providersPage: 1,
+          models: [
+            { providerID: "openai", modelID: "gpt-4o", variant: "default" },
+            { providerID: "openai", modelID: "gpt-5", variant: "default" },
+          ],
+        },
+      });
+    });
+
+    it("returns to the model root menu", async () => {
+      const modelLists = {
+        favorites: [{ providerID: "openai", modelID: "gpt-4o" }],
+        recent: [],
+      };
+      mocked.interactionManagerGetSnapshotMock.mockReturnValue(
+        activeMenuSnapshot({ providers: [], providersPage: 0 }),
+      );
+      mocked.getModelSelectionListsMock.mockResolvedValue(modelLists);
+
+      const ctx = providerMenuContext("model:root");
+      const result = await handleModelProvidersCallback(ctx);
+
+      expect(result).toBe(true);
+      expect(ctx.editMessageText).toHaveBeenCalled();
+      expect(mocked.interactionManagerTransitionMock).toHaveBeenCalledWith({
+        expectedInput: "callback",
+        metadata: { menuKind: "model", messageId: 999, modelLists },
+      });
+    });
+
+    it("applies the model selected from a provider page", async () => {
+      mocked.interactionManagerGetSnapshotMock.mockReturnValue(
+        activeMenuSnapshot({
+          providers: [{ id: "openai", name: "OpenAI", modelCount: 1 }],
+          providersPage: 0,
+          models: [{ providerID: "openai", modelID: "gpt-5", variant: "default" }],
+        }),
+      );
+
+      const ctx = providerMenuContext("model:pick:0");
+      const result = await handleModelProvidersCallback(ctx);
+
+      expect(result).toBe(true);
+      expect(mocked.selectModelMock).toHaveBeenCalledWith({
+        providerID: "openai",
+        modelID: "gpt-5",
+        variant: "default",
+      });
+    });
+
+    it("rejects a callback whose model cannot be resolved from the menu snapshot", async () => {
+      mocked.interactionManagerGetSnapshotMock.mockReturnValue(
+        activeMenuSnapshot({ providers: [], providersPage: 0, models: [] }),
+      );
+
+      const ctx = providerMenuContext("model:pick:3");
+      const result = await handleModelProvidersCallback(ctx);
+
+      expect(result).toBe(true);
+      expect(mocked.selectModelMock).not.toHaveBeenCalled();
+      expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({
+        text: "Failed to change model",
+      });
+    });
+
+    it("rejects a stale inline menu callback", async () => {
+      mocked.ensureActiveInlineMenuMock.mockResolvedValue(false);
+
+      const ctx = providerMenuContext("model:providers:0");
+      const result = await handleModelProvidersCallback(ctx);
+
+      expect(result).toBe(true);
+      expect(ctx.editMessageText).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("handleModelSelect with provider browser callbacks", () => {
+    it("does not touch the active menu state for provider browser callbacks", async () => {
+      const ctx = mockContext({
+        callbackQuery: { data: "model:providers:0", message: { message_id: 999 } },
+      });
+
+      const result = await handleModelSelect(ctx);
+
+      expect(result).toBe(false);
+      expect(mocked.ensureActiveInlineMenuMock).not.toHaveBeenCalled();
+      expect(mocked.selectModelMock).not.toHaveBeenCalled();
     });
   });
 });

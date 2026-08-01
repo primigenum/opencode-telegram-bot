@@ -3,7 +3,12 @@ import { config } from "../../config.js";
 import { opencodeClient } from "../../opencode/client.js";
 import { logger } from "../../utils/logger.js";
 import { getDefaultVariantFromConfig } from "./variant-selection-service.js";
-import type { ModelInfo, FavoriteModel, ModelSelectionLists } from "../types/model.js";
+import type {
+  ModelInfo,
+  FavoriteModel,
+  ModelSelectionLists,
+  ProviderInfo,
+} from "../types/model.js";
 import path from "bun:path";
 
 interface OpenCodeModelState {
@@ -21,6 +26,8 @@ const SERVER_UNAVAILABLE_ERROR_MARKERS = [
 
 let cachedValidModelKeys: Set<string> | null = null;
 let cachedAllModels: FavoriteModel[] | null = null;
+let cachedProviders: ProviderInfo[] | null = null;
+let cachedModelsByProvider: Map<string, FavoriteModel[]> | null = null;
 let modelCatalogCacheExpiresAt = 0;
 let modelCatalogFetchInFlight: Promise<Set<string> | null> | null = null;
 
@@ -173,16 +180,33 @@ async function getValidModelKeys(options?: { force?: boolean }): Promise<Set<str
 
       const validModelKeys = new Set<string>();
       const allModels: FavoriteModel[] = [];
+      const providers: ProviderInfo[] = [];
+      const modelsByProvider = new Map<string, FavoriteModel[]>();
 
       for (const provider of response.data.providers) {
+        const providerModels: FavoriteModel[] = [];
+
         for (const modelID of Object.keys(provider.models)) {
           validModelKeys.add(getModelKey(provider.id, modelID));
           allModels.push({ providerID: provider.id, modelID });
+          providerModels.push({ providerID: provider.id, modelID });
         }
+
+        providerModels.sort((a, b) => a.modelID.localeCompare(b.modelID));
+        modelsByProvider.set(provider.id, providerModels);
+        providers.push({
+          id: provider.id,
+          name: provider.name || provider.id,
+          modelCount: providerModels.length,
+        });
       }
+
+      providers.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
 
       cachedValidModelKeys = validModelKeys;
       cachedAllModels = allModels;
+      cachedProviders = providers;
+      cachedModelsByProvider = modelsByProvider;
       modelCatalogCacheExpiresAt = Date.now() + MODEL_CATALOG_CACHE_TTL_MS;
 
       logger.debug(
@@ -382,6 +406,8 @@ export async function reconcileStoredModelSelection(options?: {
 export function __resetModelCatalogCacheForTests(): void {
   cachedValidModelKeys = null;
   cachedAllModels = null;
+  cachedProviders = null;
+  cachedModelsByProvider = null;
   modelCatalogCacheExpiresAt = 0;
   modelCatalogFetchInFlight = null;
 }
@@ -393,6 +419,37 @@ export function __resetModelCatalogCacheForTests(): void {
 export async function getFavoriteModels(): Promise<FavoriteModel[]> {
   const { favorites } = await getModelSelectionLists();
   return favorites;
+}
+
+/**
+ * Get connected providers from the model catalog, sorted by display name.
+ * @returns Providers, empty array if the catalog is unavailable
+ */
+export async function getProviders(): Promise<ProviderInfo[]> {
+  await getValidModelKeys();
+
+  if (!cachedProviders) {
+    logger.warn("[ModelManager] Model catalog unavailable, no providers to show");
+    return [];
+  }
+
+  return cachedProviders;
+}
+
+/**
+ * Get models of a single provider, sorted by model ID.
+ * @param providerID Provider ID
+ * @returns Provider models, empty array if the catalog or provider is unavailable
+ */
+export async function getProviderModels(providerID: string): Promise<FavoriteModel[]> {
+  await getValidModelKeys();
+
+  if (!cachedModelsByProvider) {
+    logger.warn("[ModelManager] Model catalog unavailable, no provider models to show");
+    return [];
+  }
+
+  return cachedModelsByProvider.get(providerID) ?? [];
 }
 
 /**

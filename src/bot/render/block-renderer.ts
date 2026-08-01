@@ -35,6 +35,7 @@ const ENTITY_TYPE_PRIORITY: Record<MessageEntity["type"], number> = {
   expandable_blockquote: 108,
   text_mention: 109,
   custom_emoji: 110,
+  date_time: 111,
 };
 
 function compareEntities(left: MessageEntity, right: MessageEntity): number {

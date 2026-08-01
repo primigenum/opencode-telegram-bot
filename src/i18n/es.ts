@@ -111,12 +111,13 @@ export const es: I18nDictionary = {
   "bot.file_too_large": "⚠️ El archivo es demasiado grande (max {maxSizeMb}MB)",
   "bot.file_download_error": "🔴 No se pudo descargar el archivo",
   "bot.file_type_unsupported":
-    "⚠️ Este tipo de archivo no es compatible. Envía una imagen, PDF o archivo de texto/código.",
+    "⚠️ Este tipo de archivo no es compatible. Envía una imagen, documento (PDF, DOCX, PPTX) o archivo de texto/código.",
   "bot.media_group_not_processed":
     "⚠️ Uno o más archivos de este álbum no se pueden procesar. No se envió nada a OpenCode.",
   "bot.media_group_download_error":
     "🔴 No se pudo descargar uno de los archivos. No se envió nada a OpenCode.",
   "bot.model_no_pdf": "⚠️ El modelo actual no admite entrada PDF. Enviaré solo texto.",
+  "bot.document_extraction_error": "🔴 No se pudo extraer el texto del documento.",
   "bot.text_file_too_large": "⚠️ El archivo de texto es demasiado grande (max {maxSizeKb}KB)",
 
   "status.header_running": "🟢 OpenCode Server está en ejecución",
@@ -329,6 +330,17 @@ export const es: I18nDictionary = {
   "model.search.no_results": 'No se encontraron modelos para "{query}"',
   "model.search.search_again": "↩ Buscar de nuevo",
   "model.search.error": "Búsqueda fallida",
+  "model.button.back": "⬅️ Volver",
+  "model.providers.button": "🗂 Proveedores",
+  "model.providers.title": "Selecciona un proveedor de la lista:",
+  "model.providers.empty": "⚠️ No hay proveedores conectados",
+  "model.providers.error": "No se pudo obtener la lista de proveedores",
+  "model.providers.page_indicator": "Página {current}/{total}",
+  "model.providers.prev_page": "⬅️ Anterior",
+  "model.providers.next_page": "Siguiente ➡️",
+  "model.provider_models.title": "{provider} — selecciona un modelo:",
+  "model.provider_models.empty": "⚠️ No hay modelos disponibles para {provider}",
+  "model.provider_models.page_indicator": "Página {current}/{total}",
 
   "variant.model_not_selected_callback": "Error: no hay un modelo seleccionado",
   "variant.changed_callback": "Variante cambiada: {name}",
@@ -361,6 +373,7 @@ export const es: I18nDictionary = {
   "permission.blocked.command_not_allowed":
     "⚠️ Este comando no está disponible hasta que respondas a la solicitud de permisos.",
   "permission.header": "{emoji} Solicitud de permisos: {name}\n\n",
+  "permission.grouped_count": "\n⚠️ {count} solicitudes idénticas pendientes: tu respuesta se aplica a todas.\n",
   "permission.button.allow": "✅ Permitir una vez",
   "permission.button.always": "🔓 Permitir siempre",
   "permission.button.reject": "❌ Rechazar",

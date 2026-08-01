@@ -189,6 +189,8 @@ const {
   __resetModelCatalogCacheForTests,
   getFavoriteModels,
   getModelSelectionLists,
+  getProviderModels,
+  getProviders,
   reconcileStoredModelSelection,
   searchModels,
 } = bindSut(sut, [
@@ -655,6 +657,78 @@ describe("app/services/model-selection-service", () => {
       await searchModels("claude");
 
       expect(providersMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("getProviders", () => {
+    it("returns providers with model counts sorted by name", async () => {
+      const providers = await getProviders();
+
+      expect(providers).toEqual([
+        { id: "anthropic", name: "anthropic", modelCount: 1 },
+        { id: "google", name: "google", modelCount: 1 },
+        { id: "openai", name: "openai", modelCount: 2 },
+        { id: "opencode", name: "opencode", modelCount: 1 },
+      ]);
+    });
+
+    it("uses the provider display name when available", async () => {
+      __resetModelCatalogCacheForTests();
+      providersMock.mockResolvedValueOnce({
+        data: {
+          providers: [
+            { id: "openai", name: "OpenAI", models: { "gpt-4o": { id: "gpt-4o" } } },
+            { id: "anthropic", name: "Anthropic", models: {} },
+          ],
+        },
+        error: null,
+      });
+
+      const providers = await getProviders();
+
+      expect(providers).toEqual([
+        { id: "anthropic", name: "Anthropic", modelCount: 0 },
+        { id: "openai", name: "OpenAI", modelCount: 1 },
+      ]);
+    });
+
+    it("returns empty array when catalog fetch fails", async () => {
+      __resetModelCatalogCacheForTests();
+      providersMock.mockResolvedValueOnce({ data: null, error: new Error("fetch failed") });
+
+      await expect(getProviders()).resolves.toEqual([]);
+    });
+
+    it("uses model catalog cache between repeated calls", async () => {
+      __resetModelCatalogCacheForTests();
+      providersMock.mockClear();
+
+      await getProviders();
+      await getProviders();
+
+      expect(providersMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("getProviderModels", () => {
+    it("returns provider models sorted by model ID", async () => {
+      const models = await getProviderModels("openai");
+
+      expect(models).toEqual([
+        { providerID: "openai", modelID: "gpt-3.5" },
+        { providerID: "openai", modelID: "gpt-4o" },
+      ]);
+    });
+
+    it("returns empty array for an unknown provider", async () => {
+      await expect(getProviderModels("unknown")).resolves.toEqual([]);
+    });
+
+    it("returns empty array when catalog fetch fails", async () => {
+      __resetModelCatalogCacheForTests();
+      providersMock.mockResolvedValueOnce({ data: null, error: new Error("fetch failed") });
+
+      await expect(getProviderModels("openai")).resolves.toEqual([]);
     });
   });
 });

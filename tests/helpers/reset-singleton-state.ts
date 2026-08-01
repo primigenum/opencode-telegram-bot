@@ -10,6 +10,7 @@ interface SummaryAggregatorPrivateState {
   onSessionCompactedCallback: null;
   onSessionErrorCallback: null;
   onPermissionCallback: null;
+  onPermissionRepliedCallback: null;
   onSessionDiffCallback: null;
   onFileChangeCallback: null;
   bot: null;
@@ -55,6 +56,7 @@ export async function resetSingletonState(): Promise<void> {
     { pinnedMessageManager },
     { stopEventListening },
     { __resetSessionDirectoryCacheForTests },
+    { __resetMessageMergerForTests },
     loggerModule,
   ] = await Promise.all([
     import("../../src/app/managers/question-manager.js"),
@@ -66,6 +68,7 @@ export async function resetSingletonState(): Promise<void> {
     import("../../src/bot/pinned/pinned-message-manager.js"),
     import("../../src/opencode/events.js"),
     import("../../src/app/services/session-cache-service.js"),
+    import("../../src/bot/handlers/message-merger.js"),
     import("../../src/utils/logger.js"),
   ]);
 
@@ -75,6 +78,7 @@ export async function resetSingletonState(): Promise<void> {
   renameManager.clear();
   interactionManager.clear("test_reset");
   summaryAggregator.clear();
+  __resetMessageMergerForTests();
 
   const aggregator = summaryAggregator as unknown as SummaryAggregatorPrivateState;
   aggregator.onCompleteCallback = null;
@@ -88,6 +92,7 @@ export async function resetSingletonState(): Promise<void> {
   aggregator.onSessionCompactedCallback = null;
   aggregator.onSessionErrorCallback = null;
   aggregator.onPermissionCallback = null;
+  aggregator.onPermissionRepliedCallback = null;
   aggregator.onSessionDiffCallback = null;
   aggregator.onFileChangeCallback = null;
   aggregator.bot = null;

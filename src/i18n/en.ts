@@ -103,12 +103,13 @@ export const en = {
   "bot.file_too_large": "⚠️ File is too large (max {maxSizeMb}MB)",
   "bot.file_download_error": "🔴 Failed to download file",
   "bot.file_type_unsupported":
-    "⚠️ This file type is not supported. Send an image, PDF, or text/code file.",
+    "⚠️ This file type is not supported. Send an image, document (PDF, DOCX, PPTX), or text/code file.",
   "bot.media_group_not_processed":
     "⚠️ One or more files in this album cannot be processed. Nothing was sent to OpenCode.",
   "bot.media_group_download_error":
     "🔴 Failed to download one of the files. Nothing was sent to OpenCode.",
   "bot.model_no_pdf": "⚠️ Current model doesn't support PDF input. Sending text only.",
+  "bot.document_extraction_error": "🔴 Failed to extract document text.",
   "bot.text_file_too_large": "⚠️ Text file is too large (max {maxSizeKb}KB)",
 
   "status.header_running": "🟢 OpenCode Server is running",
@@ -314,6 +315,17 @@ export const en = {
   "model.search.no_results": 'No models found for "{query}"',
   "model.search.search_again": "↩ Search again",
   "model.search.error": "Search failed",
+  "model.button.back": "⬅️ Back",
+  "model.providers.button": "🗂 Providers",
+  "model.providers.title": "Select provider from the list:",
+  "model.providers.empty": "⚠️ No connected providers",
+  "model.providers.error": "Failed to get providers list",
+  "model.providers.page_indicator": "Page {current}/{total}",
+  "model.providers.prev_page": "⬅️ Previous",
+  "model.providers.next_page": "Next ➡️",
+  "model.provider_models.title": "{provider} — select model:",
+  "model.provider_models.empty": "⚠️ No models available for {provider}",
+  "model.provider_models.page_indicator": "Page {current}/{total}",
 
   "variant.model_not_selected_callback": "Error: model is not selected",
   "variant.changed_callback": "Variant changed: {name}",
@@ -346,6 +358,7 @@ export const en = {
   "permission.blocked.command_not_allowed":
     "⚠️ This command is not available until you answer the permission request.",
   "permission.header": "{emoji} Permission request: {name}\n\n",
+  "permission.grouped_count": "\n⚠️ {count} identical requests pending — your answer applies to all of them.\n",
   "permission.button.allow": "✅ Allow once",
   "permission.button.always": "🔓 Allow always",
   "permission.button.reject": "❌ Reject",

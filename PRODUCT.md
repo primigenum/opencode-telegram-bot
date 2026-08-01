@@ -74,6 +74,7 @@ No public inbound ports are required for normal usage.
 
 - Whitelist by Telegram user ID (single-user mode)
 - Ignore messages from non-authorized users
+- Ignore updates queued while the bot was offline or unreachable, so they are not executed on startup
 
 ### Configuration
 
@@ -136,6 +137,8 @@ Model picker behavior:
 - Favorites are shown first, recent models are shown after favorites
 - Models already present in favorites are not duplicated in recent
 - Default configured model (`OPENCODE_MODEL_PROVIDER` + `OPENCODE_MODEL_ID`) is treated as favorite
+- Models can be browsed by provider: the picker offers a providers list and a paginated model
+  list per provider, with a back button on each screen (page size: `MODELS_LIST_LIMIT`)
 
 ### Main features already implemented
 

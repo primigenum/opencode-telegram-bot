@@ -23,6 +23,19 @@ const mocked = vi.hoisted(() => ({
   pinnedRefreshContextLimitMock: vi.fn(),
   pinnedGetContextInfoMock: vi.fn(),
   sendBotTextMock: vi.fn(),
+  loggerDebugMock: vi.fn(),
+  loggerInfoMock: vi.fn(),
+  loggerWarnMock: vi.fn(),
+  loggerErrorMock: vi.fn(),
+}));
+
+vi.mock("../../../src/utils/logger.js", () => ({
+  logger: {
+    debug: mocked.loggerDebugMock,
+    info: mocked.loggerInfoMock,
+    warn: mocked.loggerWarnMock,
+    error: mocked.loggerErrorMock,
+  },
 }));
 
 vi.mock("#src/opencode/client.ts", () => ({
@@ -94,6 +107,10 @@ describe("bot/commands/status-command", () => {
     mocked.pinnedRefreshContextLimitMock.mockReset();
     mocked.pinnedGetContextInfoMock.mockReset();
     mocked.sendBotTextMock.mockReset();
+    mocked.loggerDebugMock.mockReset();
+    mocked.loggerInfoMock.mockReset();
+    mocked.loggerWarnMock.mockReset();
+    mocked.loggerErrorMock.mockReset();
 
     mocked.healthMock.mockResolvedValue({ data: { healthy: true, version: "1.0.0" }, error: null });
     mocked.getCurrentSessionMock.mockReturnValue({ id: "s1", title: "S", directory: "/repo" });
@@ -152,5 +169,51 @@ describe("bot/commands/status-command", () => {
     const message = mocked.sendBotTextMock.mock.calls[0]?.[0]?.text as string;
     expect(message).toContain("Project: /repo-main: feature/mobile");
     expect(message).toContain("Worktree: /repo-feature");
+  });
+
+  it("logs expected server unavailability as a warning", async () => {
+    mocked.healthMock.mockResolvedValue({
+      data: undefined,
+      error: new TypeError("fetch failed"),
+    });
+
+    const reply = vi.fn();
+    const ctx = {
+      chat: { id: 42, type: "private" },
+      message: { text: "/status" },
+      api: {},
+      reply,
+    } as unknown as Context;
+
+    await statusCommand(ctx as never);
+
+    expect(mocked.loggerErrorMock).not.toHaveBeenCalled();
+    expect(mocked.loggerWarnMock).toHaveBeenCalledTimes(1);
+    expect(reply).toHaveBeenCalledTimes(1);
+    expect(reply.mock.calls[0]?.[0]).toContain("OpenCode Server is unavailable");
+  });
+
+  it("logs unexpected failures as errors", async () => {
+    const unexpectedError = new Error("boom");
+    mocked.healthMock.mockResolvedValue({ data: undefined, error: unexpectedError });
+
+    const reply = vi.fn();
+    const ctx = {
+      chat: { id: 42, type: "private" },
+      message: { text: "/status" },
+      api: {},
+      reply,
+    } as unknown as Context;
+
+    await statusCommand(ctx as never);
+
+    expect(mocked.loggerWarnMock).not.toHaveBeenCalled();
+    expect(mocked.loggerErrorMock).toHaveBeenCalledTimes(1);
+    expect(mocked.loggerErrorMock).toHaveBeenCalledWith(
+      "[Bot] Error checking server status:",
+      unexpectedError,
+    );
+    expect(reply).toHaveBeenCalledTimes(1);
+    expect(reply.mock.calls[0]?.[0]).toContain("OpenCode Server is unavailable");
   });
 });

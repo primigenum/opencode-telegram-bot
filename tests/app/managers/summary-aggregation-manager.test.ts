@@ -1881,9 +1881,9 @@ describe("summary/aggregator", () => {
       },
     } as unknown as Event);
 
-    await new Promise((resolve) => setImmediate(resolve));
-
-    expect(onPermission).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => {
+      expect(onPermission).toHaveBeenCalledTimes(1);
+    });
     expect(onPermission.mock.calls[0][0]).toEqual(
       expect.objectContaining({
         id: "req-child-1",
@@ -1892,6 +1892,59 @@ describe("summary/aggregator", () => {
       }),
     );
     expect(sut.summaryAggregator.isSubagentSession("child-session-1")).toBe(true);
+  });
+
+  it("serializes permission callbacks so equivalent requests can be registered before the next dispatch", async () => {
+    let releaseFirstPermission: () => void = () => {};
+    const firstPermissionDone = new Promise<void>((resolve) => {
+      releaseFirstPermission = resolve;
+    });
+    const calls: string[] = [];
+
+    summaryAggregator.setOnPermission(async (request) => {
+      calls.push(`start:${request.id}`);
+
+      if (request.id === "req-1") {
+        await firstPermissionDone;
+      }
+
+      calls.push(`end:${request.id}`);
+    });
+    summaryAggregator.setSession("session-1");
+
+    summaryAggregator.processEvent({
+      type: "permission.asked",
+      properties: {
+        id: "req-1",
+        sessionID: "session-1",
+        permission: "bash",
+        patterns: ["pwd"],
+        metadata: {},
+        always: [],
+      },
+    } as unknown as Event);
+
+    summaryAggregator.processEvent({
+      type: "permission.asked",
+      properties: {
+        id: "req-2",
+        sessionID: "session-1",
+        permission: "bash",
+        patterns: ["pwd"],
+        metadata: {},
+        always: [],
+      },
+    } as unknown as Event);
+
+    await vi.waitFor(() => {
+      expect(calls).toEqual(["start:req-1"]);
+    });
+
+    releaseFirstPermission();
+
+    await vi.waitFor(() => {
+      expect(calls).toEqual(["start:req-1", "end:req-1", "start:req-2", "end:req-2"]);
+    });
   });
 
   it("ignores permission.asked events from unrelated sessions", async () => {
@@ -1915,5 +1968,265 @@ describe("summary/aggregator", () => {
 
     expect(onPermission).not.toHaveBeenCalled();
     expect(sut.summaryAggregator.isSubagentSession("some-other-session")).toBe(false);
+  });
+
+  it("drops the upstream empty-response placeholder instead of showing it to the user", async () => {
+    const onPartial = vi.fn();
+    const onComplete = vi.fn();
+    summaryAggregator.setOnPartial(onPartial);
+    summaryAggregator.setOnComplete(onComplete);
+    summaryAggregator.setSession("session-1");
+
+    summaryAggregator.processEvent({
+      type: "message.updated",
+      properties: {
+        info: {
+          id: "message-empty-response",
+          sessionID: "session-1",
+          role: "assistant",
+          time: { created: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    summaryAggregator.processEvent({
+      type: "message.part.updated",
+      properties: {
+        part: {
+          id: "empty-response-part",
+          sessionID: "session-1",
+          messageID: "message-empty-response",
+          type: "text",
+          text: "Empty response: {'content': [{'type': 'thinking'}], 'stop_reason': 'end_turn'}",
+        },
+      },
+    } as unknown as Event);
+
+    summaryAggregator.processEvent({
+      type: "message.updated",
+      properties: {
+        info: {
+          id: "message-empty-response",
+          sessionID: "session-1",
+          role: "assistant",
+          time: { created: Date.now(), completed: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
+    // Nothing is left to send, so the run completes silently - same as when the
+    // provider returns no text part at all.
+    expect(onPartial).not.toHaveBeenCalled();
+    expect(onComplete).not.toHaveBeenCalled();
+  });
+
+  it("drops the empty-response placeholder while it is still streaming in", () => {
+    const onPartial = vi.fn();
+    summaryAggregator.setOnPartial(onPartial);
+    summaryAggregator.setSession("session-1");
+
+    summaryAggregator.processEvent({
+      type: "message.updated",
+      properties: {
+        info: {
+          id: "message-empty-streaming",
+          sessionID: "session-1",
+          role: "assistant",
+          time: { created: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    for (const delta of ["Empty", " resp", "onse: ", "{'content'"]) {
+      summaryAggregator.processEvent({
+        type: "message.part.delta",
+        properties: {
+          part: {
+            id: "empty-streaming-part",
+            sessionID: "session-1",
+            messageID: "message-empty-streaming",
+            type: "text",
+          },
+          delta,
+        },
+      } as unknown as Event);
+    }
+
+    expect(onPartial).not.toHaveBeenCalled();
+  });
+
+  it("delivers user text that looks like the empty-response placeholder unfiltered", async () => {
+    const onExternalUserInput = vi.fn();
+    summaryAggregator.setOnExternalUserInput(onExternalUserInput);
+    summaryAggregator.setSession("session-1");
+
+    const userText = "Empty response: {'content': [{'type': 'thinking'}]} - why do I get this?";
+
+    summaryAggregator.processEvent({
+      type: "message.part.updated",
+      properties: {
+        part: {
+          id: "part-user-marker",
+          sessionID: "session-1",
+          messageID: "message-user-marker",
+          type: "text",
+          text: userText,
+          time: { start: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    summaryAggregator.processEvent({
+      type: "message.updated",
+      properties: {
+        info: {
+          id: "message-user-marker",
+          sessionID: "session-1",
+          role: "user",
+          time: { created: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
+    expect(onExternalUserInput).toHaveBeenCalledWith("session-1", "message-user-marker", userText);
+  });
+
+  it("recovers streamed text that diverges from the marker mid-stream", () => {
+    const onPartial = vi.fn();
+    summaryAggregator.setOnPartial(onPartial);
+    summaryAggregator.setSession("session-1");
+
+    summaryAggregator.processEvent({
+      type: "message.updated",
+      properties: {
+        info: {
+          id: "message-empty-diverging",
+          sessionID: "session-1",
+          role: "assistant",
+          time: { created: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    // "Empty resp" is still a prefix of the marker and stays suppressed, but the
+    // next chunk diverges from it and the whole text has to surface.
+    for (const delta of ["Empty resp", "onse from the server, retrying."]) {
+      summaryAggregator.processEvent({
+        type: "message.part.delta",
+        properties: {
+          part: {
+            id: "diverging-part",
+            sessionID: "session-1",
+            messageID: "message-empty-diverging",
+            type: "text",
+          },
+          delta,
+        },
+      } as unknown as Event);
+    }
+
+    expect(onPartial).toHaveBeenLastCalledWith(
+      "session-1",
+      "message-empty-diverging",
+      "Empty response from the server, retrying.",
+    );
+  });
+
+  it("releases a completed answer that legitimately opens with the marker", async () => {
+    const onComplete = vi.fn();
+    summaryAggregator.setOnComplete(onComplete);
+    summaryAggregator.setSession("session-1");
+
+    // The user can ask the model to start its reply with that exact line. It is
+    // held back while streaming, but the completed text carries no serialized
+    // response object, so it must reach the user.
+    const answer = "Empty response: {'content': 'test'} is what the provider sends back.";
+
+    summaryAggregator.processEvent({
+      type: "message.updated",
+      properties: {
+        info: {
+          id: "message-legit-marker",
+          sessionID: "session-1",
+          role: "assistant",
+          time: { created: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    summaryAggregator.processEvent({
+      type: "message.part.updated",
+      properties: {
+        part: {
+          id: "legit-marker-part",
+          sessionID: "session-1",
+          messageID: "message-legit-marker",
+          type: "text",
+          text: answer,
+        },
+      },
+    } as unknown as Event);
+
+    summaryAggregator.processEvent({
+      type: "message.updated",
+      properties: {
+        info: {
+          id: "message-legit-marker",
+          sessionID: "session-1",
+          role: "assistant",
+          time: { created: Date.now(), completed: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
+    expect(onComplete).toHaveBeenCalledWith(
+      "session-1",
+      "message-legit-marker",
+      answer,
+      expect.any(Object),
+    );
+  });
+
+  it("keeps assistant text that only starts like the empty-response placeholder", () => {
+    const onPartial = vi.fn();
+    summaryAggregator.setOnPartial(onPartial);
+    summaryAggregator.setSession("session-1");
+
+    summaryAggregator.processEvent({
+      type: "message.updated",
+      properties: {
+        info: {
+          id: "message-empty-lookalike",
+          sessionID: "session-1",
+          role: "assistant",
+          time: { created: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    summaryAggregator.processEvent({
+      type: "message.part.updated",
+      properties: {
+        part: {
+          id: "lookalike-part",
+          sessionID: "session-1",
+          messageID: "message-empty-lookalike",
+          type: "text",
+          text: "Empty response body is expected here.",
+        },
+      },
+    } as unknown as Event);
+
+    expect(onPartial).toHaveBeenCalledWith(
+      "session-1",
+      "message-empty-lookalike",
+      "Empty response body is expected here.",
+    );
   });
 });

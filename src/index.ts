@@ -1,9 +1,18 @@
 import { resolveRuntimeMode, setRuntimeMode } from "./runtime/mode.js";
+import { getUnsupportedNodeVersionMessage } from "./runtime/node-version.js";
 
 const EXIT_RUNTIME_ERROR = 1;
 const EXIT_INVALID_ARGS = 2;
 
 async function main(): Promise<void> {
+  const unsupportedNodeVersion = getUnsupportedNodeVersionMessage();
+
+  if (unsupportedNodeVersion) {
+    process.stderr.write(`${unsupportedNodeVersion}\n`);
+    process.exit(EXIT_RUNTIME_ERROR);
+    return;
+  }
+
   const modeResult = resolveRuntimeMode({
     defaultMode: "sources",
     argv: process.argv.slice(2),

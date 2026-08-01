@@ -32,7 +32,7 @@ describe("bot/streaming/finalize-assistant-response", () => {
       renderFinalParts: vi.fn(() => [
         {
           text: "part 1",
-          entities: [{ type: "bold", offset: 0, length: 6 }],
+          entities: [{ type: "bold" as const, offset: 0, length: 6 }],
           fallbackText: "part 1",
           source: "entities" as const,
         },

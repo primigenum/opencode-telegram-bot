@@ -106,11 +106,12 @@ export const ar: I18nDictionary = {
   "bot.file_too_large": "⚠️ حجم الملف أكبر من الحد المسموح ({maxSizeMb}MB)",
   "bot.file_download_error": "🔴 تعذر تنزيل الملف",
   "bot.file_type_unsupported":
-    "⚠️ نوع الملف غير مدعوم. أرسل صورة أو ملف PDF أو ملفًا نصيًا أو برمجيًا.",
+    "⚠️ نوع الملف غير مدعوم. أرسل صورة أو مستندًا (PDF، DOCX، PPTX) أو ملفًا نصيًا أو برمجيًا.",
   "bot.media_group_not_processed":
     "⚠️ تعذر معالجة ملف أو أكثر في هذه المجموعة. لم يتم إرسال أي ملف إلى OpenCode.",
   "bot.media_group_download_error": "🔴 تعذر تنزيل أحد الملفات. لم يتم إرسال أي ملف إلى OpenCode.",
   "bot.model_no_pdf": "⚠️ النموذج الحالي لا يدعم ملفات PDF. سيتم إرسال النص فقط.",
+  "bot.document_extraction_error": "🔴 فشل استخراج نص المستند.",
   "bot.text_file_too_large": "⚠️ حجم الملف النصي أكبر من الحد المسموح ({maxSizeKb}KB)",
 
   "status.header_running": "🟢 خادم OpenCode يعمل",
@@ -304,6 +305,17 @@ export const ar: I18nDictionary = {
   "model.search.no_results": 'لم يتم العثور على نماذج مطابقة لـ "{query}"',
   "model.search.search_again": "↩ البحث مرة أخرى",
   "model.search.error": "تعذر البحث عن النماذج",
+  "model.button.back": "⬅️ رجوع",
+  "model.providers.button": "🗂 المزوّدون",
+  "model.providers.title": "اختر مزوّدًا من القائمة:",
+  "model.providers.empty": "⚠️ لا يوجد مزوّدون متصلون",
+  "model.providers.error": "تعذر جلب قائمة المزوّدين",
+  "model.providers.page_indicator": "الصفحة {current}/{total}",
+  "model.providers.prev_page": "⬅️ السابق",
+  "model.providers.next_page": "التالي ➡️",
+  "model.provider_models.title": "{provider} — اختر نموذجًا:",
+  "model.provider_models.empty": "⚠️ لا توجد نماذج متاحة لدى {provider}",
+  "model.provider_models.page_indicator": "الصفحة {current}/{total}",
 
   "variant.model_not_selected_callback": "خطأ: لم يتم تحديد النموذج",
   "variant.changed_callback": "تم تغيير الخيار إلى: {name}",
@@ -335,6 +347,7 @@ export const ar: I18nDictionary = {
   "permission.blocked.command_not_allowed":
     "⚠️ لا يمكن استخدام هذا الأمر قبل الرد على طلب الصلاحية.",
   "permission.header": "{emoji} طلب صلاحية: {name}\n\n",
+  "permission.grouped_count": "\n⚠️ يوجد {count} طلبات متطابقة قيد الانتظار — سيُطبَّق ردك عليها جميعًا.\n",
   "permission.button.allow": "✅ سماح لمرة واحدة",
   "permission.button.always": "🔓 سماح دائم",
   "permission.button.reject": "❌ رفض",

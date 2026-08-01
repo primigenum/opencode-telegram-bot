@@ -3,6 +3,7 @@
 import type { RuntimeMode } from "./runtime/mode.js";
 import { parseCliArgs } from "./cli/args.js";
 import { resolveRuntimeMode, setRuntimeMode } from "./runtime/mode.js";
+import { getUnsupportedNodeVersionMessage } from "./runtime/node-version.js";
 import { getRuntimePaths } from "./runtime/paths.js";
 
 const EXIT_SUCCESS = 0;
@@ -218,6 +219,13 @@ async function runStopCommand(): Promise<number> {
 }
 
 async function runCli(argv: string[]): Promise<number> {
+  const unsupportedNodeVersion = getUnsupportedNodeVersionMessage();
+
+  if (unsupportedNodeVersion) {
+    writeStderr(unsupportedNodeVersion);
+    return EXIT_RUNTIME_ERROR;
+  }
+
   const parsedArgs = parseCliArgs(argv);
 
   if (parsedArgs.error) {

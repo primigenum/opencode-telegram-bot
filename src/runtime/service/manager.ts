@@ -1,6 +1,7 @@
 import path from "bun:path";
 import { getRuntimePaths } from "../paths.js";
 import { buildServiceChildEnv } from "./env.js";
+import { logger } from "../../utils/logger.js";
 import type {
   BotServiceState,
   BotServiceStatus,
@@ -96,6 +97,52 @@ function isProcessAlive(pid: number): boolean {
   }
 }
 
+// bun-native replacement for node's child_process.exec. Uses `sh -c` like
+// runShellCommand below (Windows daemon support is best-effort in this fork).
+async function execAsync(command: string): Promise<{ stdout: string; stderr: string }> {
+  const proc = Bun.spawn(["sh", "-c", command], { stdout: "pipe", stderr: "pipe" });
+  const [stdout, stderr] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+  ]);
+  const exitCode = await proc.exited;
+  if (exitCode !== 0) {
+    throw new Error(`Command failed (exit ${exitCode}): ${command}`);
+  }
+  return { stdout, stderr };
+}
+
+async function getProcessCreationTime(pid: number): Promise<Date | null> {
+  try {
+    if (process.platform === "win32") {
+      const { stdout } = await execAsync(
+        `powershell -NoProfile -Command "Get-WmiObject Win32_Process -Filter 'ProcessId=${pid}' | Select-Object -ExpandProperty CreationDate"`,
+      );
+      const dateStr = stdout.trim().split(/\r?\n/).find((l) => l.trim().length > 0)?.trim();
+      if (!dateStr) {
+        return null;
+      }
+      const match = dateStr.match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/);
+      if (!match) {
+        return null;
+      }
+      return new Date(
+        `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6]}`,
+      );
+    }
+
+    const { stdout } = await execAsync(`ps -o lstart= -p ${pid}`);
+    const dateStr = stdout.trim();
+    if (!dateStr) {
+      return null;
+    }
+    const timestamp = Date.parse(dateStr);
+    return Number.isNaN(timestamp) ? null : new Date(timestamp);
+  } catch {
+    return null;
+  }
+}
+
 async function waitForProcessExit(pid: number, timeoutMs: number): Promise<boolean> {
   const startTime = Date.now();
 
@@ -186,6 +233,30 @@ export async function getBotServiceStatus(): Promise<BotServiceStatus> {
   }
 
   if (!isProcessAlive(service.pid)) {
+    logger.info(
+      `[Manager] Stale daemon state cleaned up: PID=${service.pid} no longer exists`,
+    );
+    await clearServiceStateFile(stateFilePath);
+    return {
+      status: "stopped",
+      service: null,
+      cleanupReason: "stale",
+    };
+  }
+
+  const processCreationTime = await getProcessCreationTime(service.pid);
+  const storedStartedAtMs = Date.parse(service.startedAt);
+
+  if (
+    processCreationTime &&
+    !Number.isNaN(storedStartedAtMs) &&
+    processCreationTime.getTime() > storedStartedAtMs
+  ) {
+    logger.warn(
+      `[Manager] Stale daemon state detected: PID=${service.pid} exists but was created ` +
+      `at ${processCreationTime.toISOString()} (daemon started at ${service.startedAt}). ` +
+      `The original process died and the PID was reused.`,
+    );
     await clearServiceStateFile(stateFilePath);
     return {
       status: "stopped",
@@ -203,7 +274,14 @@ export async function getBotServiceStatus(): Promise<BotServiceStatus> {
 
 export async function startBotDaemon(mode?: string): Promise<ServiceOperationResult> {
   const currentStatus = await getBotServiceStatus();
+  const cleanupInfo = currentStatus.cleanupReason
+    ? ` (previous state: ${currentStatus.cleanupReason})`
+    : "";
+
   if (currentStatus.status === "running" && currentStatus.service) {
+    logger.info(
+      `[Manager] Daemon start rejected: already running (PID=${currentStatus.service.pid})${cleanupInfo}`,
+    );
     return {
       success: false,
       service: currentStatus.service,
@@ -249,6 +327,9 @@ export async function startBotDaemon(mode?: string): Promise<ServiceOperationRes
     };
 
     await writeFileAtomically(stateFilePath, `${JSON.stringify(serviceState, null, 2)}\n`);
+    logger.info(
+      `[Manager] Daemon started: PID=${childProcess.pid}, log=${logFilePath}${cleanupInfo}`,
+    );
 
     return {
       success: true,
@@ -256,12 +337,14 @@ export async function startBotDaemon(mode?: string): Promise<ServiceOperationRes
       cleanupReason: currentStatus.cleanupReason,
     };
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`[Manager] Daemon start failed: ${errorMessage}${cleanupInfo}`);
     await clearServiceStateFile(stateFilePath);
     return {
       success: false,
       service: null,
       cleanupReason: currentStatus.cleanupReason,
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMessage,
     };
   } finally {
     await logFileWriter.end();
@@ -273,6 +356,9 @@ export async function stopBotDaemon(
 ): Promise<ServiceOperationResult> {
   const currentStatus = await getBotServiceStatus();
   if (currentStatus.status !== "running" || !currentStatus.service) {
+    logger.info(
+      `[Manager] Daemon stop skipped: not running (reason=${currentStatus.cleanupReason ?? "none"})`,
+    );
     return {
       success: true,
       service: null,
@@ -282,6 +368,7 @@ export async function stopBotDaemon(
   }
 
   const { pid } = currentStatus.service;
+  logger.info(`[Manager] Stopping daemon: PID=${pid}`);
 
   try {
     if (process.platform === "win32") {
@@ -291,6 +378,7 @@ export async function stopBotDaemon(
     }
 
     if (isProcessAlive(pid)) {
+      logger.warn(`[Manager] Daemon stop failed: process PID=${pid} still alive after ${timeoutMs}ms`);
       return {
         success: false,
         service: currentStatus.service,
@@ -300,6 +388,7 @@ export async function stopBotDaemon(
     }
 
     await clearServiceStateFile();
+    logger.info(`[Manager] Daemon stopped: PID=${pid}`);
 
     return {
       success: true,
@@ -307,11 +396,13 @@ export async function stopBotDaemon(
       cleanupReason: currentStatus.cleanupReason,
     };
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`[Manager] Daemon stop error: ${errorMessage}`);
     return {
       success: false,
       service: currentStatus.service,
       cleanupReason: currentStatus.cleanupReason,
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMessage,
     };
   }
 }

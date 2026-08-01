@@ -52,5 +52,6 @@ export function createSettingsStoreMock(): SettingsStoreMock {
     setVisibleProjects: vi.fn(),
     __resetSettingsForTests: vi.fn(),
     loadSettings: vi.fn(),
+    flushSettings: vi.fn(),
   };
 }

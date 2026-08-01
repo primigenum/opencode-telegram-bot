@@ -151,7 +151,9 @@ type SessionRetryCallback = (retryInfo: SessionRetryInfo) => void;
 
 type SessionIdleCallback = (sessionId: string) => void;
 
-type PermissionCallback = (request: PermissionRequest) => void;
+type PermissionCallback = (request: PermissionRequest) => void | Promise<void>;
+
+type PermissionRepliedCallback = (sessionId: string, requestID: string) => void | Promise<void>;
 
 type SessionDiffCallback = (sessionId: string, diffs: FileChange[]) => void;
 
@@ -180,6 +182,48 @@ interface SubagentState extends SubagentInfo {
   hasTaskToolMetadata: boolean;
   hasSessionTitleMetadata: boolean;
   createdAt: number;
+}
+
+// When a model returns a response without a text block, the upstream provider
+// serializes the raw response object into a text part instead of leaving it
+// empty. Such a part is internal noise and must never reach the user. The
+// trailing quote is part of the marker: the dump is a Python repr, so the first
+// key is always single-quoted, which prose does not do.
+const UPSTREAM_EMPTY_RESPONSE_MARKER = "Empty response: {'";
+
+// A key that only the serialized response object carries. The model can be
+// asked to start a legitimate answer with the marker, so the marker alone is
+// not enough to discard text for good.
+const UPSTREAM_EMPTY_RESPONSE_KEY = "'stop_reason'";
+
+// Suppression happens in two tiers, because the decision has to be made twice
+// under different amounts of information.
+//
+// While the part is still streaming, the text arrives character by character
+// and there is no way to tell the placeholder from an answer that merely opens
+// the same way - so anything that still looks like the marker is held back.
+// The text is only hidden, never lost, but the cost is not zero: such an answer
+// shows no live preview and appears at once when the message completes.
+//
+// Once the message is complete the full text is known, and discarding it is
+// final. At that point the marker alone is not enough: the serialized response
+// object must also be there, otherwise the text is a legitimate answer and is
+// released.
+function isUpstreamEmptyResponseText(text: string, isFinal: boolean): boolean {
+  const trimmed = text.trimStart();
+  if (!trimmed) {
+    return false;
+  }
+
+  if (trimmed.length < UPSTREAM_EMPTY_RESPONSE_MARKER.length) {
+    return !isFinal && UPSTREAM_EMPTY_RESPONSE_MARKER.startsWith(trimmed);
+  }
+
+  if (!trimmed.startsWith(UPSTREAM_EMPTY_RESPONSE_MARKER)) {
+    return false;
+  }
+
+  return isFinal ? trimmed.includes(UPSTREAM_EMPTY_RESPONSE_KEY) : true;
 }
 
 function extractFirstUpdatedFileFromTitle(title: string): string {
@@ -251,6 +295,8 @@ class SummaryAggregator {
   private onSessionRetryCallback: SessionRetryCallback | null = null;
   private onSessionIdleCallback: SessionIdleCallback | null = null;
   private onPermissionCallback: PermissionCallback | null = null;
+  private permissionQueue: Promise<void> = Promise.resolve();
+  private onPermissionRepliedCallback: PermissionRepliedCallback | null = null;
   private onSessionDiffCallback: SessionDiffCallback | null = null;
   private onFileChangeCallback: FileChangeCallback | null = null;
   private onClearedCallback: ClearedCallback | null = null;
@@ -348,6 +394,10 @@ class SummaryAggregator {
 
   setOnPermission(callback: PermissionCallback): void {
     this.onPermissionCallback = callback;
+  }
+
+  setOnPermissionReplied(callback: PermissionRepliedCallback): void {
+    this.onPermissionRepliedCallback = callback;
   }
 
   setOnSessionDiff(callback: SessionDiffCallback): void {
@@ -466,7 +516,7 @@ class SummaryAggregator {
         this.handlePermissionAsked(event);
         break;
       case "permission.replied":
-        logger.info(`[Aggregator] Permission replied: requestID=${event.properties.requestID}`);
+        this.handlePermissionReplied(event);
         break;
       default:
         logger.debug(`[Aggregator] Unhandled event type: ${event.type}`);
@@ -502,6 +552,7 @@ class SummaryAggregator {
     this.pendingChildSessionIdsByParent.clear();
     this.fallbackSubagentCardIdsByParent.clear();
     this.lastSubagentSnapshot = "";
+    this.permissionQueue = Promise.resolve();
     this.messageCount = 0;
     this.lastUpdated = 0;
 
@@ -1093,7 +1144,7 @@ class SummaryAggregator {
       };
       const time = assistantMessage.time;
       const isCompleted = Boolean(time?.completed);
-      const messageText = this.getCombinedMessageText(messageID);
+      const messageText = this.getCombinedMessageText(messageID, isCompleted);
 
       if (!isCompleted && textState.optimisticUpdateCount === 1) {
         this.emitPartialText(info.sessionID, messageID, messageText);
@@ -1132,6 +1183,17 @@ class SummaryAggregator {
         logger.debug(
           `[Aggregator] Message part completed: messageId=${messageID}, textLength=${finalText.length}, totalParts=${textState.orderedPartIds.length}, session=${this.currentSessionId}`,
         );
+
+        // This is the only trace left once the placeholder is filtered out, so
+        // an upstream regression stays visible in the logs.
+        const droppedParts = textState.orderedPartIds.filter((partID) =>
+          isUpstreamEmptyResponseText(textState.partTexts.get(partID) || "", true),
+        );
+        if (droppedParts.length > 0) {
+          logger.warn(
+            `[Aggregator] Dropped upstream empty-response placeholder: messageId=${messageID}, parts=${droppedParts.length}, session=${this.currentSessionId}`,
+          );
+        }
 
         // Extract and report cost
         if (this.onCostCallback && assistantInfo.cost !== undefined) {
@@ -1774,13 +1836,21 @@ class SummaryAggregator {
     return true;
   }
 
-  private getCombinedMessageText(messageID: string): string {
+  private getCombinedMessageText(messageID: string, isFinal = false): string {
     const state = this.textMessageStates.get(messageID);
     if (!state) {
       return "";
     }
 
-    return state.orderedPartIds.map((partID) => state.partTexts.get(partID) || "").join("");
+    const texts = state.orderedPartIds.map((partID) => state.partTexts.get(partID) || "");
+
+    // The placeholder is produced for model responses only, so user text is
+    // never filtered - it must reach the bot verbatim.
+    if (this.messages.get(messageID)?.role === "user") {
+      return texts.join("");
+    }
+
+    return texts.filter((text) => !isUpstreamEmptyResponseText(text, isFinal)).join("");
   }
 
   private prepareToolFileContext(
@@ -2110,11 +2180,39 @@ class SummaryAggregator {
 
     if (this.onPermissionCallback) {
       const callback = this.onPermissionCallback;
+      this.permissionQueue = this.permissionQueue
+        .then(() => callback(request as PermissionRequest))
+        .catch((err) => {
+          logger.error("[Aggregator] Error in permission callback:", err);
+        });
+    }
+  }
+
+  private handlePermissionReplied(
+    event: Event & {
+      type: "permission.replied";
+    },
+  ): void {
+    const { sessionID, requestID } = event.properties;
+    const isCurrent = sessionID === this.currentSessionId;
+    const isTrackedChild = this.isTrackedChildSession(sessionID);
+
+    if (!isCurrent && !isTrackedChild) {
+      logger.debug(
+        `[Aggregator] Ignoring permission.replied for different session: ${sessionID} (current: ${this.currentSessionId})`,
+      );
+      return;
+    }
+
+    logger.info(`[Aggregator] Permission replied: requestID=${requestID}`);
+
+    if (this.onPermissionRepliedCallback) {
+      const callback = this.onPermissionRepliedCallback;
       setImmediate(async () => {
         try {
-          await callback(request as PermissionRequest);
+          await callback(sessionID, requestID);
         } catch (err) {
-          logger.error("[Aggregator] Error in permission callback:", err);
+          logger.error("[Aggregator] Error in permission replied callback:", err);
         }
       });
     }

@@ -225,6 +225,7 @@ The first time you start the bot, the configuration wizard runs and writes `.env
 | `PROJECTS_LIST_LIMIT`                      | Projects per page in `/projects`                                                                                      |    No    | `10`                     |
 | `OPEN_BROWSER_ROOTS`                       | Comma-separated paths `/open` is allowed to browse (supports `~`)                                                     |    No    | `~` (home directory)     |
 | `COMMANDS_LIST_LIMIT`                      | Items per page in `/commands` and `/skills`                                                                           |    No    | `10`                     |
+| `MODELS_LIST_LIMIT`                        | Providers and provider models per page in the model picker                                                            |    No    | `10`                     |
 | `TASK_LIMIT`                               | Maximum number of scheduled tasks that can exist at once                                                              |    No    | `10`                     |
 | `SCHEDULED_TASK_EXECUTION_TIMEOUT_MINUTES` | Maximum time the bot waits for one scheduled task run before marking it failed                                        |    No    | `120`                    |
 | `SCHEDULED_TASK_DISABLE_NOTIFICATION`      | Send scheduled task result/error messages without Telegram push notifications                                         |    No    | `false`                  |
@@ -232,12 +233,17 @@ The first time you start the bot, the configuration wizard runs and writes `.env
 | `TRACK_BACKGROUND_SESSIONS`                | Track detached/non-current sessions in the current selected project/worktree and send short notifications             |    No    | `true`                   |
 | `RESPONSE_STREAM_THROTTLE_MS`              | Stream update throttle in milliseconds for assistant, thinking, and tool message edits                                |    No    | `1000`                   |
 | `MESSAGE_FORMAT_MODE`                      | Assistant reply formatting mode: `markdown` (Telegram MarkdownV2) or `raw`                                            |    No    | `markdown`               |
+| `MESSAGE_MERGE_WINDOW_MS`                  | Merge Telegram-split long text messages into one prompt after this wait window (ms); `0` disables merging             |    No    | `1500`                   |
+| `INITIAL_SETTINGS_PRESET`                  | JSON object that seeds default `/settings` values on first run (keys not yet persisted); see [Runtime Settings](#runtime-settings) |    No    | `{}`                     |
 | `CODE_FILE_MAX_SIZE_KB`                    | Max file size (KB) to send as document                                                                                |    No    | `100`                    |
 | `STT_API_URL`                              | Whisper-compatible API base URL (enables voice/audio transcription)                                                   |    No    | —                        |
 | `STT_API_KEY`                              | API key for your STT provider                                                                                         |    No    | —                        |
 | `STT_MODEL`                                | STT model name passed to `/audio/transcriptions`                                                                      |    No    | `whisper-large-v3-turbo` |
 | `STT_LANGUAGE`                             | Optional language hint (empty = provider auto-detect)                                                                 |    No    | —                        |
+| `STT_REQUEST_FORMAT`                       | STT request format: `multipart` (standard OpenAI/Groq Whisper) or `json` (base64 `input_audio` body, e.g. OpenRouter) |    No    | `multipart`              |
 | `STT_NOTE_PROMPT`                          | Optional note prepended to the LLM prompt as `[Note: ...]` for voice transcriptions; empty / `false` / `0` disable it |    No    | —                        |
+| `DOC_EXTRACTOR_URL`                        | Document text extraction API URL (enables PDF/DOCX/PPTX extraction)                                                    |    No    | —                        |
+| `DOC_EXTRACTOR_API_KEY`                    | API key for the document extractor (optional for self-hosted extractors)                                                |    No    | —                        |
 | `TTS_PROVIDER`                             | TTS provider: `openai` for OpenAI-compatible APIs, `elevenlabs` for ElevenLabs, or `google` for Google Cloud TTS      |    No    | `openai`                 |
 | `TTS_API_URL`                              | TTS API base URL for OpenAI-compatible APIs or ElevenLabs                                                             |    No    | —                        |
 | `TTS_API_KEY`                              | TTS API key for OpenAI-compatible APIs or ElevenLabs                                                                  |    No    | —                        |
@@ -257,6 +263,7 @@ Runtime preferences are changed from `/settings` and stored in `settings.json`:
 
 - Compact output mode
 - Thinking content display
+- Assistant run footer display
 - Diff file attachments
 - Response streaming mode: `edit` or `draft (experimental)`; applies only to final assistant replies, not thinking messages
 - Audio replies: `off`, `all`, or `auto` when TTS is configured
@@ -282,6 +289,14 @@ Semicolon-separated list of full directory paths. Only projects whose worktree p
 ```
 
 When unconfigured, all projects are shown (backward compatible). The env var takes precedence over `settings.json`.
+
+You can seed the initial defaults for any of these settings without hard-coding them in your Docker image by setting `INITIAL_SETTINGS_PRESET` to a JSON object. Only keys not yet persisted in `settings.json` are affected — settings the user has already changed via `/settings` are left untouched:
+
+```env
+INITIAL_SETTINGS_PRESET={"showAssistantRunFooter":false,"compactOutputMode":true,"ttsMode":"auto"}
+```
+
+Settings are written atomically: the new content goes to a temporary file that then replaces `settings.json`, and the previous version is kept as `settings.json.bak`. A crash during a write can never leave a truncated file — the bot falls back to the backup on the next start. If both `settings.json` and `settings.json.bak` are unreadable, the bot refuses to start instead of overwriting them, and the error names the file so you can fix or remove it manually.
 
 ### Reverse Proxy (Optional)
 
@@ -386,6 +401,20 @@ Supported provider examples (Whisper-compatible):
 
 If STT variables are not set, voice/audio transcription is disabled and the bot will ask you to configure STT.
 
+### Document Text Extraction (Optional)
+
+If `DOC_EXTRACTOR_URL` is set, the bot will extract text from PDF, DOCX, PPTX, and other document files using an external API when the current model does not natively support document input.
+
+The API contract is:
+
+- **Endpoint:** `POST {DOC_EXTRACTOR_URL}`
+- **Content-Type:** `multipart/form-data`
+- **Field:** `file` — the document binary
+- **Authorization:** `Bearer {DOC_EXTRACTOR_API_KEY}` (only sent when a key is configured)
+- **Response:** JSON `{ "text": "extracted content..." }`
+
+If the extractor is not configured and the model doesn't support documents, the bot replies with a notice and forwards only the caption text.
+
 ### Model Configuration
 
 The model picker uses OpenCode local model state (`favorite` + `recent`):
@@ -425,6 +454,14 @@ This is a partial port. Two vitest patterns have **no equivalent in bun's test r
 2. **`vi.resetModules()` + `await import(...)`** — bun has no public module cache reset API.
 
 Lint, build, and runtime are green. Tests that don't use the two patterns above pass. For the full breakdown of what the shim covers, the bun limitations, the affected test files, and the open follow-ups, see **[`docs/BUN_PORT.md`](./docs/BUN_PORT.md)** — that doc is the canonical reference for the port.
+
+## Support
+
+This project is free and open source. Development and testing run on paid AI model subscriptions, and donations go directly toward those.
+
+If you find this bot useful, you can support it here: [Donate](https://donate.trybit.com/D9J1UVKT)
+
+Any amount helps — thank you!
 
 ## License
 

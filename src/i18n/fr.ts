@@ -111,13 +111,15 @@ export const fr: I18nDictionary = {
   "bot.file_too_large": "⚠️ Le fichier est trop volumineux (max {maxSizeMb}MB)",
   "bot.file_download_error": "🔴 Impossible de télécharger le fichier",
   "bot.file_type_unsupported":
-    "⚠️ Ce type de fichier n'est pas pris en charge. Envoyez une image, un PDF ou un fichier texte/code.",
+    "⚠️ Ce type de fichier n'est pas pris en charge. Envoyez une image, un document (PDF, DOCX, PPTX) ou un fichier texte/code.",
   "bot.media_group_not_processed":
     "⚠️ Un ou plusieurs fichiers de cet album ne peuvent pas être traités. Rien n'a été envoyé à OpenCode.",
   "bot.media_group_download_error":
     "🔴 Impossible de télécharger l'un des fichiers. Rien n'a été envoyé à OpenCode.",
   "bot.model_no_pdf":
     "⚠️ Le modèle actuel ne prend pas en charge les PDF. Envoi du texte uniquement.",
+  "bot.document_extraction_error":
+    "🔴 Échec de l'extraction du texte du document.",
   "bot.text_file_too_large": "⚠️ Le fichier texte est trop volumineux (max {maxSizeKb}KB)",
 
   "status.header_running": "🟢 Le serveur OpenCode est en cours d'exécution",
@@ -332,6 +334,17 @@ export const fr: I18nDictionary = {
   "model.search.no_results": 'Aucun modèle trouvé pour "{query}"',
   "model.search.search_again": "↩ Rechercher à nouveau",
   "model.search.error": "Échec de la recherche",
+  "model.button.back": "⬅️ Retour",
+  "model.providers.button": "🗂 Fournisseurs",
+  "model.providers.title": "Choisissez un fournisseur dans la liste :",
+  "model.providers.empty": "⚠️ Aucun fournisseur connecté",
+  "model.providers.error": "Impossible de récupérer la liste des fournisseurs",
+  "model.providers.page_indicator": "Page {current}/{total}",
+  "model.providers.prev_page": "⬅️ Précédent",
+  "model.providers.next_page": "Suivant ➡️",
+  "model.provider_models.title": "{provider} — choisissez un modèle :",
+  "model.provider_models.empty": "⚠️ Aucun modèle disponible pour {provider}",
+  "model.provider_models.page_indicator": "Page {current}/{total}",
 
   "variant.model_not_selected_callback": "Erreur : aucun modèle sélectionné",
   "variant.changed_callback": "Variante modifiée : {name}",
@@ -364,6 +377,7 @@ export const fr: I18nDictionary = {
   "permission.blocked.command_not_allowed":
     "⚠️ Cette commande n'est pas disponible tant que vous n'avez pas répondu à la demande d'autorisation.",
   "permission.header": "{emoji} Demande d'autorisation : {name}\n\n",
+  "permission.grouped_count": "\n⚠️ {count} demandes identiques en attente — votre réponse s'applique à toutes.\n",
   "permission.button.allow": "✅ Autoriser une fois",
   "permission.button.always": "🔓 Toujours autoriser",
   "permission.button.reject": "❌ Refuser",

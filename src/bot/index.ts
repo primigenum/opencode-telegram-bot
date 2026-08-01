@@ -14,6 +14,7 @@ import { withTelegramRateLimitRetry } from "../utils/telegram-rate-limit-retry.j
 import { registerCallbackRouter } from "./callbacks/callback-router.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { interactionGuardMiddleware } from "./middleware/interaction-guard.js";
+import { staleUpdateMiddleware } from "./middleware/stale-update.js";
 import {
   ensureCommandsInitialized,
   registerCommandRouter,
@@ -115,6 +116,7 @@ export function createBot(): Bot<Context> {
   });
 
   bot.use(authMiddleware);
+  bot.use(staleUpdateMiddleware);
   bot.use(ensureCommandsInitialized);
   bot.use(interactionGuardMiddleware);
 

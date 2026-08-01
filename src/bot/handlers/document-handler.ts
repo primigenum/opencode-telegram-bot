@@ -7,11 +7,13 @@ import {
   isTextMimeType,
   isFileSizeAllowed,
 } from "../../app/services/file-download-service.js";
+import { isDocExtractorConfigured, extractDocument } from "../../app/services/document-extractor-service.js";
 import { getModelCapabilities, supportsInput } from "../../app/services/model-capabilities-service.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
 import type { FilePartInput, Model } from "@opencode-ai/sdk/v2";
+import { flushPendingPrompt } from "./message-merger.js";
 
 export interface DocumentHandlerDeps extends ProcessPromptDeps {
   downloadFile?: (
@@ -44,6 +46,8 @@ export async function handleDocumentMessage(
   if (!doc) {
     return;
   }
+
+  flushPendingPrompt(ctx.chat!.id);
 
   const caption = ctx.message.caption || "";
   const mimeType = doc.mime_type || "";
@@ -112,18 +116,55 @@ export async function handleDocumentMessage(
       return;
     }
 
-    if (mimeType === "application/pdf") {
+    const DOCUMENT_MIME_TYPES = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-powerpoint",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.oasis.opendocument.text",
+      "application/vnd.oasis.opendocument.presentation",
+      "application/vnd.oasis.opendocument.spreadsheet",
+      "text/rtf",
+    ];
+
+    if (DOCUMENT_MIME_TYPES.includes(mimeType)) {
       const storedModel = getStored();
       const capabilities = await getCapabilities(storedModel.providerID, storedModel.modelID);
 
       if (!supportsInput(capabilities, "pdf")) {
-        logger.warn(
-          `[Document] Model ${storedModel.providerID}/${storedModel.modelID} doesn't support PDF input`,
-        );
-        await ctx.reply(t("bot.model_no_pdf"));
+        if (isDocExtractorConfigured()) {
+          logger.warn(
+            `[Document] Model doesn't support PDF input, delegating document to DOC_EXTRACTOR_URL`,
+          );
+          await ctx.reply(t("bot.file_downloading"));
+          const downloadedFile = await downloadFile(ctx.api, doc.file_id);
 
-        if (caption.trim().length > 0) {
-          await processPrompt(ctx, caption, deps);
+          try {
+            const result = await extractDocument(downloadedFile.buffer, mimeType, filename);
+            const promptWithFile = `--- Content of ${filename} ---\n${result.text}\n--- End of file ---\n\n${caption}`;
+            logger.info(
+              `[Document] Sending extracted document text from ${filename} (${result.text.length} chars) as prompt`,
+            );
+            await processPrompt(ctx, promptWithFile, deps);
+          } catch (extractErr) {
+            const errMsg = extractErr instanceof Error ? extractErr.message : String(extractErr);
+            logger.error(`[Document] Document extraction failed: ${errMsg}`);
+            await ctx.reply(t("bot.document_extraction_error"));
+            if (caption.trim().length > 0) {
+              await processPrompt(ctx, caption, deps);
+            }
+          }
+        } else {
+          logger.warn(
+            `[Document] Model doesn't support PDF input and DOC_EXTRACTOR_URL is not configured`,
+          );
+          await ctx.reply(t("bot.model_no_pdf"));
+          if (caption.trim().length > 0) {
+            await processPrompt(ctx, caption, deps);
+          }
         }
         return;
       }
@@ -141,7 +182,7 @@ export async function handleDocumentMessage(
       };
 
       logger.info(
-        `[Document] Sending PDF (${downloadedFile.buffer.length} bytes, ${filename}) with prompt`,
+        `[Document] Sending document (${downloadedFile.buffer.length} bytes, ${filename}, ${mimeType}) with prompt`,
       );
 
       await processPrompt(ctx, caption, deps, [filePart]);
