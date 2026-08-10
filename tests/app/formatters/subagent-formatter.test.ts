@@ -43,6 +43,7 @@ describe("summary/subagent-formatter", () => {
           limit: 280,
         },
         currentToolTitle: "Reading pinned manager",
+        createdAt: Date.now(),
         updatedAt: Date.now(),
       },
     ]);
@@ -78,6 +79,7 @@ describe("summary/subagent-formatter", () => {
           cacheWrite: 0,
         },
         cost: 0,
+        createdAt: Date.now(),
         updatedAt: Date.now(),
       },
     ]);
@@ -111,6 +113,7 @@ describe("summary/subagent-formatter", () => {
         },
         cost: 0,
         terminalMessage: "Permission denied",
+        createdAt: Date.now(),
         updatedAt: Date.now(),
       },
     ]);
@@ -140,6 +143,7 @@ describe("summary/subagent-formatter", () => {
           cacheWrite: 0,
         },
         cost: 0,
+        createdAt: Date.now(),
         updatedAt: Date.now(),
       },
     ]);
@@ -171,6 +175,7 @@ describe("summary/subagent-formatter", () => {
         cost: 0,
         currentTool: "read",
         currentToolInput: {},
+        createdAt: Date.now(),
         updatedAt: Date.now(),
       },
     ]);
@@ -206,6 +211,7 @@ describe("summary/subagent-formatter", () => {
           pattern: "[WARN]|[ERROR]",
         },
         currentToolTitle: "22460fc65b183e6921717bba0c84ccfcf4b57982",
+        createdAt: Date.now(),
         updatedAt: Date.now(),
       },
       {
@@ -231,6 +237,7 @@ describe("summary/subagent-formatter", () => {
           filePath: "src/app/formatters/subagent-formatter.ts",
         },
         currentToolTitle: "22460fc65b183e6921717bba0c84ccfcf4b57982",
+        createdAt: Date.now(),
         updatedAt: Date.now(),
       },
       {
@@ -256,6 +263,7 @@ describe("summary/subagent-formatter", () => {
           pattern: "**/*.ts",
         },
         currentToolTitle: "22460fc65b183e6921717bba0c84ccfcf4b57982",
+        createdAt: Date.now(),
         updatedAt: Date.now(),
       },
     ]);
@@ -264,5 +272,128 @@ describe("summary/subagent-formatter", () => {
     expect(text).toContain("📖 read src/app/formatters/subagent-formatter.ts");
     expect(text).toContain("📁 glob **/*.ts");
     expect(text).not.toContain("22460fc65b183e6921717bba0c84ccfcf4b57982");
+  });
+
+  describe("elapsed time on the current tool step", () => {
+    const now = 1_000_000;
+
+    function buildSubagent(currentToolStartedAt?: number) {
+      return {
+        cardId: "card-1",
+        sessionId: "child-1",
+        parentSessionId: "root-1",
+        agent: "explore",
+        description: "task description",
+        prompt: "task description",
+        status: "running" as const,
+        providerID: "openai",
+        modelID: "gpt-5.4",
+        tokens: {
+          input: 0,
+          output: 0,
+          reasoning: 0,
+          cacheRead: 0,
+          cacheWrite: 0,
+        },
+        cost: 0,
+        currentTool: "bash",
+        currentToolInput: { command: "npm test" },
+        currentToolCallId: "call-1",
+        currentToolStartedAt,
+        createdAt: now,
+        updatedAt: now,
+      };
+    }
+
+    it("appends the elapsed time once the step passed the threshold", async () => {
+      setRuntimeLocale("en");
+
+      const text = await renderSubagentCards([buildSubagent(now - 45_000)], now);
+
+      expect(text).toContain("💻 bash npm test · 🕒 40s");
+    });
+
+    it("keeps the step unchanged below the threshold", async () => {
+      setRuntimeLocale("en");
+
+      const text = await renderSubagentCards([buildSubagent(now - 5_000)], now);
+
+      expect(text).toContain("💻 bash npm test");
+      expect(text).not.toContain("🕒");
+    });
+
+    it("keeps the step unchanged when the start time is unknown", async () => {
+      setRuntimeLocale("en");
+
+      const text = await renderSubagentCards([buildSubagent(undefined)], now);
+
+      expect(text).toContain("💻 bash npm test");
+      expect(text).not.toContain("🕒");
+    });
+  });
+
+  describe("total run time of a finished subagent", () => {
+    const createdAt = 1_000_000;
+
+    function buildFinished(finishedAt?: number) {
+      return {
+        cardId: "card-1",
+        sessionId: "child-1",
+        parentSessionId: "root-1",
+        agent: "explore",
+        description: "task description",
+        prompt: "task description",
+        status: "completed" as const,
+        providerID: "openai",
+        modelID: "gpt-5.4",
+        tokens: {
+          input: 0,
+          output: 0,
+          reasoning: 0,
+          cacheRead: 0,
+          cacheWrite: 0,
+        },
+        cost: 0,
+        createdAt,
+        finishedAt,
+        updatedAt: finishedAt ?? createdAt,
+      };
+    }
+
+    it("reports how long the subagent ran", async () => {
+      setRuntimeLocale("en");
+
+      const text = await renderSubagentCards([buildFinished(createdAt + 135_000)], createdAt);
+
+      expect(text).toContain("✅ Completed · 🕒 2m 15s");
+    });
+
+    it("reports short runs too, without a threshold", async () => {
+      setRuntimeLocale("en");
+
+      const text = await renderSubagentCards([buildFinished(createdAt + 3000)], createdAt);
+
+      expect(text).toContain("✅ Completed · 🕒 3s");
+    });
+
+    it("freezes the duration so heartbeat re-renders do not grow it", async () => {
+      setRuntimeLocale("en");
+      const card = buildFinished(createdAt + 135_000);
+
+      const first = await renderSubagentCards([card], createdAt + 135_000);
+      const later = await renderSubagentCards([card], createdAt + 900_000);
+
+      expect(later).toBe(first);
+      expect(later).toContain("2m 15s");
+    });
+
+    it("falls back to the plain completed line when the finish time is unknown", async () => {
+      setRuntimeLocale("en");
+
+      const text = await renderSubagentCards([buildFinished(undefined)], createdAt);
+
+      expect(text).toContain("✅ Completed");
+      expect(text).not.toContain("🕒");
+    });
   });
 });

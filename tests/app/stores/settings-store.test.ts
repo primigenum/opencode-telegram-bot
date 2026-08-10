@@ -21,7 +21,7 @@ const configMock = vi.hoisted(() => ({
   tts: { apiUrl: "", apiKey: "" },
 }));
 vi.mock("#src/config.ts", () => ({ config: configMock }));
-const { __resetSettingsForTests, flushSettings, getCompactOutputMode, getResponseStreamingMode, getScheduledTasks, getSendDiffFileAttachments, getShowAssistantRunFooter, getShowThinkingContent, getTtsMode, loadSettings, setCompactOutputMode, setResponseStreamingMode, setScheduledTasks, setSendDiffFileAttachments, setShowAssistantRunFooter, setShowThinkingContent } = await loadSut<typeof import("#src/app/stores/settings-store.js")>(
+const { __resetSettingsForTests, flushSettings, getCompactOutputMode, getPromptQueueEnabled, getResponseStreamingMode, getScheduledTasks, getSendDiffFileAttachments, getShowAssistantRunFooter, getShowThinkingContent, getTtsMode, loadSettings, setCompactOutputMode, setPromptQueueEnabled, setResponseStreamingMode, setScheduledTasks, setSendDiffFileAttachments, setShowAssistantRunFooter, setShowThinkingContent } = await loadSut<typeof import("#src/app/stores/settings-store.js")>(
   "#src/app/stores/settings-store.ts",
   import.meta.url,
 );
@@ -239,6 +239,18 @@ describe("app/stores/settings-store", () => {
     });
   });
 
+  it("persists the prompt queue setting to settings.json", async () => {
+    await loadSettings();
+
+    setPromptQueueEnabled(true);
+
+    expect(getPromptQueueEnabled()).toBe(true);
+    await vi.waitFor(async () => {
+      const settings = JSON.parse(await readFile(path.join(tempHome, "settings.json"), "utf-8"));
+      expect(settings.promptQueueEnabled).toBe(true);
+    });
+  });
+
   it("persists assistant run footer setting to settings.json", async () => {
     await loadSettings();
 
@@ -292,6 +304,7 @@ describe("app/stores/settings-store", () => {
       id,
       projectId: "project-1",
       projectWorktree: "D:/work/project-1",
+      agent: "build",
       model: { providerID: "anthropic", modelID: "claude-opus-5", variant: null },
       scheduleText: "every day at 9",
       scheduleSummary: "Every day at 09:00",

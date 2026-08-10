@@ -52,13 +52,11 @@ function getReconciliationTargets(directory: string): {
   return { foregroundBusySessions, attachedSessionForDirectory };
 }
 
-function getSessionStatus(statuses: unknown, sessionId: string): SessionStatus | null {
-  if (!statuses || typeof statuses !== "object") {
-    return null;
-  }
-
-  const status = (statuses as Record<string, SessionStatus | undefined>)[sessionId];
-  return status ?? null;
+function getSessionStatus(
+  statuses: Record<string, SessionStatus>,
+  sessionId: string,
+): SessionStatus | null {
+  return statuses[sessionId] ?? null;
 }
 
 function isTerminalStatus(status: SessionStatus | null): boolean {

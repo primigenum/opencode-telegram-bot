@@ -156,6 +156,61 @@ class InteractionManager {
 
 export const interactionManager = new InteractionManager();
 
+export type InteractionErrorScope =
+  | "question"
+  | "permission"
+  | "rename"
+  | "taskCreation"
+  | "interaction"
+  | "none";
+
+const SCOPE_TO_INTERACTION_KIND: Record<
+  Exclude<InteractionErrorScope, "interaction" | "none">,
+  InteractionState["kind"]
+> = {
+  question: "question",
+  permission: "permission",
+  rename: "rename",
+  taskCreation: "task",
+};
+
+export function clearInteractionErrorState(
+  scope: InteractionErrorScope,
+  reason: string,
+): void {
+  if (scope === "none") {
+    return;
+  }
+
+  const stateBefore = interactionManager.getSnapshot();
+
+  if (scope === "interaction") {
+    interactionManager.clear(reason);
+    logger.debug(
+      `[InteractionCleanup] Cleared scoped state: reason=${reason}, scope=${scope}, interactionKind=${stateBefore?.kind || "none"}`,
+    );
+    return;
+  }
+
+  if (scope === "question") {
+    questionManager.clear();
+  } else if (scope === "permission") {
+    permissionManager.clear();
+  } else if (scope === "rename") {
+    renameManager.clear();
+  } else {
+    taskCreationManager.clear();
+  }
+
+  if (stateBefore && stateBefore.kind === SCOPE_TO_INTERACTION_KIND[scope]) {
+    interactionManager.clear(reason);
+  }
+
+  logger.debug(
+    `[InteractionCleanup] Cleared scoped state: reason=${reason}, scope=${scope}, interactionKind=${stateBefore?.kind || "none"}`,
+  );
+}
+
 export function clearAllInteractionState(reason: string): void {
   const questionActive = questionManager.isActive();
   const permissionActive = permissionManager.isActive();

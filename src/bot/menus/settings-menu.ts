@@ -1,6 +1,7 @@
 import { InlineKeyboard } from "grammy";
 import {
   getCompactOutputMode,
+  getPromptQueueEnabled,
   getResponseStreamingMode,
   getSendDiffFileAttachments,
   getShowAssistantRunFooter,
@@ -18,6 +19,7 @@ export const SETTINGS_RESPONSE_STREAMING_CALLBACK = `${SETTINGS_CALLBACK_PREFIX}
 export const SETTINGS_DIFF_FILES_CALLBACK = `${SETTINGS_CALLBACK_PREFIX}diff_files`;
 export const SETTINGS_ASSISTANT_FOOTER_CALLBACK = `${SETTINGS_CALLBACK_PREFIX}assistant_footer`;
 export const SETTINGS_TTS_CALLBACK = `${SETTINGS_CALLBACK_PREFIX}tts`;
+export const SETTINGS_PROMPT_QUEUE_CALLBACK = `${SETTINGS_CALLBACK_PREFIX}prompt_queue`;
 
 export function formatBooleanSettingValue(enabled: boolean): string {
   return enabled ? t("settings.value.on") : t("settings.value.off");
@@ -48,6 +50,7 @@ export function buildSettingsMenuView(): { text: string; keyboard: InlineKeyboar
   const sendDiffFileAttachments = getSendDiffFileAttachments();
   const showAssistantRunFooter = getShowAssistantRunFooter();
   const ttsMode = getTtsMode();
+  const promptQueueEnabled = getPromptQueueEnabled();
   const keyboard = new InlineKeyboard()
     .text(
       `${t("settings.compact_output.label")}: ${formatBooleanSettingValue(compactOutputMode)}`,
@@ -78,7 +81,12 @@ export function buildSettingsMenuView(): { text: string; keyboard: InlineKeyboar
       SETTINGS_ASSISTANT_FOOTER_CALLBACK,
     )
     .row()
-    .text(`${t("settings.tts.label")}: ${formatTtsModeValue(ttsMode)}`, SETTINGS_TTS_CALLBACK);
+    .text(`${t("settings.tts.label")}: ${formatTtsModeValue(ttsMode)}`, SETTINGS_TTS_CALLBACK)
+    .row()
+    .text(
+      `${t("settings.prompt_queue.label")}: ${formatBooleanSettingValue(promptQueueEnabled)}`,
+      SETTINGS_PROMPT_QUEUE_CALLBACK,
+    );
 
   return {
     text: t("settings.menu.title"),

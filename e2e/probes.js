@@ -227,10 +227,12 @@ const readPinned = () => {
 };
 
 /**
- * The bottom reply keyboard has a fixed 2x2 layout (see
- * src/bot/keyboards/main-reply-keyboard.ts), so read it BY POSITION. Labels are
- * dynamic; only the emoji anchors are stable: agent ends with " Agent",
- * context starts with "📊", variant starts with "💡" or "💭".
+ * The bottom reply keyboard ends with a fixed 2x2 grid (see
+ * src/bot/keyboards/main-reply-keyboard.ts), optionally preceded by 0..5
+ * one-per-row queued-prompt buttons, so read the fixed grid BY POSITION FROM
+ * THE END. Labels are dynamic; only the emoji anchors are stable: agent ends
+ * with " Agent", context starts with "📊", variant starts with "💡" or "💭",
+ * queued prompts start with "❌ <n>. ".
  *
  * READING the buttons works even while the keyboard is collapsed, but CLICKING
  * one does not: Playwright rejects a collapsed button as "not visible", and a
@@ -249,12 +251,14 @@ const readReplyKeyboard = () => {
   };
 
   const flat = [...document.querySelectorAll(".reply-keyboard-button")].map((b) => readText(b));
+  const fixed = flat.slice(-4);
   return {
     found: flat.length > 0,
-    agent: flat[0] || null,
-    context: flat[1] || null,
-    model: flat[2] || null,
-    variant: flat[3] || null,
+    agent: fixed[0] || null,
+    context: fixed[1] || null,
+    model: fixed[2] || null,
+    variant: fixed[3] || null,
+    queued: flat.slice(0, Math.max(flat.length - 4, 0)),
   };
 };
 

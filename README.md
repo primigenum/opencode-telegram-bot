@@ -16,6 +16,8 @@ Platforms: macOS, Windows, Linux
 
 ## What changed vs. the upstream Node port
 
+Languages: English (`en`), العربية (`ar`), Deutsch (`de`), Español (`es`), Français (`fr`), Italiano (`it`), Português (Brasil) (`pt`), Русский (`ru`), 简体中文 (`zh`)
+
 - **Runtime**: Node.js 20+ → **Bun ≥ 1.3.0** (`bun run` everywhere; the bin entry is `#!/usr/bin/env bun`)
 - **Package manager**: npm → **bun install** (no `package-lock.json`, just `bun.lock`)
 - **Test runner**: vitest → **bun test** (with a thin vitest-compatible shim — see [Test status](#test-status))
@@ -34,7 +36,7 @@ Everything else is identical. Same commands, same Telegram UX, same `.env` schem
 - **Track live session** — follow a live OpenCode CLI session
 - **Background session notifications** — get short notifications when detached or non-current sessions reply
 - **Live status** — pinned message with current project/worktree, model, context usage, and changed files list, updated in real time
-- **Model switching** — pick models from OpenCode favorites and recent history directly in the chat
+- **Model switching** — pick models from OpenCode favorites and recent history directly in the chat (favorites are shown first), or browse all models by provider
 - **Agent modes** — switch between Plan and Build modes on the fly
 - **Subagent activity** — watch live subagent progress in chat
 - **Custom Commands** — run OpenCode custom commands from an inline menu
@@ -44,12 +46,14 @@ Everything else is identical. Same commands, same Telegram UX, same `.env` schem
 - **Voice prompts** — send voice/audio messages, transcribe them via a Whisper-compatible API, and optionally enable spoken replies in `/settings`
 - **File attachments** — send images, PDF documents, and text-based files to OpenCode, including multiple files in one Telegram album
 - **Scheduled tasks** — schedule prompts to run later or on a recurring interval; see [Scheduled Tasks](#scheduled-tasks)
+- **Message queue** — enable in `/settings` to hold messages sent while the agent is busy, send them one by one afterwards, and manage them from the bottom keyboard
 - **Context control** — compact context when it gets too large, right from the chat
 - **Input flow control** — when an interactive flow is active, the bot accepts only relevant input to keep context consistent and avoid accidental actions
 - **Git worktree switching** — browse and switch between existing git worktrees for the current repository with `/worktree`
 - **Security** — strict user ID whitelist; no one else can access your bot, even if they find it
 - **Localization** — UI localization is supported for multiple languages (`BOT_LOCALE`)
 - **Interactive file browser** — use `/ls` to browse files and directories inside the current project, open subdirectories, go back, and download files by tapping them
+- **Attach a file to your next prompt** — tap **📎 Attach to next prompt** on a text file in `/ls`, and it is sent to OpenCode together with your next message, once
 
 Planned features currently in development are listed in [Current Task List](PRODUCT.md#current-task-list).
 
@@ -192,7 +196,7 @@ For this to work, the console OpenCode instance must be started on the same port
 
 ### Localization
 
-- Supported locales: `en`, `ar`, `de`, `es`, `fr`, `ru`, `zh`
+- Supported locales: `en`, `ar`, `de`, `es`, `fr`, `it`, `pt`, `ru`, `zh`
 - The setup wizard asks for language first
 - You can change locale later with `BOT_LOCALE`
 
@@ -219,7 +223,7 @@ The first time you start the bot, the configuration wizard runs and writes `.env
 | `OPENCODE_SERVER_PASSWORD`                 | Server auth password                                                                                                  |    No    | —                        |
 | `OPENCODE_MODEL_PROVIDER`                  | Default model provider                                                                                                |   Yes    | `opencode`               |
 | `OPENCODE_MODEL_ID`                        | Default model ID                                                                                                      |   Yes    | `big-pickle`             |
-| `BOT_LOCALE`                               | Bot UI language (supported locale code, e.g. `en`, `ar`, `de`, `es`, `fr`, `ru`, `zh`)                                |    No    | `en`                     |
+| `BOT_LOCALE`                               | Bot UI language (supported locale code, e.g. `en`, `ar`, `de`, `es`, `fr`, `it`, `pt`, `ru`, `zh`)                    |    No    | `en`                     |
 | `SESSIONS_LIST_LIMIT`                      | Sessions per page in `/sessions`                                                                                      |    No    | `10`                     |
 | `MESSAGES_LIST_LIMIT`                      | User messages per page in `/messages`                                                                                 |    No    | `10`                     |
 | `PROJECTS_LIST_LIMIT`                      | Projects per page in `/projects`                                                                                      |    No    | `10`                     |
@@ -267,6 +271,17 @@ Runtime preferences are changed from `/settings` and stored in `settings.json`:
 - Diff file attachments
 - Response streaming mode: `edit` or `draft (experimental)`; applies only to final assistant replies, not thinking messages
 - Audio replies: `off`, `all`, or `auto` when TTS is configured
+- Message queue: hold text messages sent while the agent is busy instead of rejecting them
+
+With the message queue enabled, plain text sent while the agent is busy is held (up to 5 messages) instead of being turned down. Queued messages appear as buttons above the usual bottom-keyboard grid — tap one to drop it. They are sent one at a time as each run finishes, and the queue is cleared by `/abort` or a session/project switch.
+
+You can seed the initial defaults for any of these settings without hard-coding them in your Docker image by setting `INITIAL_SETTINGS_PRESET` to a JSON object. Only keys not yet persisted in `settings.json` are affected — settings the user has already changed via `/settings` are left untouched:
+
+```env
+INITIAL_SETTINGS_PRESET={"showAssistantRunFooter":false,"compactOutputMode":true,"ttsMode":"auto"}
+```
+
+Settings are written atomically: the new content goes to a temporary file that then replaces `settings.json`, and the previous version is kept as `settings.json.bak`. A crash during a write can never leave a truncated file — the bot falls back to the backup on the next start. If both `settings.json` and `settings.json.bak` are unreadable, the bot refuses to start instead of overwriting them, and the error names the file so you can fix or remove it manually.
 
 ### Project Visibility Filter
 
@@ -426,6 +441,8 @@ The model picker uses OpenCode local model state (`favorite` + `recent`):
 
 To add a model to favorites, open OpenCode TUI (`opencode`), go to model selection, and press **Cmd+F/Ctrl+F** on the model.
 
+To pick a model that is neither a favorite nor recent, tap **🗂 Providers** in the model picker: it lists the connected providers, then the models of the selected one, both paginated by `MODELS_LIST_LIMIT`.
+
 ## Security
 
 The bot enforces a strict **user ID whitelist**. Only the Telegram user whose numeric ID matches `TELEGRAM_ALLOWED_USER_ID` can interact with the bot. Messages from any other user are silently ignored and logged as unauthorized access attempts.
@@ -454,6 +471,14 @@ This is a partial port. Two vitest patterns have **no equivalent in bun's test r
 2. **`vi.resetModules()` + `await import(...)`** — bun has no public module cache reset API.
 
 Lint, build, and runtime are green. Tests that don't use the two patterns above pass. For the full breakdown of what the shim covers, the bun limitations, the affected test files, and the open follow-ups, see **[`docs/BUN_PORT.md`](./docs/BUN_PORT.md)** — that doc is the canonical reference for the port.
+
+## Support
+
+This project is free and open source. Development and testing run on paid AI model subscriptions, and donations go directly toward those.
+
+If you find this bot useful, you can support it here: [Donate](https://donate.trybit.com/D9J1UVKT)
+
+Any amount helps — thank you!
 
 ## Support
 

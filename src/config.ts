@@ -153,6 +153,27 @@ function getOptionalMessageFormatModeEnvVar(
   return defaultValue;
 }
 
+export function parseInitialSettingsPreset(): Record<string, unknown> {
+  const raw = getEnvVar("INITIAL_SETTINGS_PRESET", false).trim();
+  if (!raw) {
+    return {};
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(
+      "INITIAL_SETTINGS_PRESET contains invalid JSON. Fix or unset the variable.",
+    );
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    throw new Error(
+      "INITIAL_SETTINGS_PRESET must be a JSON object.",
+    );
+  }
+  return parsed as Record<string, unknown>;
+}
+
 const VALID_TTS_PROVIDERS: TtsProvider[] = ["openai", "google", "elevenlabs", "edge"];
 
 function getOptionalTtsProviderEnvVar(

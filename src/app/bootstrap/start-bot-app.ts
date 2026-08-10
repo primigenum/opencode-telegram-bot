@@ -13,11 +13,12 @@ import { getRuntimeMode } from "../../runtime/mode.js";
 import { getRuntimePaths } from "../../runtime/paths.js";
 import { clearServiceStateFile } from "../../runtime/service/manager.js";
 import { getServiceStateFilePathFromEnv, isServiceChildProcess } from "../../runtime/service/env.js";
-import { getLogFilePath, initializeLogger, logger } from "../../utils/logger.js";
+import { flushLogger, getLogFilePath, initializeLogger, logger } from "../../utils/logger.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 
 const SHUTDOWN_TIMEOUT_MS = 5000;
 const SETTINGS_FLUSH_TIMEOUT_MS = 1000;
+const LOG_FLUSH_TIMEOUT_MS = 1000;
 
 async function getBotVersion(): Promise<string> {
   try {
@@ -81,6 +82,14 @@ export async function startBotApp(): Promise<void> {
       new Promise<void>((resolve) => setTimeout(resolve, SETTINGS_FLUSH_TIMEOUT_MS)),
     ]);
 
+  // Same bound for the file log, so the records written right before the exit
+  // (the crash report or the forcing-exit warning itself) reach the file.
+  const flushLoggerWithTimeout = (): Promise<void> =>
+    Promise.race([
+      flushLogger(),
+      new Promise<void>((resolve) => setTimeout(resolve, LOG_FLUSH_TIMEOUT_MS)),
+    ]);
+
   // Keep the process alive: a single unhandled rejection must not take the bot
   // down while the user is away and there is no supervisor to restart it.
   const unhandledRejectionHandler = (reason: unknown): void => {
@@ -92,6 +101,7 @@ export async function startBotApp(): Promise<void> {
     void clearManagedServiceState()
       .catch(() => {})
       .then(() => flushSettingsWithTimeout())
+      .then(() => flushLoggerWithTimeout())
       .finally(() => process.exit(1));
   };
 
@@ -117,6 +127,7 @@ export async function startBotApp(): Promise<void> {
   let shutdownStarted = false;
   let shutdownTimeout: ReturnType<typeof setTimeout> | null = null;
 
+
   const shutdown = (signal: NodeJS.Signals): void => {
     if (shutdownStarted) {
       return;
@@ -130,7 +141,9 @@ export async function startBotApp(): Promise<void> {
 
     shutdownTimeout = setTimeout(() => {
       logger.warn(`[App] Shutdown did not finish in ${SHUTDOWN_TIMEOUT_MS}ms, forcing exit.`);
-      void flushSettingsWithTimeout().finally(() => process.exit(0));
+      void flushSettingsWithTimeout()
+        .then(() => flushLoggerWithTimeout())
+        .finally(() => process.exit(0));
     }, SHUTDOWN_TIMEOUT_MS);
     shutdownTimeout.unref?.();
 

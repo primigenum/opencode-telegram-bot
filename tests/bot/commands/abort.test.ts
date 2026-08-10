@@ -39,6 +39,8 @@ const { __resetUserAbortErrorSuppressionForTests, shouldSuppressUserAbortSession
   "#src/app/managers/abort-suppression-manager.ts",
   import.meta.url,
 );
+import { promptQueue } from "#src/app/managers/prompt-queue-manager.js";
+import { promptAttachment } from "#src/app/managers/prompt-attachment-manager.js";
 
 const mocked = vi.hoisted(() => ({
   currentSession: null as { id: string; title: string; directory: string } | null,
@@ -189,6 +191,54 @@ describe("bot/commands/abort", () => {
     expect(interactionManager.getSnapshot()).toBeNull();
     expectAbortStateReleased("abort_confirmed");
     expect(shouldSuppressUserAbortSessionError("session-1", "Aborted")).toBe(true);
+  });
+
+  it("drops queued prompts so they do not run after the abort", async () => {
+    mocked.currentSession = {
+      id: "session-1",
+      title: "Session",
+      directory: "D:\\Projects\\Repo",
+    };
+    mocked.abortMock.mockResolvedValue({ data: true, error: null });
+    mocked.statusMock.mockResolvedValue({
+      data: { "session-1": { type: "idle" } },
+      error: null,
+    });
+    promptQueue.add("queued while running");
+
+    const ctx = {
+      chat: { id: 777 },
+      reply: vi.fn().mockResolvedValue({ message_id: 88 }),
+      api: { editMessageText: vi.fn().mockResolvedValue(undefined) },
+    } as unknown as Context;
+
+    await abortCommand(ctx as never);
+
+    expect(promptQueue.size()).toBe(0);
+  });
+
+  it("drops the pending attachment so it does not ride along on a later prompt", async () => {
+    mocked.currentSession = {
+      id: "session-1",
+      title: "Session",
+      directory: "D:\\Projects\\Repo",
+    };
+    mocked.abortMock.mockResolvedValue({ data: true, error: null });
+    mocked.statusMock.mockResolvedValue({
+      data: { "session-1": { type: "idle" } },
+      error: null,
+    });
+    promptAttachment.set("D:\\Projects\\Repo\\src\\index.ts", "D:\\Projects\\Repo");
+
+    const ctx = {
+      chat: { id: 777 },
+      reply: vi.fn().mockResolvedValue({ message_id: 88 }),
+      api: { editMessageText: vi.fn().mockResolvedValue(undefined) },
+    } as unknown as Context;
+
+    await abortCommand(ctx as never);
+
+    expect(promptAttachment.get()).toBeNull();
   });
 
   it("marks only Aborted session errors for suppression after user abort", async () => {

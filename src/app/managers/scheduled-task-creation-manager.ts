@@ -13,11 +13,17 @@ function cloneState(state: TaskCreationState): TaskCreationState {
 class TaskCreationManager {
   private state: TaskCreationState | null = null;
 
-  start(projectId: string, projectWorktree: string, model: ScheduledTaskModel): TaskCreationState {
+  start(
+    projectId: string,
+    projectWorktree: string,
+    model: ScheduledTaskModel,
+    agent: string,
+  ): TaskCreationState {
     this.state = {
       stage: "awaiting_schedule",
       projectId,
       projectWorktree,
+      agent,
       model: cloneScheduledTaskModel(model),
       scheduleText: null,
       parsedSchedule: null,

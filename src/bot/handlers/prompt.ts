@@ -31,6 +31,8 @@ import {
   markAttachedSessionIdle,
 } from "../../app/services/attach-service.js";
 import { externalUserInputSuppressionManager } from "../../app/managers/external-input-suppression-manager.js";
+import { promptAttachment } from "../../app/managers/prompt-attachment-manager.js";
+import { resolvePendingAttachment } from "../../app/services/prompt-attachment-service.js";
 
 /** Module-level references for async callbacks that don't have ctx. */
 let botInstance: Bot<Context> | null = null;
@@ -111,6 +113,24 @@ async function resetMismatchedSessionContext(): Promise<void> {
 export interface ProcessPromptDeps {
   bot: Bot<Context>;
   ensureEventSubscription: (directory: string) => Promise<void>;
+}
+
+/**
+ * Drops the cancel button from the attachment confirmation once the file has been sent.
+ * The attachment is consumed by then, so the button would no longer cancel anything.
+ * The message text stays as a record of what went with the prompt.
+ */
+async function retireAttachmentConfirmation(
+  ctx: Context,
+  messageId: number | undefined,
+): Promise<void> {
+  if (!messageId || !ctx.chat) {
+    return;
+  }
+
+  await ctx.api.editMessageReplyMarkup(ctx.chat.id, messageId).catch((err) => {
+    logger.debug(`[PromptAttachment] Could not retire confirmation message ${messageId}:`, err);
+  });
 }
 
 /**
@@ -233,6 +253,27 @@ export async function processUserPrompt(
     // Add file parts
     parts.push(...fileParts);
 
+    // A file picked in /ls belongs to this prompt. Capture whether one existed before
+    // resolving it: the resolver clears the attachment on every failed check, so afterwards
+    // a null result can no longer tell "nothing was attached" from "it went stale".
+    const pendingAttachment = promptAttachment.get();
+    const attachmentPart = await resolvePendingAttachment(currentSession.directory);
+
+    if (attachmentPart) {
+      parts.push(attachmentPart);
+    } else if (pendingAttachment) {
+      await ctx.reply(t("attachment.invalid"));
+    }
+
+    if (pendingAttachment) {
+      // Cleared here rather than next to `return true`: the catch below already clears the
+      // interaction on any failure but knows nothing about the attachment, which would leave
+      // it behind to be picked up silently by an unrelated later prompt.
+      promptAttachment.clear("consumed");
+      interactionManager.clear("attachment_consumed");
+      await retireAttachmentConfirmation(ctx, pendingAttachment.confirmationMessageId);
+    }
+
     // If no text and files exist, use a placeholder
     if (parts.length === 0 || (parts.length > 0 && parts.every((p) => p.type === "file"))) {
       if (fileParts.length > 0) {
@@ -241,6 +282,10 @@ export async function processUserPrompt(
         parts.unshift({ type: "text", text: attachmentText });
       }
     }
+
+    // Counted from `parts` rather than `fileParts`: a file attached through /ls is added
+    // above and would otherwise be missing from the logs.
+    const filePartCount = parts.filter((part) => part.type === "file").length;
 
     const promptOptions: {
       sessionID: string;
@@ -277,11 +322,11 @@ export async function processUserPrompt(
       modelId: storedModel.modelID || "default",
       variant: storedModel.variant || "default",
       promptLength: text.length,
-      fileCount: fileParts.length,
+      fileCount: filePartCount,
     };
 
     logger.info(
-      `[Bot] Calling session.promptAsync (start-only) with agent=${currentAgent}, fileCount=${fileParts.length}...`,
+      `[Bot] Calling session.promptAsync (start-only) with agent=${currentAgent}, fileCount=${filePartCount}...`,
     );
 
     foregroundSessionState.markBusy(currentSession.id, currentSession.directory);

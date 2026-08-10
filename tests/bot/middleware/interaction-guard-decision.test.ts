@@ -341,6 +341,15 @@ describe("interaction guard", () => {
     expect(photoDecision.reason).toBe("expected_text");
   });
 
+  it("allows queued prompt button presses while busy", () => {
+    foregroundSessionState.markBusy("session-1", "D:\\Projects\\Repo");
+
+    const decision = resolveInteractionGuardDecision(createContext({ text: "❌ 2. fix the bug" }));
+
+    expect(decision.allow).toBe(true);
+    expect(decision.busy).toBe(true);
+  });
+
   it("allows valid question answers while busy", () => {
     foregroundSessionState.markBusy("session-1", "D:\\Projects\\Repo");
     interactionManager.start({

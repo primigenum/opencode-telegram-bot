@@ -85,6 +85,7 @@ function createTask(partial: Partial<ScheduledOnceTask> = {}): ScheduledOnceTask
     kind: "once",
     projectId: "project-1",
     projectWorktree: "D:\\Projects\\Repo",
+    agent: "build",
     model: {
       providerID: "openai",
       modelID: "gpt-5",
@@ -247,6 +248,29 @@ describe("app/services/scheduled-task-executor-service", () => {
     } finally {
       restore();
     }
+  });
+
+  it("passes the task's stored agent to promptAsync", async () => {
+    const { executeScheduledTask } = await import("../../../src/app/services/scheduled-task-executor-service.js");
+
+    mocked.createMock.mockResolvedValueOnce({
+      data: { id: "session-1", directory: "D:\\Projects\\Repo", title: "Scheduled task run" },
+      error: null,
+    });
+    mocked.promptAsyncMock.mockResolvedValueOnce({ data: undefined, error: null });
+    mocked.messagesMock.mockResolvedValueOnce({
+      data: [createAssistantMessage("Done", { completed: true })],
+      error: null,
+    });
+
+    await expect(executeScheduledTask(createTask({ agent: "plan" }))).resolves.toMatchObject({
+      status: "success",
+      resultText: "Done",
+      errorMessage: null,
+    });
+    expect(mocked.promptAsyncMock).toHaveBeenCalledWith(
+      expect.objectContaining({ agent: "plan" }),
+    );
   });
 
   it("re-reads messages after idle before returning the assistant result", async () => {
@@ -721,7 +745,8 @@ describe("app/services/scheduled-task-executor-service", () => {
     const { restore } = accelerateTime();
     try {
       const task = createTask({
-        model: { providerID: "openai", modelID: "gpt-5", variant: "default", agent: "bypass" },
+        agent: "bypass",
+        model: { providerID: "openai", modelID: "gpt-5", variant: "default" },
       });
       const resultPromise = executeScheduledTask(task);
       await new Promise((r) => setTimeout(r, 0));

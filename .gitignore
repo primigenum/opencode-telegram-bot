@@ -20,6 +20,7 @@ Thumbs.db
 .kilocode/
 .opencode/
 opencode.json
+.pi/
 
 # Project specific
 logs/
@@ -33,6 +34,8 @@ settings.json.tmp
 *.tgz
 
 .boardown
+.boardown/
+manager/
 
 # Build output (bun build goes to dist/ but we keep source-only for now)
 dist/

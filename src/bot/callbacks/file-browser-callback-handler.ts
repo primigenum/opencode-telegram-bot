@@ -1,4 +1,4 @@
-import type { Context } from "grammy";
+import { InlineKeyboard, type Context } from "grammy";
 import {
   getProjectRoot,
   isPathWithinDirectory,
@@ -16,10 +16,15 @@ import { ensureActiveInlineMenu, clearActiveInlineMenu } from "../menus/inline-m
 import { sendDownloadedFile } from "../messages/send-downloaded-file.js";
 import { switchToProject } from "../../app/services/project-switch-service.js";
 import { createProjectSwitchPresentation } from "../services/project-switch-presentation.js";
+import { interactionManager } from "../../app/managers/interaction-manager.js";
+import { promptAttachment } from "../../app/managers/prompt-attachment-manager.js";
+import { toRelativePath } from "../../app/services/prompt-attachment-service.js";
+import { ATTACHMENT_CANCEL_CALLBACK } from "./prompt-attachment-callback-handler.js";
 import {
   buildOpenRootsKeyboard,
   clearLsPathIndex,
   clearOpenPathIndex,
+  decodeLsAttachCallback,
   decodeLsBackCallback,
   decodeLsFileCallback,
   decodeLsPaginationCallback,
@@ -228,6 +233,16 @@ export async function handleLsCallback(ctx: Context): Promise<boolean> {
       return true;
     }
 
+    const attachPath = decodeLsAttachCallback(data);
+    if (attachPath !== null) {
+      if (!isWithinProjectRoot(attachPath)) {
+        await ctx.answerCallbackQuery({ text: t("ls.access_denied") });
+        return true;
+      }
+      await attachFileAndClose(ctx, attachPath);
+      return true;
+    }
+
     const downloadPath = decodeLsPathFromCallback(LS_CALLBACK_DOWNLOAD_PREFIX, data);
     if (downloadPath !== null) {
       if (!isWithinProjectRoot(downloadPath)) {
@@ -277,6 +292,37 @@ async function showLsFileDetails(ctx: Context, filePath: string, page: number): 
 
   await ctx.answerCallbackQuery();
   await ctx.editMessageText(view.text, { parse_mode: "HTML", reply_markup: view.keyboard });
+}
+
+async function attachFileAndClose(ctx: Context, filePath: string): Promise<void> {
+  const projectRoot = getProjectRoot();
+  if (!projectRoot) {
+    await ctx.answerCallbackQuery({ text: t("bot.project_not_selected") });
+    return;
+  }
+
+  promptAttachment.set(filePath, projectRoot);
+
+  await ctx.answerCallbackQuery();
+  clearActiveInlineMenu("ls_attached");
+  clearLsPathIndex();
+  await ctx.deleteMessage().catch(() => {});
+
+  const relativePath = toRelativePath(filePath, projectRoot);
+  const confirmation = await ctx.reply(t("attachment.added", { path: relativePath }), {
+    reply_markup: new InlineKeyboard().text(t("attachment.cancel"), ATTACHMENT_CANCEL_CALLBACK),
+  });
+  promptAttachment.setConfirmationMessageId(confirmation.message_id);
+
+  // Wait for the prompt the file belongs to: "mixed" lets the text and the cancel button
+  // through while blocking commands, menus, and non-text messages.
+  interactionManager.start({
+    kind: "custom",
+    expectedInput: "mixed",
+    metadata: { flow: "attachment" },
+  });
+
+  logger.info(`[PromptAttachment] Attached from /ls: ${filePath}`);
 }
 
 async function downloadFileAndClose(ctx: Context, filePath: string): Promise<void> {

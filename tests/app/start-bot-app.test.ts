@@ -26,6 +26,7 @@ const mocked = vi.hoisted(() => ({
   loggerErrorMock: vi.fn(),
   initializeLoggerMock: vi.fn(),
   getLogFilePathMock: vi.fn(),
+  flushLoggerMock: vi.fn(),
   config: {
     opencode: {
       apiUrl: "http://localhost:4096",
@@ -53,6 +54,7 @@ vi.mock("#src/opencode/auto-restart.ts", () => ({
 }));
 
 vi.mock("#src/opencode/ready-refresh.ts", () => ({
+  isOpencodeServerHealthy: vi.fn(() => true),
   notifyOpencodeReadyIfHealthy: mocked.notifyOpencodeReadyIfHealthyMock,
   registerOpenCodeReadyRefreshHandler: mocked.registerOpenCodeReadyRefreshHandlerMock,
 }));
@@ -96,6 +98,7 @@ vi.mock("#src/runtime/service/env.ts", () => ({
 vi.mock("#src/utils/logger.ts", () => ({
   getLogFilePath: mocked.getLogFilePathMock,
   initializeLogger: mocked.initializeLoggerMock,
+  flushLogger: mocked.flushLoggerMock,
   logger: {
     debug: mocked.loggerDebugMock,
     info: mocked.loggerInfoMock,
@@ -198,6 +201,7 @@ describe("app/start-bot-app", () => {
     mocked.loggerErrorMock.mockReset();
     mocked.initializeLoggerMock.mockReset();
     mocked.getLogFilePathMock.mockReset();
+    mocked.flushLoggerMock.mockReset();
 
     mocked.createBotMock.mockReturnValue(createBot());
     mocked.autoRestartStartMock.mockResolvedValue(false);
@@ -209,6 +213,7 @@ describe("app/start-bot-app", () => {
     mocked.isServiceChildProcessMock.mockReturnValue(false);
     mocked.initializeLoggerMock.mockResolvedValue(undefined);
     mocked.getLogFilePathMock.mockReturnValue(null);
+    mocked.flushLoggerMock.mockResolvedValue(undefined);
 
     registeredProcessHandlers.clear();
     vi.spyOn(process, "on").mockImplementation(((

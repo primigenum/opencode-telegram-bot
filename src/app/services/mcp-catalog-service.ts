@@ -1,5 +1,7 @@
 import type { McpStatus } from "@opencode-ai/sdk/v2";
 import { opencodeClient } from "../../opencode/client.js";
+import { logger } from "../../utils/logger.js";
+import { isRecord } from "../../utils/type-guards.js";
 
 export interface McpCatalogServerItem {
   name: string;
@@ -10,59 +12,95 @@ function normalizeDirectoryForMcpApi(directory: string): string {
   return directory.replace(/\\/g, "/");
 }
 
-function parseMcpCatalogServers(value: unknown): McpCatalogServerItem[] | null {
-  if (!value || typeof value !== "object") {
+const MCP_STATUS_NAMES = [
+  "connected",
+  "disabled",
+  "failed",
+  "needs_auth",
+  "needs_client_registration",
+] as const;
+
+function isMcpStatusName(value: unknown): value is (typeof MCP_STATUS_NAMES)[number] {
+  return typeof value === "string" && MCP_STATUS_NAMES.some((name) => name === value);
+}
+
+function buildMcpStatus(statusValue: (typeof MCP_STATUS_NAMES)[number], errorValue: unknown): McpStatus {
+  if (statusValue === "failed" || statusValue === "needs_client_registration") {
+    // The SDK type requires an error string on these states; a missing one is
+    // normalized to an empty string (falsy for display purposes).
+    return { status: statusValue, error: typeof errorValue === "string" ? errorValue : "" };
+  }
+
+  return { status: statusValue };
+}
+
+type ParsedMcpServerStatus =
+  | { kind: "ok"; status: McpStatus }
+  | { kind: "skip" }
+  | { kind: "invalid" };
+
+function parseMcpServerStatus(status: unknown): ParsedMcpServerStatus {
+  if (!isRecord(status)) {
+    return { kind: "invalid" };
+  }
+
+  if (!isMcpStatusName(status.status)) {
+    if (typeof status.status === "string") {
+      // Unknown status value: the SDK union is stale (server drifted). Skip the
+      // server instead of failing the whole catalog.
+      logger.debug(`[McpCatalog] Unknown MCP status "${status.status}", skipping server`);
+      return { kind: "skip" };
+    }
+
+    return { kind: "invalid" };
+  }
+
+  return { kind: "ok", status: buildMcpStatus(status.status, status.error) };
+}
+
+export function parseMcpCatalogServers(value: unknown): McpCatalogServerItem[] | null {
+  if (!isRecord(value)) {
     return null;
   }
 
   if (Array.isArray(value)) {
     const servers: McpCatalogServerItem[] = [];
     for (const item of value) {
-      if (!item || typeof item !== "object") {
+      if (!isRecord(item)) {
         return null;
       }
 
-      const name = (item as { name?: unknown }).name;
-      const status = (item as { status?: unknown }).status;
-      if (typeof name !== "string" || !status || typeof status !== "object") {
+      const name = item.name;
+      if (typeof name !== "string") {
         return null;
       }
 
-      const s = status as { status?: unknown; error?: unknown };
-      if (typeof s.status !== "string") {
+      const parsed = parseMcpServerStatus(item.status);
+      if (parsed.kind === "invalid") {
         return null;
       }
-
-      const mcpStatus: McpStatus = { status: s.status } as McpStatus;
-      if ("error" in s && typeof s.error === "string") {
-        (mcpStatus as McpStatus & { error: string }).error = s.error;
+      if (parsed.kind === "skip") {
+        continue;
       }
 
-      servers.push({ name, status: mcpStatus });
+      servers.push({ name, status: parsed.status });
     }
 
     return servers;
   }
 
-  const entries = Object.entries(value as Record<string, unknown>);
   const servers: McpCatalogServerItem[] = [];
 
-  for (const [name, status] of entries) {
-    if (!status || typeof status !== "object") {
+  for (const [name, statusValue] of Object.entries(value)) {
+    const parsed = parseMcpServerStatus(statusValue);
+    if (parsed.kind === "invalid") {
       return null;
     }
-
-    const s = status as { status?: unknown; error?: unknown };
-    if (typeof s.status !== "string") {
-      return null;
+    if (parsed.kind === "skip") {
+      continue;
     }
 
-    const mcpStatus: McpStatus = { status: s.status } as McpStatus;
-    if ("error" in s && typeof s.error === "string") {
-      (mcpStatus as McpStatus & { error: string }).error = s.error;
-    }
-
-    servers.push({ name, status: mcpStatus });
+    servers.push({ name, status: parsed.status });
   }
 
   return servers;

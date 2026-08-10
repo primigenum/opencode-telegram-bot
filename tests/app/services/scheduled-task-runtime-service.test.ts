@@ -74,7 +74,6 @@ vi.mock("#src/opencode/client.ts", () => ({
 
 vi.mock("#src/app/services/scheduled-task-executor-service.ts", () => ({
   executeScheduledTask: mocked.executeScheduledTaskMock,
-  SCHEDULED_TASK_AGENT: "build",
 }));
 
 vi.mock("#src/app/services/scheduled-task-session-ignore-service.ts", () => ({
@@ -138,6 +137,7 @@ function createTask(partial: Partial<ScheduledTask> = {}): ScheduledTask {
       kind: "cron",
       projectId: "project-1",
       projectWorktree: "D:\\Projects\\Repo",
+      agent: "build",
       model: {
         providerID: "openai",
         modelID: "gpt-5",
@@ -163,6 +163,7 @@ function createTask(partial: Partial<ScheduledTask> = {}): ScheduledTask {
     kind: "once",
     projectId: "project-1",
     projectWorktree: "D:\\Projects\\Repo",
+    agent: "build",
     model: {
       providerID: "openai",
       modelID: "gpt-5",

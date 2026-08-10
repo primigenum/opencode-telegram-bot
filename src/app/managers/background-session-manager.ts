@@ -1,4 +1,4 @@
-import type { Event } from "@opencode-ai/sdk/v2";
+import type { Event, Message, Session } from "@opencode-ai/sdk/v2";
 import { isScheduledTaskSessionIgnored } from "../services/scheduled-task-session-ignore-service.js";
 import { logger } from "../../utils/logger.js";
 
@@ -16,29 +16,6 @@ export interface BackgroundSessionNotification {
 }
 
 type NotificationCallback = (notification: BackgroundSessionNotification) => void | Promise<void>;
-
-interface SessionInfoEventProperties {
-  info?: {
-    id?: string;
-    title?: string;
-    parentID?: string;
-  };
-}
-
-interface MessageUpdatedEventProperties {
-  info?: {
-    id?: string;
-    sessionID?: string;
-    role?: string;
-    time?: {
-      completed?: number;
-    };
-  };
-}
-
-interface SessionIdleEventProperties {
-  sessionID?: string;
-}
 
 interface PendingAssistantResponse {
   messageId: string;
@@ -81,37 +58,26 @@ class BackgroundSessionTracker {
     switch (event.type) {
       case "session.created":
       case "session.updated":
-        this.handleSessionInfo(event.properties as SessionInfoEventProperties);
+        this.handleSessionInfo(event.properties);
         break;
       case "message.updated":
-        this.handleMessageUpdated(
-          event.properties as MessageUpdatedEventProperties,
-          currentSessionId,
-        );
+        this.handleMessageUpdated(event.properties, currentSessionId);
         break;
       case "session.idle":
-        this.handleSessionIdle(event.properties as SessionIdleEventProperties, currentSessionId);
+        this.handleSessionIdle(event.properties, currentSessionId);
         break;
       case "question.asked":
-        this.handleRequestEvent(
-          "question_asked",
-          event.properties as { id?: string; sessionID?: string },
-          currentSessionId,
-        );
+        this.handleRequestEvent("question_asked", event.properties, currentSessionId);
         break;
       case "permission.asked":
-        this.handleRequestEvent(
-          "permission_asked",
-          event.properties as { id?: string; sessionID?: string },
-          currentSessionId,
-        );
+        this.handleRequestEvent("permission_asked", event.properties, currentSessionId);
         break;
       default:
         break;
     }
   }
 
-  private handleSessionInfo(properties: SessionInfoEventProperties): void {
+  private handleSessionInfo(properties: { info: Session }): void {
     const info = properties.info;
     if (!info?.id) {
       return;
@@ -128,7 +94,7 @@ class BackgroundSessionTracker {
   }
 
   private handleMessageUpdated(
-    properties: MessageUpdatedEventProperties,
+    properties: { info: Message },
     currentSessionId: string | null,
   ): void {
     const info = properties.info;
@@ -151,7 +117,7 @@ class BackgroundSessionTracker {
   }
 
   private handleSessionIdle(
-    properties: SessionIdleEventProperties,
+    properties: { sessionID: string },
     currentSessionId: string | null,
   ): void {
     const sessionId = properties.sessionID;
@@ -175,7 +141,7 @@ class BackgroundSessionTracker {
 
   private handleRequestEvent(
     kind: Extract<BackgroundSessionNotificationKind, "question_asked" | "permission_asked">,
-    properties: { id?: string; sessionID?: string },
+    properties: { id: string; sessionID: string },
     currentSessionId: string | null,
   ): void {
     const { id, sessionID: sessionId } = properties;

@@ -72,6 +72,11 @@ vi.mock("#src/app/services/file-browser-service.ts", () => ({
     if (!projectRoot) return false;
     return targetPath === projectRoot || targetPath.startsWith(projectRoot + "/");
   },
+  isWithinProjectRootSafe: async (targetPath: string) => {
+    const projectRoot = mocked.getCurrentProjectMock()?.worktree ?? null;
+    if (!projectRoot) return false;
+    return targetPath === projectRoot || targetPath.startsWith(projectRoot + "/");
+  },
   isPathWithinDirectory: vi.fn((targetPath: string, directoryPath: string) => {
     return targetPath === directoryPath || targetPath.startsWith(directoryPath + "/");
   }),

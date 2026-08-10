@@ -1,6 +1,7 @@
 import type { ToolInfo } from "../managers/summary-aggregation-manager.js";
 import * as path from "bun:path";
 import { config } from "../../config.js";
+import { isRecord } from "../../utils/type-guards.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
 import { getCurrentProject } from "../stores/settings-store.js";
@@ -126,7 +127,7 @@ function getToolIcon(tool: string): string {
   }
 }
 
-function formatTodos(todos: Array<{ id: string; content: string; status: string }>): string {
+function formatTodos(todos: Array<{ content: string; status: string }>): string {
   const MAX_TODOS = 20;
 
   const statusToMarker: Record<string, string> = {
@@ -194,12 +195,14 @@ export function formatToolInfo(toolInfo: ToolInfo): string | null {
   );
 
   if (tool === "todowrite" && toolInfo.metadata?.todos) {
-    const todos = toolInfo.metadata.todos as Array<{
-      id: string;
-      content: string;
-      status: string;
-      priority?: string;
-    }>;
+    const todos = (Array.isArray(toolInfo.metadata.todos) ? toolInfo.metadata.todos : [])
+      .filter(
+        (item): item is { content: string; status: string } =>
+          isRecord(item) &&
+          typeof item.content === "string" &&
+          typeof item.status === "string",
+      )
+      .map(({ content, status }) => ({ content, status }));
     const toolIcon = getToolIcon(tool);
     const todosList = formatTodos(todos);
     return `${toolIcon} ${tool} (${todos.length})\n\n${todosList}`;
@@ -218,11 +221,8 @@ export function formatToolInfo(toolInfo: ToolInfo): string | null {
   }
 
   if (tool === "apply_patch") {
-    const filediff =
-      toolInfo.metadata && "filediff" in toolInfo.metadata
-        ? (toolInfo.metadata.filediff as { file?: string })
-        : undefined;
-    if (filediff?.file) {
+    const filediff = isRecord(toolInfo.metadata?.filediff) ? toolInfo.metadata.filediff : undefined;
+    if (typeof filediff?.file === "string" && filediff.file) {
       details = normalizePathForDisplay(filediff.file);
     } else if (title) {
       const fileFromTitle = extractFirstUpdatedFileFromTitle(title);
@@ -245,9 +245,14 @@ export function formatToolInfo(toolInfo: ToolInfo): string | null {
     toolInfo.metadata &&
     "filediff" in toolInfo.metadata
   ) {
-    const filediff = toolInfo.metadata.filediff as { additions?: number; deletions?: number };
+    const filediff = isRecord(toolInfo.metadata.filediff) ? toolInfo.metadata.filediff : undefined;
     logger.debug("[Formatter] Diff metadata:", JSON.stringify(toolInfo.metadata, null, 2));
-    lineInfo = formatDiffLineInfo(filediff);
+    lineInfo = formatDiffLineInfo({
+      additions:
+        typeof filediff?.additions === "number" ? filediff.additions : undefined,
+      deletions:
+        typeof filediff?.deletions === "number" ? filediff.deletions : undefined,
+    });
   }
 
   if (tool === "apply_patch" && !lineInfo) {

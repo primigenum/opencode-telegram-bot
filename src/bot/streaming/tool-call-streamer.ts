@@ -154,6 +154,31 @@ export class ToolCallStreamer {
     this.ensureTimer(state);
   }
 
+  removeByPrefix(
+    sessionId: string,
+    prefix: string,
+    streamKey: ToolStreamKey = DEFAULT_STREAM_KEY,
+  ): void {
+    const normalizedPrefix = prefix.trim();
+    if (!sessionId || !normalizedPrefix) {
+      return;
+    }
+
+    const state = this.states.get(this.getStateId(sessionId, streamKey));
+    if (!state) {
+      return;
+    }
+
+    const entryIndex = state.entries.findIndex((entry) => entry.prefix === normalizedPrefix);
+    if (entryIndex < 0) {
+      return;
+    }
+
+    state.entries.splice(entryIndex, 1);
+    state.latestParts = buildParts(state.entries);
+    this.ensureTimer(state);
+  }
+
   async flushSession(sessionId: string, reason: string): Promise<void> {
     const states = this.getStatesForSession(sessionId);
     await Promise.all(

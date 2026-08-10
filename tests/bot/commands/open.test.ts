@@ -53,6 +53,7 @@ vi.mock("#src/app/services/file-browser-service.ts", () => ({
   getBaseName: vi.fn(),
   getParentPath: vi.fn(),
   isWithinAllowedRootSafe: vi.fn(),
+  isWithinProjectRootSafe: vi.fn(() => true),
   initBrowserRoots: vi.fn(),
   getBrowserRootPaths: vi.fn(),
   __resetBrowserRootsForTests: vi.fn(),

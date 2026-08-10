@@ -2,6 +2,10 @@ import type { Context, NextFunction } from "grammy";
 import { resolveInteractionGuardDecision } from "./interaction-guard-decision.js";
 import type { BlockReason, InteractionKind } from "../../app/types/interaction.js";
 import { reconcileForegroundBusyState } from "../../app/services/run-control-service.js";
+import {
+  shouldSuggestPromptQueue,
+  tryEnqueuePrompt,
+} from "../handlers/prompt-queue-dispatch.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
 
@@ -97,11 +101,29 @@ export async function interactionGuardMiddleware(ctx: Context, next: NextFunctio
     return;
   }
 
-  const message = decision.busy
+  const queueableText = ctx.message?.text;
+  const isQueueableInput = Boolean(
+    decision.busy && decision.inputType === "text" && !decision.state && queueableText,
+  );
+
+  if (isQueueableInput) {
+    const queued = await tryEnqueuePrompt(ctx, queueableText!);
+    if (queued) {
+      return;
+    }
+  }
+
+  let message = decision.busy
     ? decision.state?.kind === "question" || decision.state?.kind === "permission"
       ? getInteractionBlockedMessage(decision.reason, decision.state.kind)
       : t("bot.session_busy")
     : getInteractionBlockedMessage(decision.reason, decision.state?.kind);
+
+  // Only hint where the message would actually have been queued - not for button
+  // presses or commands that are turned down while the agent is busy.
+  if (isQueueableInput && shouldSuggestPromptQueue(queueableText!)) {
+    message = `${message} ${t("queue.disabled_hint")}`;
+  }
 
   logger.debug(
     `[InteractionGuard] Blocked input: interactionKind=${decision.state?.kind || "none"}, inputType=${decision.inputType}, reason=${decision.reason || "unknown"}, command=${decision.command || "-"}, busy=${decision.busy ? "yes" : "no"}`,

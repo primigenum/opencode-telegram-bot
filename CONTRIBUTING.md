@@ -74,7 +74,11 @@ Rules:
 
 ## Release Notes Mapping
 
-Release notes are generated automatically from commit subjects.
+Release notes for a stable version are curated by the maintainer in `docs/release-notes/v<version>.md` and published verbatim as the GitHub Release body. That file is seeded from the commit subjects by `npm run release:prepare`, and the same automatic generation is used as-is for release candidates and whenever a curated file is missing.
+
+Curated notes describe user-visible changes only: minor technical work and documentation updates are left out. Your commit subject is still what the draft is built from, so keep it accurate.
+
+The automatic mapping below applies to the seeded draft and to generated notes.
 
 Sections are shown only when they contain at least one item.
 

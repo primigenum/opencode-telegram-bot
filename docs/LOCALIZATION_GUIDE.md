@@ -52,6 +52,12 @@ In `LOCALE_DEFINITIONS`, add a new object:
 },
 ```
 
+Keep the existing order: `en` stays first, the rest are sorted alphabetically by
+code. This array defines the order and the numbering of the language list in the
+setup wizard, so inserting a locale anywhere else silently changes the wizard for
+existing users. Place the import in `src/i18n/index.ts` in the same alphabetical
+position.
+
 Example fields:
 
 - `code`: short locale code used in `BOT_LOCALE` (for example `en`, `ru`, etc.)
@@ -63,12 +69,21 @@ No other type updates are needed: `Locale`, `SUPPORTED_LOCALES`, and locale opti
 
 ## 3) Update docs
 
-Update `README.md` for every new locale:
+Every new locale must be added to all four places below. Grep for an existing
+code (for example `zh`) to be sure nothing was missed — the lists use different
+formats, so a single search pattern does not find all of them.
 
-- language list
-- localization section
+`README.md`:
 
-Update `.env.example` add new language to supported languages list
+- the `Languages:` line near the top (native language name + code)
+- the `Supported locales:` list in the `### Localization` section
+- the `BOT_LOCALE` row in the environment variables table
+
+`.env.example`:
+
+- the `# Supported locales:` comment above `BOT_LOCALE`
+
+Keep the same locale order in every list as in `LOCALE_DEFINITIONS`.
 
 ## 4) Verify behavior
 
@@ -103,8 +118,9 @@ Relevant test files if needed:
 ## Quick checklist
 
 - [ ] Added `src/i18n/<locale>.ts`
-- [ ] Imported locale in `src/i18n/index.ts`
-- [ ] Added locale entry to `LOCALE_DEFINITIONS`
-- [ ] Updated `README.md` (language list and localization section)
+- [ ] Imported locale in `src/i18n/index.ts` (alphabetical position)
+- [ ] Added locale entry to `LOCALE_DEFINITIONS` (`en` first, then alphabetical)
+- [ ] Updated `README.md` (`Languages:` line, `Supported locales:` list, `BOT_LOCALE` table row)
+- [ ] Updated `.env.example` (`# Supported locales:` comment)
 - [ ] Ran `bun run build`, `bun run lint`, `bash scripts/run-tests.sh`
 - [ ] Manually validated `BOT_LOCALE` and wizard language selection

@@ -33,13 +33,16 @@ function formatContextForButton(contextInfo: ContextInfo): string {
  * @param currentModel Current model info
  * @param contextInfo Optional context information (tokens used/limit)
  * @param variantName Optional variant display name (e.g., "💭 Default")
- * @returns Reply Keyboard with agent and context in row 1, model and variant in row 2
+ * @param queuedPromptLabels Optional queued prompt labels, one row each above the fixed grid
+ * @returns Reply Keyboard with queued prompts on top, agent and context in the next row,
+ *          model and variant in the last row
  */
 export function createMainKeyboard(
   currentAgent: string,
   currentModel: ModelInfo,
   contextInfo?: ContextInfo,
   variantName?: string,
+  queuedPromptLabels: string[] = [],
 ): Keyboard {
   const keyboard = new Keyboard();
   const agentText = getAgentButtonLabel(currentAgent);
@@ -54,6 +57,11 @@ export function createMainKeyboard(
 
   // Variant text - default to "💭 Default" if not provided
   const variantText = variantName || t("keyboard.variant_default");
+
+  // Queued prompts sit above the fixed grid, one per row
+  for (const label of queuedPromptLabels) {
+    keyboard.text(label).row();
+  }
 
   // Row 1: agent and context buttons
   keyboard.text(agentText).text(contextText).row();

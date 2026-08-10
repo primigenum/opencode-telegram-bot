@@ -33,6 +33,7 @@ describe("app/services/scheduled-task-next-run-service", () => {
       kind: "once",
       projectId: "project-1",
       projectWorktree: "D:\\Projects\\Repo",
+      agent: "build",
       model: {
         providerID: "openai",
         modelID: "gpt-5",
@@ -60,6 +61,7 @@ describe("app/services/scheduled-task-next-run-service", () => {
       kind: "cron",
       projectId: "project-1",
       projectWorktree: "D:\\Projects\\Repo",
+      agent: "build",
       model: {
         providerID: "openai",
         modelID: "gpt-5",

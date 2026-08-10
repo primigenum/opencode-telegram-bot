@@ -2,12 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Bot, Context } from "grammy";
 import { loadSut } from "#helpers/sut-loader.js";
 import type { ProcessPromptDeps } from "#src/bot/handlers/prompt.js";
+import { promptAttachment } from "#src/app/managers/prompt-attachment-manager.js";
 const { consumePromptResponseMode, processUserPrompt } = await loadSut<typeof import("#src/bot/handlers/prompt.js")>(
   "#src/bot/handlers/prompt.ts",
   import.meta.url,
 );
 
 const mocked = vi.hoisted(() => ({
+  resolvePendingAttachmentMock: vi.fn(),
+  interactionClearMock: vi.fn(),
+  editMessageReplyMarkupMock: vi.fn(),
   currentProject: { id: "project-1", worktree: "D:\\Projects\\Repo" },
   currentSession: {
     id: "session-1",
@@ -95,7 +99,7 @@ vi.mock("#src/app/managers/summary-aggregation-manager.ts", () => ({
 
 vi.mock("#src/app/managers/interaction-manager.ts", () => ({
   interactionManager: {
-    clear: vi.fn(),
+    clear: mocked.interactionClearMock,
     getSnapshot: vi.fn(() => null),
   },
   clearAllInteractionState: vi.fn(),
@@ -140,10 +144,16 @@ vi.mock("#src/app/managers/external-input-suppression-manager.ts", () => ({
   },
 }));
 
+// The resolver has its own suite; here only the wiring around it is under test.
+vi.mock("#src/app/services/prompt-attachment-service.ts", () => ({
+  resolvePendingAttachment: mocked.resolvePendingAttachmentMock,
+}));
+
 function createContext(): Context {
   return {
     chat: { id: 777 },
     reply: vi.fn().mockResolvedValue({ message_id: 100 }),
+    api: { editMessageReplyMarkup: mocked.editMessageReplyMarkupMock },
   } as unknown as Context;
 }
 
@@ -206,6 +216,10 @@ describe("bot/handlers/prompt", () => {
     });
     mocked.sessionPromptMock.mockResolvedValue({ data: {}, error: null });
     mocked.sessionPromptAsyncMock.mockResolvedValue({ data: {}, error: null });
+    mocked.resolvePendingAttachmentMock.mockReset();
+    mocked.resolvePendingAttachmentMock.mockResolvedValue(null);
+    mocked.editMessageReplyMarkupMock.mockReset();
+    mocked.editMessageReplyMarkupMock.mockResolvedValue(undefined);
   });
 
   it("registers suppression entry for text prompts", async () => {
@@ -336,5 +350,107 @@ describe("bot/handlers/prompt", () => {
         ],
       }),
     );
+  });
+
+  describe("pending /ls attachment", () => {
+    const attachmentPart = {
+      type: "file" as const,
+      mime: "text/plain",
+      filename: "src\\index.ts",
+      url: "file:///D:/Projects/Repo/src/index.ts",
+    };
+
+    function startWaitingMode(): void {
+      promptAttachment.set("D:\\Projects\\Repo\\src\\index.ts", "D:\\Projects\\Repo");
+      promptAttachment.setConfirmationMessageId(555);
+    }
+
+    it("sends the attached file alongside the prompt", async () => {
+      startWaitingMode();
+      mocked.resolvePendingAttachmentMock.mockResolvedValue(attachmentPart);
+
+      await processUserPrompt(createContext(), "Explain this file", createDeps());
+      await getScheduledBackgroundTask().task();
+
+      expect(mocked.resolvePendingAttachmentMock).toHaveBeenCalledWith("D:\\Projects\\Repo");
+      expect(mocked.sessionPromptAsyncMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          parts: [{ type: "text", text: "Explain this file" }, attachmentPart],
+        }),
+      );
+    });
+
+    it("consumes the attachment and leaves the waiting mode", async () => {
+      startWaitingMode();
+      mocked.resolvePendingAttachmentMock.mockResolvedValue(attachmentPart);
+
+      await processUserPrompt(createContext(), "Explain this file", createDeps());
+
+      expect(promptAttachment.get()).toBeNull();
+      expect(mocked.interactionClearMock).toHaveBeenCalledWith("attachment_consumed");
+    });
+
+    it("removes the cancel button from the confirmation once the file was sent", async () => {
+      startWaitingMode();
+      mocked.resolvePendingAttachmentMock.mockResolvedValue(attachmentPart);
+
+      await processUserPrompt(createContext(), "Explain this file", createDeps());
+
+      expect(mocked.editMessageReplyMarkupMock).toHaveBeenCalledWith(777, 555);
+    });
+
+    it("still retires the confirmation when the file went stale", async () => {
+      startWaitingMode();
+      mocked.resolvePendingAttachmentMock.mockResolvedValue(null);
+
+      await processUserPrompt(createContext(), "Explain this file", createDeps());
+
+      expect(mocked.editMessageReplyMarkupMock).toHaveBeenCalledWith(777, 555);
+    });
+
+    it("does not touch any message when no file is attached", async () => {
+      await processUserPrompt(createContext(), "Plain prompt", createDeps());
+
+      expect(mocked.editMessageReplyMarkupMock).not.toHaveBeenCalled();
+    });
+
+    it("does not reuse the attachment for the next prompt", async () => {
+      startWaitingMode();
+      mocked.resolvePendingAttachmentMock.mockResolvedValueOnce(attachmentPart);
+
+      await processUserPrompt(createContext(), "First", createDeps());
+      mocked.sessionPromptAsyncMock.mockClear();
+      mocked.safeBackgroundTaskMock.mockClear();
+
+      await processUserPrompt(createContext(), "Second", createDeps());
+      await getScheduledBackgroundTask().task();
+
+      expect(mocked.sessionPromptAsyncMock).toHaveBeenCalledWith(
+        expect.objectContaining({ parts: [{ type: "text", text: "Second" }] }),
+      );
+    });
+
+    it("warns and sends the prompt without the file when it went stale", async () => {
+      startWaitingMode();
+      mocked.resolvePendingAttachmentMock.mockResolvedValue(null);
+
+      const ctx = createContext();
+      const handled = await processUserPrompt(ctx, "Explain this file", createDeps());
+      await getScheduledBackgroundTask().task();
+
+      expect(handled).toBe(true);
+      expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining("⚠️"));
+      expect(mocked.sessionPromptAsyncMock).toHaveBeenCalledWith(
+        expect.objectContaining({ parts: [{ type: "text", text: "Explain this file" }] }),
+      );
+      expect(promptAttachment.get()).toBeNull();
+    });
+
+    it("leaves interaction state alone when no file is attached", async () => {
+      await processUserPrompt(createContext(), "Plain prompt", createDeps());
+
+      expect(mocked.resolvePendingAttachmentMock).toHaveBeenCalled();
+      expect(mocked.interactionClearMock).not.toHaveBeenCalledWith("attachment_consumed");
+    });
   });
 });

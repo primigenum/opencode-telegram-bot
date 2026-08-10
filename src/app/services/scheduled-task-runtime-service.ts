@@ -4,7 +4,7 @@ import { t } from "../../i18n/index.js";
 import { logger } from "../../utils/logger.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { formatAssistantRunFooter } from "../formatters/assistant-run-footer-formatter.js";
-import { executeScheduledTask, SCHEDULED_TASK_AGENT } from "./scheduled-task-executor-service.js";
+import { executeScheduledTask } from "./scheduled-task-executor-service.js";
 import { foregroundSessionState } from "../managers/foreground-session-state-manager.js";
 import { cleanupScheduledTaskSessionIgnores } from "./scheduled-task-session-ignore-service.js";
 import { computeNextRunAt, isTaskDue } from "./scheduled-task-next-run-service.js";
@@ -62,7 +62,7 @@ function buildSuccessDelivery(
     }),
     resultText,
     footerText: formatAssistantRunFooter({
-      agent: task.model.agent ?? SCHEDULED_TASK_AGENT,
+      agent: task.agent,
       providerID: task.model.providerID,
       modelID: task.model.modelID,
       elapsedMs: calculateElapsedMs(startedAt, runAt),

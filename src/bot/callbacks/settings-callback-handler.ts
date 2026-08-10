@@ -2,12 +2,14 @@ import type { Context } from "grammy";
 import { isTtsConfigured } from "../../app/services/tts-service.js";
 import {
   getCompactOutputMode,
+  getPromptQueueEnabled,
   getResponseStreamingMode,
   getSendDiffFileAttachments,
   getShowAssistantRunFooter,
   getShowThinkingContent,
   getTtsMode,
   setCompactOutputMode,
+  setPromptQueueEnabled,
   setResponseStreamingMode,
   setSendDiffFileAttachments,
   setShowAssistantRunFooter,
@@ -25,6 +27,7 @@ import {
   SETTINGS_CALLBACK_PREFIX,
   SETTINGS_COMPACT_OUTPUT_CALLBACK,
   SETTINGS_DIFF_FILES_CALLBACK,
+  SETTINGS_PROMPT_QUEUE_CALLBACK,
   SETTINGS_RESPONSE_STREAMING_CALLBACK,
   SETTINGS_THINKING_CONTENT_CALLBACK,
   SETTINGS_TTS_CALLBACK,
@@ -103,6 +106,16 @@ export async function handleSettingsCallback(ctx: Context): Promise<boolean> {
 
     if (callbackData === SETTINGS_DIFF_FILES_CALLBACK) {
       setSendDiffFileAttachments(!getSendDiffFileAttachments());
+      const { text, keyboard } = buildSettingsMenuView();
+      await ctx.answerCallbackQuery({ text: t("settings.saved") });
+      await ctx.editMessageText(text, {
+        reply_markup: appendInlineMenuCancelButton(keyboard, "settings"),
+      });
+      return true;
+    }
+
+    if (callbackData === SETTINGS_PROMPT_QUEUE_CALLBACK) {
+      setPromptQueueEnabled(!getPromptQueueEnabled());
       const { text, keyboard } = buildSettingsMenuView();
       await ctx.answerCallbackQuery({ text: t("settings.saved") });
       await ctx.editMessageText(text, {

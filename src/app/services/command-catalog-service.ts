@@ -20,9 +20,10 @@ export async function loadCommandCatalog(projectDirectory: string): Promise<Comm
 
   return data
     .filter((command) => {
-      const source = (command as { source?: unknown }).source;
       return (
-        typeof command.name === "string" && command.name.trim().length > 0 && source === "command"
+        typeof command.name === "string" &&
+        command.name.trim().length > 0 &&
+        command.source === "command"
       );
     })
     .map((command) => ({

@@ -2,13 +2,13 @@ import { config } from "../../config.js";
 import { t } from "../../i18n/index.js";
 import { opencodeClient } from "../../opencode/client.js";
 import { logger } from "../../utils/logger.js";
+import { extractErrorMessage } from "../../utils/opencode-error.js";
 import {
   cleanupScheduledTaskSessionIgnores,
   registerScheduledTaskSessionIgnore,
 } from "./scheduled-task-session-ignore-service.js";
 import type { ScheduledTask, ScheduledTaskExecutionResult } from "../types/scheduled-task.js";
 
-export const SCHEDULED_TASK_AGENT = "build";
 const SCHEDULED_TASK_SESSION_TITLE = "Scheduled task run";
 const EXECUTION_POLL_INTERVAL_MS = 2000;
 const MAX_IDLE_POLLS_WITHOUT_RESULT = 3;
@@ -90,40 +90,6 @@ function collectResponseText(parts: TextLikePart[]): string {
     .map((part) => part.text)
     .join("")
     .trim();
-}
-
-function extractErrorMessage(error: unknown): string | null {
-  if (error instanceof Error && error.message.trim()) {
-    return error.message.trim();
-  }
-
-  if (typeof error === "string" && error.trim()) {
-    return error.trim();
-  }
-
-  if (!error || typeof error !== "object") {
-    return null;
-  }
-
-  const typedError = error as {
-    message?: unknown;
-    name?: unknown;
-    data?: { message?: unknown };
-  };
-
-  if (typeof typedError.data?.message === "string" && typedError.data.message.trim()) {
-    return typedError.data.message.trim();
-  }
-
-  if (typeof typedError.message === "string" && typedError.message.trim()) {
-    return typedError.message.trim();
-  }
-
-  if (typeof typedError.name === "string" && typedError.name.trim()) {
-    return typedError.name.trim();
-  }
-
-  return null;
 }
 
 function isTimeoutErrorMessage(message: string): boolean {
@@ -560,7 +526,7 @@ export async function executeScheduledTask(
       sessionID: session.id,
       directory: session.directory,
       parts: [{ type: "text", text: task.prompt }],
-      agent: task.model.agent ?? SCHEDULED_TASK_AGENT,
+      agent: task.agent,
     };
 
     if (task.model.providerID && task.model.modelID) {

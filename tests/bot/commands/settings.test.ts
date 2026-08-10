@@ -20,6 +20,8 @@ const mocked = {
   setShowAssistantRunFooterMock: vi.fn(),
   getTtsModeMock: vi.fn(),
   setTtsModeMock: vi.fn(),
+  getPromptQueueEnabledMock: vi.fn(),
+  setPromptQueueEnabledMock: vi.fn(),
   isTtsConfiguredMock: vi.fn(),
 };
 
@@ -46,6 +48,7 @@ bunMock.module("#src/app/stores/settings-store.ts", () => ({
   getShowAssistantRunFooter: mocked.getShowAssistantRunFooterMock,
   getShowThinkingContent: mocked.getShowThinkingContentMock,
   getTtsMode: mocked.getTtsModeMock,
+  getPromptQueueEnabled: mocked.getPromptQueueEnabledMock,
   getVisibleProjects: _realSettingsStore.getVisibleProjects,
   loadSettings: _realSettingsStore.loadSettings,
   setCompactOutputMode: mocked.setCompactOutputModeMock,
@@ -54,6 +57,7 @@ bunMock.module("#src/app/stores/settings-store.ts", () => ({
   setCurrentProject: _realSettingsStore.setCurrentProject,
   setCurrentSession: _realSettingsStore.setCurrentSession,
   setPinnedMessageId: _realSettingsStore.setPinnedMessageId,
+  setPromptQueueEnabled: mocked.setPromptQueueEnabledMock,
   setResponseStreamingMode: mocked.setResponseStreamingModeMock,
   setScheduledTaskSessionIgnores: _realSettingsStore.setScheduledTaskSessionIgnores,
   setScheduledTasks: _realSettingsStore.setScheduledTasks,
@@ -91,6 +95,7 @@ const {
   SETTINGS_CALLBACK_PREFIX,
   SETTINGS_COMPACT_OUTPUT_CALLBACK,
   SETTINGS_DIFF_FILES_CALLBACK,
+  SETTINGS_PROMPT_QUEUE_CALLBACK,
   SETTINGS_RESPONSE_STREAMING_CALLBACK,
   SETTINGS_THINKING_CONTENT_CALLBACK,
   SETTINGS_TTS_CALLBACK,
@@ -105,6 +110,7 @@ describe("bot/commands/settings-command", () => {
     mocked.getResponseStreamingModeMock.mockReturnValue("edit");
     mocked.getSendDiffFileAttachmentsMock.mockReturnValue(true);
     mocked.getShowAssistantRunFooterMock.mockReturnValue(true);
+    mocked.getPromptQueueEnabledMock.mockReturnValue(false);
     interactionManager.clear("settings_test_reset");
   });
 
@@ -136,7 +142,10 @@ describe("bot/commands/settings-command", () => {
     expect(opts.reply_markup.inline_keyboard[3][0].text).toBe(
       `${t("settings.tts.label")}: ${t("status.tts.auto")}`,
     );
-    expect(opts.reply_markup.inline_keyboard[4][0].text).toBe(t("inline.button.close"));
+    expect(opts.reply_markup.inline_keyboard[4][0].text).toBe(
+      `${t("settings.prompt_queue.label")}: ${t("settings.value.off")}`,
+    );
+    expect(opts.reply_markup.inline_keyboard[5][0].text).toBe(t("inline.button.close"));
   });
 
   it("shows thinking content setting when compact output is disabled", async () => {
@@ -168,6 +177,9 @@ describe("bot/commands/settings-command", () => {
     expect(opts.reply_markup.inline_keyboard[5][0].text).toBe(
       `${t("settings.tts.label")}: ${t("status.tts.off")}`,
     );
+    expect(opts.reply_markup.inline_keyboard[6][0].text).toBe(
+      `${t("settings.prompt_queue.label")}: ${t("settings.value.off")}`,
+    );
   });
 
   it("marks draft response streaming mode as experimental", async () => {
@@ -197,6 +209,7 @@ describe("bot/callbacks/settings-callback-handler", () => {
     mocked.getResponseStreamingModeMock.mockReturnValue("edit");
     mocked.getSendDiffFileAttachmentsMock.mockReturnValue(true);
     mocked.getShowAssistantRunFooterMock.mockReturnValue(true);
+    mocked.getPromptQueueEnabledMock.mockReturnValue(false);
     interactionManager.clear("settings_test_reset");
   });
 
@@ -323,6 +336,26 @@ describe("bot/callbacks/settings-callback-handler", () => {
     expect(text).toBe(t("settings.menu.title"));
     expect(opts?.reply_markup?.inline_keyboard[4][0].text).toBe(
       `${t("settings.assistant_footer.label")}: ${t("settings.value.off")}`,
+    );
+  });
+
+  it("toggles the prompt queue setting and returns to settings menu", async () => {
+    mocked.getCompactOutputModeMock.mockReturnValue(false);
+    mocked.getShowThinkingContentMock.mockReturnValue(true);
+    mocked.getTtsModeMock.mockReturnValue("off");
+    mocked.getPromptQueueEnabledMock.mockReturnValueOnce(false).mockReturnValueOnce(true);
+    activateSettingsMenu();
+    const ctx = createCallbackContext(SETTINGS_PROMPT_QUEUE_CALLBACK);
+
+    const result = await handleSettingsCallback(ctx);
+
+    expect(result).toBe(true);
+    expect(mocked.setPromptQueueEnabledMock).toHaveBeenCalledWith(true);
+    expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({ text: t("settings.saved") });
+    const [text, opts] = vi.mocked(ctx.editMessageText).mock.calls[0];
+    expect(text).toBe(t("settings.menu.title"));
+    expect(opts?.reply_markup?.inline_keyboard[6][0].text).toBe(
+      `${t("settings.prompt_queue.label")}: ${t("settings.value.on")}`,
     );
   });
 

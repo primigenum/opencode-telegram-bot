@@ -20,8 +20,7 @@ export async function loadSkillsCatalog(projectDirectory: string): Promise<Skill
 
   return data
     .filter((skill) => {
-      const source = (skill as { source?: unknown }).source;
-      return typeof skill.name === "string" && skill.name.trim().length > 0 && source === "skill";
+      return typeof skill.name === "string" && skill.name.trim().length > 0 && skill.source === "skill";
     })
     .map((skill) => ({
       name: skill.name,
