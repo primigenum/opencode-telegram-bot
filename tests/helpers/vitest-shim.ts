@@ -268,12 +268,19 @@ export async function advanceTimersByTimeAsync(ms: number): Promise<void> {
     // setImmediate. Each setImmediate registered while `useFakeTimers`
     // is active consumes a slot in bun's internal fake-timer heap, and
     // the heap corrupts after ~3700 such calls (bun then throws
-    // "Fake timers are not active" mid-test). A generous handful of
-    // `await Promise.resolve()` turns drains the typical await chains
-    // (mocked resolved promises, `enqueueTask` .then, etc.) without
-    // leaking into the fake-timer queue.
-    for (let i = 0; i < 20; i++) {
+    // "Fake timers are not active" mid-test).
+    //
+    // Promise.resolve() turns drain pure microtask chains; process.nextTick
+    // additionally runs one full microtask-queue turn (it is not a timer, so
+    // bun's fake-timer heap never intercepts it). Together they let async
+    // chains that schedule follow-up timers (e.g. subagent card refresh →
+    // streamer throttle) register them deterministically — a fixed microtask
+    // count alone is not enough on slow CI runners.
+    for (let i = 0; i < 5; i++) {
       await Promise.resolve();
+    }
+    for (let i = 0; i < 10; i++) {
+      await new Promise((resolve) => process.nextTick(resolve));
     }
   }
 }
