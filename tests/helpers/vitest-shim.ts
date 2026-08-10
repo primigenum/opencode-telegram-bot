@@ -252,10 +252,13 @@ export async function advanceTimersByTimeAsync(ms: number): Promise<void> {
   // new timer's deadline lands outside the window and never fires.
   //
   // Emulate vitest by advancing in bounded chunks and draining microtasks
-  // between chunks. Chunk size is capped at 1000ms so chained sub-second
-  // timers are caught; for very long windows the step grows so the loop stays
-  // cheap (a few hundred iterations at most).
-  const step = ms > 300_000 ? Math.ceil(ms / 300) : 1000;
+  // between chunks. Chunk size is capped at 500ms and each chunk drains the
+  // microtask queue generously (20 turns): on slow machines (CI runners) the
+  // SUT's async chains (e.g. subagent card refresh → streamer throttle) need
+  // more turns to register their follow-up timers before the clock moves on.
+  // For very long windows the step grows so the loop stays cheap (a few
+  // hundred iterations at most).
+  const step = ms > 150_000 ? Math.ceil(ms / 300) : 500;
   let remaining = ms;
   while (remaining > 0) {
     const chunk = Math.min(step, remaining);
@@ -265,11 +268,11 @@ export async function advanceTimersByTimeAsync(ms: number): Promise<void> {
     // setImmediate. Each setImmediate registered while `useFakeTimers`
     // is active consumes a slot in bun's internal fake-timer heap, and
     // the heap corrupts after ~3700 such calls (bun then throws
-    // "Fake timers are not active" mid-test). A handful of `await
-    // Promise.resolve()` turns is enough to drain the typical await
-    // chains (mocked resolved promises, `enqueueTask` .then, etc.)
-    // without leaking into the fake-timer queue.
-    for (let i = 0; i < 5; i++) {
+    // "Fake timers are not active" mid-test). A generous handful of
+    // `await Promise.resolve()` turns drains the typical await chains
+    // (mocked resolved promises, `enqueueTask` .then, etc.) without
+    // leaking into the fake-timer queue.
+    for (let i = 0; i < 20; i++) {
       await Promise.resolve();
     }
   }
