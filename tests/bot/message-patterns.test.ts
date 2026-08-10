@@ -8,7 +8,7 @@ const { createMainKeyboard } = await loadSut<typeof import("#src/bot/keyboards/m
   "#src/bot/keyboards/main-reply-keyboard.ts",
   import.meta.url,
 );
-const { AGENT_MODE_BUTTON_TEXT_PATTERN, isReplyKeyboardButtonText, MODEL_BUTTON_TEXT_PATTERN, QUEUED_PROMPT_BUTTON_TEXT_PATTERN, VARIANT_BUTTON_TEXT_PATTERN } = await loadSut<typeof import("#src/bot/message-patterns.js")>(
+const { AGENT_MODE_BUTTON_TEXT_PATTERN, CONTEXT_BUTTON_TEXT_PATTERN, isReplyKeyboardButtonText, MODEL_BUTTON_TEXT_PATTERN, QUEUED_PROMPT_BUTTON_TEXT_PATTERN, VARIANT_BUTTON_TEXT_PATTERN } = await loadSut<typeof import("#src/bot/message-patterns.js")>(
   "#src/bot/message-patterns.ts",
   import.meta.url,
 );
@@ -66,6 +66,17 @@ describe("bot/message-patterns", () => {
     expect(formatQueuedPromptButtonLabel(12, "Fix the bug")).toMatch(
       QUEUED_PROMPT_BUTTON_TEXT_PATTERN,
     );
+  });
+
+  it("matches context button labels but not prompts that merely start with the emoji", () => {
+    // Real reply-keyboard button renders (all locales render numbers only).
+    expect("📊 150K / 1.5M (10%)").toMatch(CONTEXT_BUTTON_TEXT_PATTERN);
+    expect("📊 0").toMatch(CONTEXT_BUTTON_TEXT_PATTERN);
+    expect("📊 0 / 1.5M (0%)").toMatch(CONTEXT_BUTTON_TEXT_PATTERN);
+    // User prompts that start with the emoji must NOT open the compact menu.
+    expect("📊 hola").not.toMatch(CONTEXT_BUTTON_TEXT_PATTERN);
+    expect("📊 Context: 150K / 1.5M (10%)").not.toMatch(CONTEXT_BUTTON_TEXT_PATTERN);
+    expect("📊").not.toMatch(CONTEXT_BUTTON_TEXT_PATTERN);
   });
 
   it("does not treat other button labels or prompts as queued prompts", () => {
