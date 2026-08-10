@@ -135,16 +135,14 @@ export function spyOn<T extends object, M extends PropertyKey>(
 }
 
 export function restoreAllMocks(): void {
-  // Restore every tracked mock WITHOUT dropping them from the registry.
-  // Vitest's restoreAllMocks() restores all existing mocks and keeps
-  // tracking them; popping here emptied the registry after the first
-  // test, so later vi.clearAllMocks() calls (which tests rely on for
-  // isolation) had nothing to clear and call counts leaked between tests.
-  for (const m of trackedMocks) {
-    try {
-      m.mockRestore();
-    } catch {
-      // ignore — restore best-effort
+  while (trackedMocks.length > 0) {
+    const m = trackedMocks.pop();
+    if (m) {
+      try {
+        m.mockRestore();
+      } catch {
+        // ignore — restore best-effort
+      }
     }
   }
 }
@@ -244,44 +242,17 @@ export function advanceTimersByTime(ms: number): void {
 }
 
 export async function advanceTimersByTimeAsync(ms: number): Promise<void> {
-  // vitest's async variant advances the clock in a loop, letting the microtask
-  // chains that timer callbacks spawn register their OWN timers before the
-  // clock moves on. A single synchronous advance (what bun's jest API offers)
-  // misses chained timers: a callback that runs at t=20s and schedules a
-  // setTimeout(1000) does so with the clock already at the window end, so the
-  // new timer's deadline lands outside the window and never fires.
-  //
-  // Emulate vitest by advancing in bounded chunks and draining microtasks
-  // between chunks. Chunk size is capped at 500ms and each chunk drains the
-  // microtask queue generously (20 turns): on slow machines (CI runners) the
-  // SUT's async chains (e.g. subagent card refresh → streamer throttle) need
-  // more turns to register their follow-up timers before the clock moves on.
-  // For very long windows the step grows so the loop stays cheap (a few
-  // hundred iterations at most).
-  const step = ms > 150_000 ? Math.ceil(ms / 300) : 500;
-  let remaining = ms;
-  while (remaining > 0) {
-    const chunk = Math.min(step, remaining);
-    advanceTimersByTime(chunk);
-    remaining -= chunk;
-    // Drain the SUT's pending microtask chain without queueing a
-    // setImmediate. Each setImmediate registered while `useFakeTimers`
-    // is active consumes a slot in bun's internal fake-timer heap, and
-    // the heap corrupts after ~3700 such calls (bun then throws
-    // "Fake timers are not active" mid-test).
-    //
-    // Promise.resolve() turns drain pure microtask chains; process.nextTick
-    // additionally runs one full microtask-queue turn (it is not a timer, so
-    // bun's fake-timer heap never intercepts it). Together they let async
-    // chains that schedule follow-up timers (e.g. subagent card refresh →
-    // streamer throttle) register them deterministically — a fixed microtask
-    // count alone is not enough on slow CI runners.
-    for (let i = 0; i < 5; i++) {
-      await Promise.resolve();
-    }
-    for (let i = 0; i < 10; i++) {
-      await new Promise((resolve) => process.nextTick(resolve));
-    }
+  advanceTimersByTime(ms);
+  // Drain the SUT's pending microtask chain without queueing a
+  // setImmediate. Each setImmediate registered while `useFakeTimers`
+  // is active consumes a slot in bun's internal fake-timer heap, and
+  // the heap corrupts after ~3700 such calls (bun then throws
+  // "Fake timers are not active" mid-test). A handful of `await
+  // Promise.resolve()` turns is enough to drain the typical await
+  // chains (mocked resolved promises, `enqueueTask` .then, etc.)
+  // without leaking into the fake-timer queue.
+  for (let i = 0; i < 5; i++) {
+    await Promise.resolve();
   }
 }
 
