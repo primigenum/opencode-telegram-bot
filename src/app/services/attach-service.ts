@@ -58,13 +58,11 @@ export interface RestoreAttachedCurrentSessionDeps {
   forceFullRestore?: boolean;
 }
 
-function getAttachBusyStatus(sessionId: string, statuses: unknown): boolean {
-  if (!statuses || typeof statuses !== "object") {
-    return false;
-  }
-
-  const sessionStatus = (statuses as Record<string, { type?: string }>)[sessionId];
-  return sessionStatus?.type === "busy";
+function getAttachBusyStatus(
+  sessionId: string,
+  statuses: Record<string, { type?: string }> | undefined,
+): boolean {
+  return statuses?.[sessionId]?.type === "busy";
 }
 
 async function syncPinnedAttachState(): Promise<void> {

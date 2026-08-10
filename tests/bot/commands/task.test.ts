@@ -32,6 +32,7 @@ const mocked = vi.hoisted(() => ({
     modelID: "gpt-5",
     variant: "default",
   },
+  storedAgent: "build",
   taskLimit: 10,
   parseTaskScheduleMock: vi.fn(),
   addScheduledTaskMock: vi.fn(),
@@ -81,6 +82,10 @@ vi.mock("#src/config.ts", () => ({
 
 vi.mock("#src/app/stores/settings-store.ts", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
+}));
+
+vi.mock("#src/app/services/agent-selection-service.ts", () => ({
+  getStoredAgent: vi.fn(() => mocked.storedAgent),
 }));
 
 vi.mock("#src/app/services/model-selection-service.ts", () => ({
@@ -155,6 +160,7 @@ describe("bot/commands/task", () => {
       modelID: "gpt-5",
       variant: "default",
     };
+    mocked.storedAgent = "build";
     mocked.parseTaskScheduleMock.mockReset();
     mocked.addScheduledTaskMock.mockReset();
     mocked.listScheduledTasksMock.mockReset();
@@ -253,6 +259,7 @@ describe("bot/commands/task", () => {
       expect.objectContaining({
         projectId: "project-1",
         projectWorktree: "D:\\Projects\\Repo",
+        agent: "build",
         model: {
           providerID: "openai",
           modelID: "gpt-5",
@@ -273,6 +280,10 @@ describe("bot/commands/task", () => {
     const successCall = (ctx.reply as ReturnType<typeof vi.fn>).mock.calls[0] as [string];
     expect(successCall[0]).toContain("Send me a daily summary");
     expect(successCall[0]).toContain("D:\\Projects\\Repo");
+    expect(successCall[0]).toContain("🛠️ Build");
+    expect(successCall[0].indexOf("🛠️ Build")).toBeLessThan(
+      successCall[0].indexOf("openai/gpt-5 (default)"),
+    );
     expect(successCall[0]).toContain("openai/gpt-5 (default)");
     expect(successCall[0]).toContain("Every day at 17:00");
     expect(successCall[0]).toContain("Cron: 0 17 * * *");

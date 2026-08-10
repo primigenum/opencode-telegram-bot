@@ -7,6 +7,7 @@ import type { ScheduledTask, TaskCreationState } from "../../app/types/scheduled
 import { getAgentDisplayName } from "../../app/types/agent.js";
 import { getScheduledTask, removeScheduledTask } from "../../app/stores/scheduled-task-store.js";
 import { scheduledTaskRuntime } from "../../app/services/scheduled-task-runtime-service.js";
+import { getAgentDisplayName } from "../../app/types/agent.js";
 import { logger } from "../../utils/logger.js";
 import {
   buildCancelKeyboard,
@@ -187,7 +188,9 @@ function formatTaskDetails(task: ScheduledTask): string {
 
   return t("tasklist.details", {
     prompt: truncatePromptForDetails(task.prompt),
-    project: `${task.projectWorktree}\n${t("status.line.model", { model })}`,
+    project: `${task.projectWorktree}\n${t("status.line.mode", {
+      mode: getAgentDisplayName(task.agent),
+    })}\n${t("status.line.model", { model })}`,
     schedule: task.scheduleSummary,
     cronLine,
     timezone: task.timezone,

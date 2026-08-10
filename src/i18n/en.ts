@@ -154,6 +154,7 @@ export const en = {
   "settings.diff_files.label": "Diff files",
   "settings.assistant_footer.label": "Assistant footer",
   "settings.tts.label": "Audio replies",
+  "settings.prompt_queue.label": "Message queue",
   "settings.value.on": "On",
   "settings.value.off": "Off",
   "settings.saved": "✅ Setting saved.",
@@ -400,6 +401,12 @@ export const en = {
   "keyboard.context_empty": "📊 0",
   "keyboard.variant": "💭 {name}",
   "keyboard.variant_default": "💡 Default",
+  "keyboard.queued_prompt": "❌ {index}. {text}",
+  "queue.added": "📥 Added to queue ({count}/{max}). It will be sent when the current task finishes.",
+  "queue.full": "⚠️ Queue is full ({max}). Remove a message or wait for the current task to finish.",
+  "queue.removed": "🗑 Message removed from the queue.",
+  "queue.not_found": "This message is no longer in the queue.",
+  "queue.disabled_hint": "The message queue can be enabled in /settings.",
   "keyboard.updated": "⌨️ Keyboard updated",
 
   "pinned.default_session_title": "new session",
@@ -486,7 +493,7 @@ export const en = {
   "task.prompt.body": "📝 Now send what the bot should do on schedule.",
   "task.prompt_empty": "⚠️ Task text cannot be empty.",
   "task.created":
-    "✅ Scheduled task created\n\nTask: {description}\nProject: {project}\nModel: {model}\nSchedule: {schedule}\n{cronLine}Next run: {nextRunAt}",
+    "✅ Scheduled task created\n\nTask: {description}\nProject: {project}\nAgent: {agent}\nModel: {model}\nSchedule: {schedule}\n{cronLine}Next run: {nextRunAt}",
   "task.created.cron": "Cron: {cron}",
   "task.button.retry_schedule": "🔁 Re-enter schedule",
   "task.button.cancel": "❌ Cancel",
@@ -642,6 +649,11 @@ export const en = {
   "ls.file.header": "File Details",
   "ls.file.download": "📥 Download",
   "ls.file.back": "⬅️ Back",
+  "ls.file.attach": "📎 Attach to next prompt",
+  "attachment.added": "📎 Attached: {path}\n\nSend your message and the file will go with it.",
+  "attachment.cancel": "❌ Cancel attachment",
+  "attachment.cancelled": "❌ Attachment cancelled",
+  "attachment.invalid": "⚠️ The attached file is no longer available. Sending the message without it.",
 } as const;
 
 export type I18nKey = keyof typeof en;

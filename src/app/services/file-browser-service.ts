@@ -319,6 +319,20 @@ export function isWithinProjectRoot(targetPath: string): boolean {
   return projectRoot !== null && isPathWithinDirectory(targetPath, projectRoot);
 }
 
+export async function isWithinProjectRootSafe(targetPath: string): Promise<boolean> {
+  let resolved = targetPath;
+  try {
+    const proc = Bun.spawn(["realpath", targetPath], { stdout: "pipe", stderr: "pipe" });
+    const exitCode = await proc.exited;
+    if (exitCode === 0) {
+      resolved = (await proc.stdout.text()).trim();
+    }
+  } catch {
+    // realpath unavailable; fall through with the original value.
+  }
+  return isWithinProjectRoot(resolved);
+}
+
 export function isProjectRoot(targetPath: string): boolean {
   const projectRoot = getProjectRoot();
   return projectRoot !== null && isSamePath(targetPath, projectRoot);

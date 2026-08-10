@@ -5,12 +5,14 @@ import { getDateLocale, t } from "../../i18n/index.js";
 import { interactionManager } from "../../app/managers/interaction-manager.js";
 import type { InteractionState } from "../../app/types/interaction.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
-import { getCurrentAgent, getCurrentProject } from "../../app/stores/settings-store.js";
+import { getStoredAgent } from "../../app/services/agent-selection-service.js";
+import { getCurrentProject } from "../../app/stores/settings-store.js";
 import { taskCreationManager } from "../../app/managers/scheduled-task-creation-manager.js";
 import { parseTaskSchedule } from "../../app/services/scheduled-task-schedule-parser-service.js";
 import { addScheduledTask, listScheduledTasks } from "../../app/stores/scheduled-task-store.js";
 import { scheduledTaskRuntime } from "../../app/services/scheduled-task-runtime-service.js";
 import { buildCancelKeyboard, buildRetryScheduleKeyboard } from "../menus/scheduled-task-menu.js";
+import { getAgentDisplayName } from "../../app/types/agent.js";
 import {
   createScheduledTaskModel,
   type ParsedTaskSchedule,
@@ -96,6 +98,7 @@ function formatTaskCreatedMessage(task: ScheduledTask): string {
   return t("task.created", {
     description: truncateTaskPrompt(task.prompt),
     project: task.projectWorktree,
+    agent: getAgentDisplayName(task.agent),
     model,
     schedule: task.scheduleSummary,
     cronLine,
@@ -232,6 +235,7 @@ async function deleteMessageIfPresent(
 function buildScheduledTask(
   projectId: string,
   projectWorktree: string,
+  agent: string,
   model: ScheduledTask["model"],
   scheduleText: string,
   parsedSchedule: ParsedTaskSchedule,
@@ -241,6 +245,7 @@ function buildScheduledTask(
     id: crypto.randomUUID(),
     projectId,
     projectWorktree,
+    agent,
     model,
     scheduleText,
     scheduleSummary: parsedSchedule.summary,
@@ -281,9 +286,10 @@ export async function taskCommand(ctx: CommandContext<Context>): Promise<void> {
     return;
   }
 
-  const currentModel = createScheduledTaskModel(getStoredModel(), getCurrentAgent());
+  const currentModel = createScheduledTaskModel(getStoredModel());
+  const currentAgent = getStoredAgent();
 
-  taskCreationManager.start(currentProject.id, currentProject.worktree, currentModel);
+  taskCreationManager.start(currentProject.id, currentProject.worktree, currentModel, currentAgent);
   interactionManager.start({
     kind: "task",
     expectedInput: "text",
@@ -427,6 +433,7 @@ export async function handleTaskTextInput(ctx: Context): Promise<boolean> {
     const task = buildScheduledTask(
       flowState.projectId,
       flowState.projectWorktree,
+      flowState.agent,
       flowState.model,
       flowState.scheduleText,
       flowState.parsedSchedule,

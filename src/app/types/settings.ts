@@ -22,6 +22,7 @@ export interface Settings {
   showAssistantRunFooter?: boolean;
   responseStreamingMode?: ResponseStreamingMode;
   sendDiffFileAttachments?: boolean;
+  promptQueueEnabled?: boolean;
   sessionDirectoryCache?: SessionDirectoryCacheInfo;
   scheduledTasks?: ScheduledTask[];
   scheduledTaskSessionIgnores?: ScheduledTaskSessionIgnoreInfo[];

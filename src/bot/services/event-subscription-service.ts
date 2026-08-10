@@ -3,9 +3,20 @@ import { fileURLToPath } from "url";
 import { Bot, Context, InputFile } from "grammy";
 import { config } from "../../config.js";
 import { t } from "../../i18n/index.js";
-import { summaryAggregator, type ToolInfo } from "../../app/managers/summary-aggregation-manager.js";
+import {
+  summaryAggregator,
+  type SubagentInfo,
+  type ToolInfo,
+} from "../../app/managers/summary-aggregation-manager.js";
 import { formatCompactToolActivity, formatToolInfo } from "../../app/formatters/summary-formatter.js";
 import { renderSubagentCards } from "../../app/formatters/subagent-formatter.js";
+import {
+  RUNNING_ICON,
+  TOOL_ELAPSED_THRESHOLD_MS,
+  appendDuration,
+  formatDuration,
+  formatDurationOverHours,
+} from "../../app/formatters/duration-formatter.js";
 import { ToolMessageBatcher } from "../../app/formatters/tool-message-batcher.js";
 import {
   getCompactOutputMode,
@@ -45,6 +56,7 @@ import { scheduledTaskRuntime } from "../../app/services/scheduled-task-runtime-
 import { assistantRunState } from "../../app/managers/assistant-run-state-manager.js";
 import { ResponseStreamer, type StreamingMessagePayload } from "../streaming/response-streamer.js";
 import { ToolCallStreamer, type ToolStreamKey } from "../streaming/tool-call-streamer.js";
+import { RunningToolTracker, type RunningToolTick } from "../streaming/running-tool-tracker.js";
 import { CompactProgressStreamer } from "../streaming/compact-progress-streamer.js";
 import { attachManager } from "../../app/managers/attach-manager.js";
 import {
@@ -62,6 +74,7 @@ import {
   prepareThinkingStreamingPayload,
 } from "../messages/thinking-rendering.js";
 import { deliverExternalUserInputNotification } from "../messages/external-user-input-notification.js";
+import { dispatchNextQueuedPrompt } from "../handlers/prompt-queue-dispatch.js";
 import {
   backgroundSessionTracker,
   type BackgroundSessionNotification,
@@ -82,6 +95,9 @@ const RESPONSE_STREAM_THROTTLE_MS = config.bot.responseStreamThrottleMs;
 const RESPONSE_STREAM_TEXT_LIMIT = 3800;
 const SESSION_RETRY_PREFIX = "🔁";
 const SUBAGENT_STREAM_PREFIX = "🧩";
+const TOOL_ELAPSED_TICK_INTERVAL_MS = 5000;
+const TOOL_ELAPSED_MAX_TRACKING_HOURS = 24;
+const TOOL_ELAPSED_MAX_TRACKING_MS = TOOL_ELAPSED_MAX_TRACKING_HOURS * 60 * 60 * 1000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const TEMP_DIR = path.join(__dirname, "..", "..", ".tmp");
@@ -125,8 +141,26 @@ class EventSubscriptionService implements BotEventSubscriptionService {
   private readonly toolCallStreamer: ToolCallStreamer;
   private readonly toolMessageBatcher: ToolMessageBatcher;
   private readonly compactProgressStreamer: CompactProgressStreamer;
+  private readonly runningToolTracker: RunningToolTracker;
+  private readonly runningToolInfos = new Map<string, ToolInfo>();
+  private readonly completedToolDurations = new Map<string, number>();
+  private readonly compactActivityBySession = new Map<
+    string,
+    { callId: string; activity: string }
+  >();
+  private readonly subagentSnapshots = new Map<string, SubagentInfo[]>();
 
   constructor() {
+    this.runningToolTracker = new RunningToolTracker({
+      thresholdMs: TOOL_ELAPSED_THRESHOLD_MS,
+      tickIntervalMs: TOOL_ELAPSED_TICK_INTERVAL_MS,
+      maxTrackingMs: TOOL_ELAPSED_MAX_TRACKING_MS,
+      onTick: (tick) => this.handleRunningToolTick(tick),
+      onHeartbeat: (sessionId) => {
+        void this.refreshSubagentCards(sessionId);
+      },
+    });
+
     this.toolMessageBatcher = new ToolMessageBatcher({
       sendText: async (sessionId, text) => {
         if (!this.botInstance || !this.chatIdInstance) {
@@ -303,6 +337,152 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     this.chatIdInstance = chatId;
   }
 
+  private getLiveToolPrefix(callId: string): string {
+    return `${RUNNING_ICON}${callId}`;
+  }
+
+  private handleRunningToolTick(tick: RunningToolTick): void {
+    const currentSession = getCurrentSession();
+    if (!currentSession || currentSession.id !== tick.sessionId) {
+      return;
+    }
+
+    const elapsed = tick.isFinal
+      ? formatDurationOverHours(TOOL_ELAPSED_MAX_TRACKING_HOURS)
+      : formatDuration(tick.elapsedMs);
+
+    if (isCompactProgressMode()) {
+      const cached = this.compactActivityBySession.get(tick.sessionId);
+      if (!cached || cached.callId !== tick.callId) {
+        return;
+      }
+
+      this.compactProgressStreamer.updateActivity(
+        tick.sessionId,
+        appendDuration(cached.activity, elapsed),
+      );
+      return;
+    }
+
+    const toolInfo = this.runningToolInfos.get(this.getToolCacheKey(tick.sessionId, tick.callId));
+    if (!toolInfo) {
+      return;
+    }
+
+    const message = formatToolInfo(toolInfo);
+    if (!message) {
+      return;
+    }
+
+    this.toolCallStreamer.replaceByPrefix(
+      tick.sessionId,
+      this.getLiveToolPrefix(tick.callId),
+      `${RUNNING_ICON} ${appendDuration(message, elapsed)}`,
+      this.getToolStreamKey(toolInfo.tool),
+    );
+  }
+
+  /**
+   * A completed call gets its final line from setOnTool, so the live line just
+   * goes away. A failed one never reaches setOnTool, and a stream left without
+   * entries keeps its last text on screen (syncState skips empty parts) - so its
+   * line is rewritten without the running marker instead of being dropped.
+   */
+  private finalizeLiveToolLine(toolInfo: ToolInfo, failed: boolean, durationMs?: number): void {
+    const livePrefix = this.getLiveToolPrefix(toolInfo.callId);
+    const streamKey = this.getToolStreamKey(toolInfo.tool);
+    const message = failed && durationMs !== undefined ? formatToolInfo(toolInfo) : "";
+
+    if (!message || durationMs === undefined) {
+      this.toolCallStreamer.removeByPrefix(toolInfo.sessionId, livePrefix, streamKey);
+      return;
+    }
+
+    this.toolCallStreamer.replaceByPrefix(
+      toolInfo.sessionId,
+      livePrefix,
+      appendDuration(message, formatDuration(durationMs)),
+      streamKey,
+    );
+  }
+
+  private async refreshSubagentCards(sessionId: string): Promise<void> {
+    if (isCompactProgressMode()) {
+      return;
+    }
+
+    const subagents = this.subagentSnapshots.get(sessionId);
+    if (!subagents) {
+      return;
+    }
+
+    const currentSession = getCurrentSession();
+    if (!currentSession || currentSession.id !== sessionId) {
+      return;
+    }
+
+    try {
+      const renderedCards = await renderSubagentCards(subagents, Date.now());
+      if (!renderedCards) {
+        return;
+      }
+
+      this.toolCallStreamer.replaceByPrefix(
+        sessionId,
+        SUBAGENT_STREAM_PREFIX,
+        renderedCards,
+        "subagent",
+      );
+    } catch (err) {
+      logger.error("Failed to refresh subagent activity for Telegram:", err);
+    }
+  }
+
+  private getToolCacheKey(sessionId: string, callId: string): string {
+    return `${sessionId}:${callId}`;
+  }
+
+  private clearToolElapsedState(sessionId: string | null, reason: string): void {
+    if (!sessionId) {
+      this.runningToolTracker.clearAll(reason);
+      this.runningToolInfos.clear();
+      this.completedToolDurations.clear();
+      this.compactActivityBySession.clear();
+      this.subagentSnapshots.clear();
+      return;
+    }
+
+    this.runningToolTracker.clearSession(sessionId, reason);
+    this.runningToolTracker.setHeartbeatActive(sessionId, false);
+    this.compactActivityBySession.delete(sessionId);
+    this.subagentSnapshots.delete(sessionId);
+
+    const sessionPrefix = `${sessionId}:`;
+    for (const key of Array.from(this.runningToolInfos.keys())) {
+      if (key.startsWith(sessionPrefix)) {
+        this.runningToolInfos.delete(key);
+      }
+    }
+
+    for (const key of Array.from(this.completedToolDurations.keys())) {
+      if (key.startsWith(sessionPrefix)) {
+        this.completedToolDurations.delete(key);
+      }
+    }
+  }
+
+  private appendToolDuration(message: string, sessionId: string, callId: string): string {
+    const cacheKey = this.getToolCacheKey(sessionId, callId);
+    const durationMs = this.completedToolDurations.get(cacheKey);
+    if (durationMs === undefined) {
+      return message;
+    }
+
+    this.completedToolDurations.delete(cacheKey);
+
+    return appendDuration(message, formatDuration(durationMs));
+  }
+
   clearRuntimeState(reason: string): void {
     backgroundSessionTracker.clear();
     this.nextDraftId = 1;
@@ -313,6 +493,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     this.compactProgressFinalizationTasks.clear();
     this.thinkingStreamingPayloads.clear();
     this.sessionCompletionTasks.clear();
+    this.clearToolElapsedState(null, reason);
     assistantRunState.clearAll(reason);
   }
 
@@ -344,6 +525,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       this.compactProgressStreamer.clearAll("summary_aggregator_clear");
       this.compactProgressFinalizationTasks.clear();
       this.thinkingStreamingPayloads.clear();
+      this.clearToolElapsedState(null, "summary_aggregator_clear");
     });
 
     summaryAggregator.setOnPartial((sessionId, messageId, messageText) => {
@@ -400,6 +582,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
           this.clearThinkingStream(sessionId, messageId, "bot_context_missing");
           this.toolCallStreamer.clearSession(sessionId, "bot_context_missing");
           this.compactProgressStreamer.clearSession(sessionId, "bot_context_missing");
+          this.clearToolElapsedState(sessionId, "bot_context_missing");
           assistantRunState.clearRun(sessionId, "bot_context_missing");
           foregroundSessionState.markIdle(sessionId);
           return;
@@ -412,6 +595,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
           this.clearThinkingStream(sessionId, messageId, "session_mismatch");
           this.toolCallStreamer.clearSession(sessionId, "session_mismatch");
           this.compactProgressStreamer.clearSession(sessionId, "session_mismatch");
+          this.clearToolElapsedState(sessionId, "session_mismatch");
           assistantRunState.clearRun(sessionId, "session_mismatch");
           foregroundSessionState.markIdle(sessionId);
           await scheduledTaskRuntime.flushDeferredDeliveries();
@@ -449,11 +633,14 @@ class EventSubscriptionService implements BotEventSubscriptionService {
                   options,
                 ),
             },
-            flushPendingServiceMessages: () =>
-              Promise.all([
+            flushPendingServiceMessages: () => {
+              this.clearToolElapsedState(sessionId, "assistant_message_completed");
+
+              return Promise.all([
                 this.toolMessageBatcher.flushSession(sessionId, "assistant_message_completed"),
                 this.toolCallStreamer.breakSession(sessionId, "assistant_message_completed"),
-              ]).then(() => undefined),
+              ]).then(() => undefined);
+            },
             prepareStreamingPayload: this.prepareFinalStreamingPayload,
             renderFinalParts: (text) => renderAssistantFinalPartsSafe(text),
             getReplyKeyboard: this.getCurrentReplyKeyboard,
@@ -513,21 +700,64 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     });
 
     summaryAggregator.setOnRootToolUpdate((toolInfo) => {
-      if (!isCompactProgressMode()) {
-        return;
-      }
-
       const currentSession = getCurrentSession();
       if (!currentSession || currentSession.id !== toolInfo.sessionId) {
         return;
       }
 
+      const status = "status" in toolInfo.state ? toolInfo.state.status : undefined;
+      const compactMode = isCompactProgressMode();
+      // In full mode the subagent card already reports what the child agent is
+      // doing, so a live line for the task tool itself would duplicate it.
+      const tracksElapsed = compactMode || toolInfo.tool !== "task";
+
+      // A failed call is just as finished as a successful one: leaving it tracked
+      // would keep its timer ticking for a tool that already stopped running.
+      const isTerminal = status === "completed" || status === "error";
+
+      if (isTerminal) {
+        if (tracksElapsed) {
+          // Released here rather than in setOnTool: that callback returns early
+          // in compact mode, which would leave the entry tracked forever.
+          const durationMs = this.runningToolTracker.release(toolInfo.callId);
+
+          if (!compactMode) {
+            this.finalizeLiveToolLine(toolInfo, status === "error", durationMs);
+          }
+
+          // Only a completed call reaches setOnTool, so only it has a final line
+          // to carry the duration.
+          if (durationMs !== undefined && !compactMode && status === "completed") {
+            this.completedToolDurations.set(
+              this.getToolCacheKey(toolInfo.sessionId, toolInfo.callId),
+              durationMs,
+            );
+          }
+        }
+
+        this.runningToolInfos.delete(this.getToolCacheKey(toolInfo.sessionId, toolInfo.callId));
+      } else if (tracksElapsed) {
+        this.runningToolTracker.track(toolInfo.sessionId, toolInfo.callId);
+        this.runningToolInfos.set(
+          this.getToolCacheKey(toolInfo.sessionId, toolInfo.callId),
+          toolInfo,
+        );
+      }
+
+      if (!compactMode) {
+        return;
+      }
+
       const activity = this.getCompactToolActivity(toolInfo);
       if (activity) {
+        this.compactActivityBySession.set(toolInfo.sessionId, {
+          callId: toolInfo.callId,
+          activity,
+        });
         this.compactProgressStreamer.updateActivity(toolInfo.sessionId, activity);
       }
 
-      if ("status" in toolInfo.state && toolInfo.state.status === "completed") {
+      if (status === "completed") {
         this.compactProgressStreamer.addToolCall(toolInfo.sessionId, toolInfo.callId);
       }
     });
@@ -561,7 +791,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         if (message) {
           this.toolCallStreamer.append(
             toolInfo.sessionId,
-            message,
+            this.appendToolDuration(message, toolInfo.sessionId, toolInfo.callId),
             this.getToolStreamKey(toolInfo.tool),
           );
         }
@@ -584,8 +814,11 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         return;
       }
 
+      this.subagentSnapshots.set(sessionId, subagents);
+      this.runningToolTracker.setHeartbeatActive(sessionId, true);
+
       try {
-        const renderedCards = await renderSubagentCards(subagents);
+        const renderedCards = await renderSubagentCards(subagents, Date.now());
         if (!renderedCards) {
           return;
         }
@@ -621,6 +854,9 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       }
 
       try {
+        // Breaking the stream drops the live-timer entries with it, so stop
+        // ticking rather than re-creating them in a fresh message.
+        this.clearToolElapsedState(fileInfo.sessionId, "tool_file_boundary");
         await this.toolCallStreamer.breakSession(fileInfo.sessionId, "tool_file_boundary");
 
         const toolMessage = formatToolInfo(fileInfo);
@@ -769,6 +1005,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       }
 
       if (update.isFirstUpdate) {
+        this.clearToolElapsedState(update.sessionId, "thinking_started");
         void this.toolCallStreamer.breakSession(update.sessionId, "thinking_started").catch((error) => {
           logger.error("[Bot] Failed to break tool stream before thinking message", error);
         });
@@ -876,6 +1113,9 @@ class EventSubscriptionService implements BotEventSubscriptionService {
 
     summaryAggregator.setOnSessionIdle(async (sessionId) => {
       await markAttachedSessionIdle(sessionId);
+      // Cleared unconditionally: a session can go idle after it stopped being
+      // the current one, and the early returns below would leak the tracker.
+      this.clearToolElapsedState(sessionId, "session_idle");
       await this.sessionCompletionTasks.get(sessionId)?.catch(() => undefined);
 
       const completedRun = assistantRunState.finishRun(sessionId, "session_idle");
@@ -925,11 +1165,14 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       } finally {
         foregroundSessionState.markIdle(sessionId);
         await scheduledTaskRuntime.flushDeferredDeliveries();
+        void dispatchNextQueuedPrompt();
       }
     });
 
     summaryAggregator.setOnSessionError(async (sessionId, message) => {
       await markAttachedSessionIdle(sessionId);
+      this.clearToolElapsedState(sessionId, "session_error");
+
       if (!this.botInstance || !this.chatIdInstance) {
         clearPromptResponseMode(sessionId);
         this.compactProgressStreamer.clearSession(sessionId, "session_error_no_bot_context");
@@ -980,6 +1223,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
 
       foregroundSessionState.markIdle(sessionId);
       await scheduledTaskRuntime.flushDeferredDeliveries();
+      void dispatchNextQueuedPrompt();
     });
 
     summaryAggregator.setOnSessionRetry(async ({ sessionId, message }) => {

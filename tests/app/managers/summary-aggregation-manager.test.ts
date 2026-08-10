@@ -25,6 +25,7 @@ const sut = await loadSut<typeof import("#src/app/managers/summary-aggregation-m
 // Upstream's test bodies reference the singleton directly; the fork loads it
 // through loadSut (needed so mock.module intercepts the static imports).
 const { summaryAggregator } = sut;
+import { logger } from "#src/utils/logger.js";
 
 describe("summary/aggregator", () => {
   beforeEach(() => {
@@ -318,6 +319,132 @@ describe("summary/aggregator", () => {
         }),
       }),
     ]);
+  });
+
+  describe("subagent current tool timing", () => {
+    function startSubagent(): void {
+      summaryAggregator.setSession("root-session");
+
+      summaryAggregator.processEvent({
+        type: "message.part.updated",
+        properties: {
+          part: {
+            id: "subtask-1",
+            sessionID: "root-session",
+            messageID: "root-message",
+            type: "subtask",
+            prompt: "Inspect pinned manager",
+            description: "task description",
+            agent: "explore",
+            command: "inspect",
+          },
+        },
+      } as unknown as Event);
+
+      summaryAggregator.processEvent({
+        type: "session.created",
+        properties: {
+          info: {
+            id: "child-session-1",
+            parentID: "root-session",
+            title: "task description (@explore subagent)",
+            slug: "child",
+            directory: "D:/repo",
+            projectID: "p1",
+            version: "1",
+            time: { created: Date.now(), updated: Date.now() },
+          },
+        },
+      } as unknown as Event);
+    }
+
+    function emitChildTool(callID: string): void {
+      summaryAggregator.processEvent({
+        type: "message.part.updated",
+        properties: {
+          part: {
+            id: `child-tool-${callID}`,
+            sessionID: "child-session-1",
+            messageID: "child-message-1",
+            type: "tool",
+            callID,
+            tool: "bash",
+            state: {
+              status: "running",
+              input: { command: "npm test" },
+              title: "Running tests",
+              metadata: {},
+              time: { start: Date.now() },
+            },
+          },
+        },
+      } as unknown as Event);
+    }
+
+    it("reports the current tool call id and its start time", () => {
+      const onSubagent = vi.fn();
+      summaryAggregator.setOnSubagent(onSubagent);
+      startSubagent();
+
+      emitChildTool("call-1");
+
+      expect(onSubagent.mock.lastCall?.[1]).toEqual([
+        expect.objectContaining({
+          currentTool: "bash",
+          currentToolCallId: "call-1",
+          currentToolStartedAt: expect.any(Number),
+        }),
+      ]);
+    });
+
+    it("does not re-emit while the same call keeps reporting", () => {
+      const onSubagent = vi.fn();
+      summaryAggregator.setOnSubagent(onSubagent);
+      startSubagent();
+
+      emitChildTool("call-1");
+      const callsAfterFirst = onSubagent.mock.calls.length;
+      emitChildTool("call-1");
+
+      expect(onSubagent.mock.calls).toHaveLength(callsAfterFirst);
+    });
+
+    it("stamps finishedAt when the subagent session goes idle", () => {
+      const onSubagent = vi.fn();
+      summaryAggregator.setOnSubagent(onSubagent);
+      startSubagent();
+      emitChildTool("call-1");
+
+      summaryAggregator.processEvent({
+        type: "session.idle",
+        properties: { sessionID: "child-session-1" },
+      } as unknown as Event);
+
+      const card = onSubagent.mock.lastCall?.[1][0];
+      expect(card.status).toBe("completed");
+      expect(card.finishedAt).toEqual(expect.any(Number));
+      expect(card.finishedAt).toBeGreaterThanOrEqual(card.createdAt);
+      expect(card.currentToolStartedAt).toBeUndefined();
+    });
+
+    it("re-emits and restarts timing for an identical tool with a new call id", async () => {
+      const onSubagent = vi.fn();
+      summaryAggregator.setOnSubagent(onSubagent);
+      startSubagent();
+
+      emitChildTool("call-1");
+      const firstStartedAt = onSubagent.mock.lastCall?.[1][0].currentToolStartedAt as number;
+      const callsAfterFirst = onSubagent.mock.calls.length;
+
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      emitChildTool("call-2");
+
+      expect(onSubagent.mock.calls.length).toBeGreaterThan(callsAfterFirst);
+      expect(onSubagent.mock.lastCall?.[1][0].currentToolCallId).toBe("call-2");
+      expect(
+        onSubagent.mock.lastCall?.[1][0].currentToolStartedAt as number,
+      ).toBeGreaterThan(firstStartedAt);
+    });
   });
 
   it("attaches unknown child session events to pending subagent cards before session.created", () => {
@@ -1951,6 +2078,59 @@ describe("summary/aggregator", () => {
     });
   });
 
+  it("serializes permission callbacks so equivalent requests can be registered before the next dispatch", async () => {
+    let releaseFirstPermission: () => void = () => {};
+    const firstPermissionDone = new Promise<void>((resolve) => {
+      releaseFirstPermission = resolve;
+    });
+    const calls: string[] = [];
+
+    summaryAggregator.setOnPermission(async (request) => {
+      calls.push(`start:${request.id}`);
+
+      if (request.id === "req-1") {
+        await firstPermissionDone;
+      }
+
+      calls.push(`end:${request.id}`);
+    });
+    summaryAggregator.setSession("session-1");
+
+    summaryAggregator.processEvent({
+      type: "permission.asked",
+      properties: {
+        id: "req-1",
+        sessionID: "session-1",
+        permission: "bash",
+        patterns: ["pwd"],
+        metadata: {},
+        always: [],
+      },
+    } as unknown as Event);
+
+    summaryAggregator.processEvent({
+      type: "permission.asked",
+      properties: {
+        id: "req-2",
+        sessionID: "session-1",
+        permission: "bash",
+        patterns: ["pwd"],
+        metadata: {},
+        always: [],
+      },
+    } as unknown as Event);
+
+    await vi.waitFor(() => {
+      expect(calls).toEqual(["start:req-1"]);
+    });
+
+    releaseFirstPermission();
+
+    await vi.waitFor(() => {
+      expect(calls).toEqual(["start:req-1", "end:req-1", "start:req-2", "end:req-2"]);
+    });
+  });
+
   it("ignores permission.asked events from unrelated sessions", async () => {
     const onPermission = vi.fn();
     sut.summaryAggregator.setOnPermission(onPermission);
@@ -2232,5 +2412,546 @@ describe("summary/aggregator", () => {
       "message-empty-lookalike",
       "Empty response body is expected here.",
     );
+  });
+
+  it("drops the upstream empty-response placeholder instead of showing it to the user", async () => {
+    const onPartial = vi.fn();
+    const onComplete = vi.fn();
+    summaryAggregator.setOnPartial(onPartial);
+    summaryAggregator.setOnComplete(onComplete);
+    summaryAggregator.setSession("session-1");
+
+    summaryAggregator.processEvent({
+      type: "message.updated",
+      properties: {
+        info: {
+          id: "message-empty-response",
+          sessionID: "session-1",
+          role: "assistant",
+          time: { created: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    summaryAggregator.processEvent({
+      type: "message.part.updated",
+      properties: {
+        part: {
+          id: "empty-response-part",
+          sessionID: "session-1",
+          messageID: "message-empty-response",
+          type: "text",
+          text: "Empty response: {'content': [{'type': 'thinking'}], 'stop_reason': 'end_turn'}",
+        },
+      },
+    } as unknown as Event);
+
+    summaryAggregator.processEvent({
+      type: "message.updated",
+      properties: {
+        info: {
+          id: "message-empty-response",
+          sessionID: "session-1",
+          role: "assistant",
+          time: { created: Date.now(), completed: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
+    // Nothing is left to send, so the run completes silently - same as when the
+    // provider returns no text part at all.
+    expect(onPartial).not.toHaveBeenCalled();
+    expect(onComplete).not.toHaveBeenCalled();
+  });
+
+  it("drops the empty-response placeholder while it is still streaming in", () => {
+    const onPartial = vi.fn();
+    summaryAggregator.setOnPartial(onPartial);
+    summaryAggregator.setSession("session-1");
+
+    summaryAggregator.processEvent({
+      type: "message.updated",
+      properties: {
+        info: {
+          id: "message-empty-streaming",
+          sessionID: "session-1",
+          role: "assistant",
+          time: { created: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    for (const delta of ["Empty", " resp", "onse: ", "{'content'"]) {
+      summaryAggregator.processEvent({
+        type: "message.part.delta",
+        properties: {
+          part: {
+            id: "empty-streaming-part",
+            sessionID: "session-1",
+            messageID: "message-empty-streaming",
+            type: "text",
+          },
+          delta,
+        },
+      } as unknown as Event);
+    }
+
+    expect(onPartial).not.toHaveBeenCalled();
+  });
+
+  it("delivers user text that looks like the empty-response placeholder unfiltered", async () => {
+    const onExternalUserInput = vi.fn();
+    summaryAggregator.setOnExternalUserInput(onExternalUserInput);
+    summaryAggregator.setSession("session-1");
+
+    const userText = "Empty response: {'content': [{'type': 'thinking'}]} - why do I get this?";
+
+    summaryAggregator.processEvent({
+      type: "message.part.updated",
+      properties: {
+        part: {
+          id: "part-user-marker",
+          sessionID: "session-1",
+          messageID: "message-user-marker",
+          type: "text",
+          text: userText,
+          time: { start: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    summaryAggregator.processEvent({
+      type: "message.updated",
+      properties: {
+        info: {
+          id: "message-user-marker",
+          sessionID: "session-1",
+          role: "user",
+          time: { created: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
+    expect(onExternalUserInput).toHaveBeenCalledWith("session-1", "message-user-marker", userText);
+  });
+
+  it("recovers streamed text that diverges from the marker mid-stream", () => {
+    const onPartial = vi.fn();
+    summaryAggregator.setOnPartial(onPartial);
+    summaryAggregator.setSession("session-1");
+
+    summaryAggregator.processEvent({
+      type: "message.updated",
+      properties: {
+        info: {
+          id: "message-empty-diverging",
+          sessionID: "session-1",
+          role: "assistant",
+          time: { created: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    // "Empty resp" is still a prefix of the marker and stays suppressed, but the
+    // next chunk diverges from it and the whole text has to surface.
+    for (const delta of ["Empty resp", "onse from the server, retrying."]) {
+      summaryAggregator.processEvent({
+        type: "message.part.delta",
+        properties: {
+          part: {
+            id: "diverging-part",
+            sessionID: "session-1",
+            messageID: "message-empty-diverging",
+            type: "text",
+          },
+          delta,
+        },
+      } as unknown as Event);
+    }
+
+    expect(onPartial).toHaveBeenLastCalledWith(
+      "session-1",
+      "message-empty-diverging",
+      "Empty response from the server, retrying.",
+    );
+  });
+
+  it("releases a completed answer that legitimately opens with the marker", async () => {
+    const onComplete = vi.fn();
+    summaryAggregator.setOnComplete(onComplete);
+    summaryAggregator.setSession("session-1");
+
+    // The user can ask the model to start its reply with that exact line. It is
+    // held back while streaming, but the completed text carries no serialized
+    // response object, so it must reach the user.
+    const answer = "Empty response: {'content': 'test'} is what the provider sends back.";
+
+    summaryAggregator.processEvent({
+      type: "message.updated",
+      properties: {
+        info: {
+          id: "message-legit-marker",
+          sessionID: "session-1",
+          role: "assistant",
+          time: { created: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    summaryAggregator.processEvent({
+      type: "message.part.updated",
+      properties: {
+        part: {
+          id: "legit-marker-part",
+          sessionID: "session-1",
+          messageID: "message-legit-marker",
+          type: "text",
+          text: answer,
+        },
+      },
+    } as unknown as Event);
+
+    summaryAggregator.processEvent({
+      type: "message.updated",
+      properties: {
+        info: {
+          id: "message-legit-marker",
+          sessionID: "session-1",
+          role: "assistant",
+          time: { created: Date.now(), completed: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
+    expect(onComplete).toHaveBeenCalledWith(
+      "session-1",
+      "message-legit-marker",
+      answer,
+      expect.any(Object),
+    );
+  });
+
+  it("keeps assistant text that only starts like the empty-response placeholder", () => {
+    const onPartial = vi.fn();
+    summaryAggregator.setOnPartial(onPartial);
+    summaryAggregator.setSession("session-1");
+
+    summaryAggregator.processEvent({
+      type: "message.updated",
+      properties: {
+        info: {
+          id: "message-empty-lookalike",
+          sessionID: "session-1",
+          role: "assistant",
+          time: { created: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    summaryAggregator.processEvent({
+      type: "message.part.updated",
+      properties: {
+        part: {
+          id: "lookalike-part",
+          sessionID: "session-1",
+          messageID: "message-empty-lookalike",
+          type: "text",
+          text: "Empty response body is expected here.",
+        },
+      },
+    } as unknown as Event);
+
+    expect(onPartial).toHaveBeenCalledWith(
+      "session-1",
+      "message-empty-lookalike",
+      "Empty response body is expected here.",
+    );
+  });
+
+  it("ignores synthetic text parts so an attached file is not echoed into the chat", async () => {
+    const onExternalUserInput = vi.fn();
+    summaryAggregator.setOnExternalUserInput(onExternalUserInput);
+    summaryAggregator.setSession("session-1");
+
+    summaryAggregator.processEvent({
+      type: "message.updated",
+      properties: {
+        info: {
+          id: "message-user",
+          sessionID: "session-1",
+          role: "user",
+          time: { created: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    summaryAggregator.processEvent({
+      type: "message.part.updated",
+      properties: {
+        part: {
+          id: "part-prompt",
+          sessionID: "session-1",
+          messageID: "message-user",
+          type: "text",
+          text: "what does this file do?",
+        },
+      },
+    } as unknown as Event);
+
+    // OpenCode expands a file:// attachment into synthetic parts carrying the whole file.
+    summaryAggregator.processEvent({
+      type: "message.part.updated",
+      properties: {
+        part: {
+          id: "part-synthetic",
+          sessionID: "session-1",
+          messageID: "message-user",
+          type: "text",
+          synthetic: true,
+          text: "Called the Read tool with the following input: {}\n1: SECRET_FILE_CONTENT",
+        },
+      },
+    } as unknown as Event);
+
+    await new Promise((resolve) => setImmediate(resolve));
+
+    for (const call of onExternalUserInput.mock.calls) {
+      expect(call[2]).not.toContain("SECRET_FILE_CONTENT");
+      expect(call[2]).not.toContain("Called the Read tool");
+    }
+  });
+
+  it("ignores deltas streamed for a part already known to be synthetic", async () => {
+    const onExternalUserInput = vi.fn();
+    summaryAggregator.setOnExternalUserInput(onExternalUserInput);
+    summaryAggregator.setSession("session-1");
+
+    summaryAggregator.processEvent({
+      type: "message.updated",
+      properties: {
+        info: {
+          id: "message-user-delta",
+          sessionID: "session-1",
+          role: "user",
+          time: { created: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    summaryAggregator.processEvent({
+      type: "message.part.updated",
+      properties: {
+        part: {
+          id: "part-synthetic-streamed",
+          sessionID: "session-1",
+          messageID: "message-user-delta",
+          type: "text",
+          synthetic: true,
+          text: "Called the Read tool with the following input: {}",
+        },
+      },
+    } as unknown as Event);
+
+    // Delta events often carry only the part id, so the flag must be remembered.
+    summaryAggregator.processEvent({
+      type: "message.part.delta",
+      properties: {
+        part: {
+          id: "part-synthetic-streamed",
+          sessionID: "session-1",
+          messageID: "message-user-delta",
+        },
+        delta: "\n1: SECRET_STREAMED_CONTENT",
+      },
+    } as unknown as Event);
+
+    await new Promise((resolve) => setImmediate(resolve));
+
+    for (const call of onExternalUserInput.mock.calls) {
+      expect(call[2]).not.toContain("SECRET_STREAMED_CONTENT");
+    }
+  });
+
+  it("ignores a delta whose own part is flagged synthetic", async () => {
+    const onExternalUserInput = vi.fn();
+    summaryAggregator.setOnExternalUserInput(onExternalUserInput);
+    summaryAggregator.setSession("session-1");
+
+    summaryAggregator.processEvent({
+      type: "message.updated",
+      properties: {
+        info: {
+          id: "message-user-delta-first",
+          sessionID: "session-1",
+          role: "user",
+          time: { created: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    summaryAggregator.processEvent({
+      type: "message.part.delta",
+      properties: {
+        part: {
+          id: "part-synthetic-first",
+          sessionID: "session-1",
+          messageID: "message-user-delta-first",
+          type: "text",
+          synthetic: true,
+        },
+        delta: "1: SECRET_FIRST_DELTA",
+      },
+    } as unknown as Event);
+
+    await new Promise((resolve) => setImmediate(resolve));
+
+    for (const call of onExternalUserInput.mock.calls) {
+      expect(call[2]).not.toContain("SECRET_FIRST_DELTA");
+    }
+  });
+
+  describe("unexpected event shapes", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("warns and skips a message.part.delta whose properties are not an object", () => {
+      const warnSpy = vi.spyOn(logger, "warn");
+      const onPartial = vi.fn();
+      summaryAggregator.setOnPartial(onPartial);
+      summaryAggregator.setSession("session-1");
+
+      summaryAggregator.processEvent({
+        type: "message.part.delta",
+        properties: null,
+      } as unknown as Event);
+      summaryAggregator.processEvent({
+        type: "message.part.delta",
+      } as unknown as Event);
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[Aggregator] message.part.delta with unexpected shape, ignoring",
+      );
+      expect(onPartial).not.toHaveBeenCalled();
+    });
+
+    it("falls back to a generic message and warns when session.error carries a non-object error", async () => {
+      const warnSpy = vi.spyOn(logger, "warn");
+      const onSessionError = vi.fn();
+      summaryAggregator.setOnSessionError(onSessionError);
+      summaryAggregator.setSession("session-1");
+
+      summaryAggregator.processEvent({
+        type: "session.error",
+        properties: {
+          sessionID: "session-1",
+          error: 42,
+        },
+      } as unknown as Event);
+
+      await new Promise<void>((resolve) => setImmediate(resolve));
+
+      expect(onSessionError).toHaveBeenCalledWith("session-1", "Unknown session error");
+      expect(warnSpy).toHaveBeenCalled();
+    });
+
+    it("surfaces a string session.error with a warn instead of the generic fallback", async () => {
+      const warnSpy = vi.spyOn(logger, "warn");
+      const onSessionError = vi.fn();
+      summaryAggregator.setOnSessionError(onSessionError);
+      summaryAggregator.setSession("session-1");
+
+      summaryAggregator.processEvent({
+        type: "session.error",
+        properties: {
+          sessionID: "session-1",
+          error: "upstream exploded",
+        },
+      } as unknown as Event);
+
+      await new Promise<void>((resolve) => setImmediate(resolve));
+
+      expect(onSessionError).toHaveBeenCalledWith("session-1", "upstream exploded");
+      expect(warnSpy).toHaveBeenCalled();
+    });
+
+    it("passes a reasoning part without title keys to the thinking callback without a title", async () => {
+      const onThinking = vi.fn();
+      summaryAggregator.setOnThinking(onThinking);
+      summaryAggregator.setSession("session-1");
+
+      summaryAggregator.processEvent({
+        type: "message.updated",
+        properties: {
+          info: {
+            id: "message-no-title",
+            sessionID: "session-1",
+            role: "assistant",
+            time: { created: Date.now() },
+          },
+        },
+      } as unknown as Event);
+
+      summaryAggregator.processEvent({
+        type: "message.part.updated",
+        properties: {
+          part: {
+            id: "part-reasoning-no-title",
+            sessionID: "session-1",
+            messageID: "message-no-title",
+            type: "reasoning",
+            text: "Just thinking",
+            time: { start: Date.now() },
+          },
+        },
+      } as unknown as Event);
+
+      await new Promise<void>((resolve) => setImmediate(resolve));
+
+      expect(onThinking).toHaveBeenCalledWith({
+        sessionId: "session-1",
+        messageId: "message-no-title",
+        isFirstUpdate: true,
+        sections: [{ id: "part-reasoning-no-title", text: "Just thinking" }],
+      });
+    });
+
+    it("does not crash when a completed tool part carries non-object metadata", () => {
+      const onTool = vi.fn();
+      summaryAggregator.setOnTool(onTool);
+      summaryAggregator.setSession("session-1");
+
+      summaryAggregator.processEvent({
+        type: "message.part.updated",
+        properties: {
+          part: {
+            id: "part-tool-weird-meta",
+            sessionID: "session-1",
+            messageID: "message-1",
+            type: "tool",
+            callID: "call-weird-meta",
+            tool: "bash",
+            state: {
+              status: "completed",
+              input: { command: "ls" },
+              title: "ls",
+              metadata: "not-an-object",
+              time: { start: Date.now(), end: Date.now() },
+            },
+          },
+        },
+      } as unknown as Event);
+
+      expect(onTool).toHaveBeenCalledTimes(1);
+      expect(onTool).toHaveBeenCalledWith(
+        expect.objectContaining({ callId: "call-weird-meta", tool: "bash" }),
+      );
+    });
   });
 });

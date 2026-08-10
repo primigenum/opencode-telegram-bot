@@ -1,6 +1,11 @@
 import { InlineKeyboard } from "grammy";
 import path from "bun:path";
-import { formatFileSize } from "../../app/services/file-download-service.js";
+import { config } from "../../config.js";
+import {
+  formatFileSize,
+  isFileSizeAllowed,
+  isTextFileName,
+} from "../../app/services/file-download-service.js";
 import {
   buildEntryLabel,
   buildTreeHeader,
@@ -30,6 +35,7 @@ export const LS_CALLBACK_PREFIX = "ls:";
 export const LS_CALLBACK_NAV_PREFIX = "ls:nav:";
 export const LS_CALLBACK_FILE_PREFIX = "ls:file:";
 export const LS_CALLBACK_DOWNLOAD_PREFIX = "ls:download:";
+export const LS_CALLBACK_ATTACH_PREFIX = "ls:attach:";
 export const LS_CALLBACK_BACK_PREFIX = "ls:back:";
 export const LS_CALLBACK_PAGE_PREFIX = "ls:pg:";
 
@@ -346,15 +352,38 @@ function buildLsBrowseKeyboard(
   return keyboard;
 }
 
-function buildLsFileDetailsKeyboard(filePath: string, page: number): InlineKeyboard {
+function buildLsFileDetailsKeyboard(
+  filePath: string,
+  page: number,
+  canAttach: boolean,
+): InlineKeyboard {
   const keyboard = new InlineKeyboard();
   const parentPath = getParentPath(filePath);
 
-  keyboard.text(t("ls.file.download"), encodeLsPathForCallback(LS_CALLBACK_DOWNLOAD_PREFIX, filePath));
-  keyboard.text(t("ls.file.back"), encodeLsBackCallback(parentPath, page));
-  keyboard.row();
+  if (canAttach) {
+    keyboard
+      .text(t("ls.file.attach"), encodeLsPathForCallback(LS_CALLBACK_ATTACH_PREFIX, filePath))
+      .row();
+  }
+  keyboard
+    .text(t("ls.file.download"), encodeLsPathForCallback(LS_CALLBACK_DOWNLOAD_PREFIX, filePath))
+    .row();
+  keyboard.text(t("ls.file.back"), encodeLsBackCallback(parentPath, page)).row();
   appendInlineMenuCancelButton(keyboard, "ls");
   return keyboard;
+}
+
+export function decodeLsAttachCallback(data: string): string | null {
+  return decodeLsPathFromCallback(LS_CALLBACK_ATTACH_PREFIX, data);
+}
+
+// Only text files within the size limit can be attached, so the button is hidden entirely
+// for anything else rather than shown and always answering with an error.
+function canAttachFile(fileDetails: FileDetails): boolean {
+  return (
+    isTextFileName(fileDetails.name) &&
+    isFileSizeAllowed(fileDetails.size, config.files.maxFileSizeKb)
+  );
 }
 
 function hasBrowseActions(currentPath: string, hasParent: boolean, totalCount: number): boolean {
@@ -393,6 +422,6 @@ export async function renderLsFileDetailsView(filePath: string, page: number) {
 
   return {
     text: buildFileDetailsText(fileDetails),
-    keyboard: buildLsFileDetailsKeyboard(fileDetails.fullPath, page),
+    keyboard: buildLsFileDetailsKeyboard(fileDetails.fullPath, page, canAttachFile(fileDetails)),
   };
 }

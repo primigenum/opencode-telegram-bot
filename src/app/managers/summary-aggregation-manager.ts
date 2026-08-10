@@ -6,6 +6,8 @@ import type { Question } from "../types/question.js";
 import type { PermissionRequest } from "../types/permission.js";
 import type { FileChange } from "../types/summary.js";
 import { logger } from "../../utils/logger.js";
+import { extractErrorMessage } from "../../utils/opencode-error.js";
+import { isRecord } from "../../utils/type-guards.js";
 import { getCurrentProject } from "../stores/settings-store.js";
 
 export interface SummaryInfo {
@@ -60,6 +62,7 @@ interface MessagePartDeltaEventRaw {
       messageID?: string;
       type?: string;
       text?: string;
+      synthetic?: boolean;
     };
     sessionID?: string;
     messageID?: string;
@@ -67,6 +70,10 @@ interface MessagePartDeltaEventRaw {
     type?: string;
     delta?: string;
   };
+}
+
+function isMessagePartDeltaEvent(event: Event): event is Event & MessagePartDeltaEventRaw {
+  return event.type === "message.part.delta" && isRecord(event.properties);
 }
 
 export interface ToolInfo {
@@ -130,7 +137,11 @@ export interface SubagentInfo {
   currentTool?: string;
   currentToolInput?: { [key: string]: unknown };
   currentToolTitle?: string;
+  currentToolCallId?: string;
+  currentToolStartedAt?: number;
   terminalMessage?: string;
+  createdAt: number;
+  finishedAt?: number;
   updatedAt: number;
 }
 
@@ -181,7 +192,6 @@ interface SubagentState extends SubagentInfo {
   hasSubtaskMetadata: boolean;
   hasTaskToolMetadata: boolean;
   hasSessionTitleMetadata: boolean;
-  createdAt: number;
 }
 
 // When a model returns a response without a text block, the upstream provider
@@ -259,9 +269,9 @@ function normalizeSnapshotValue(value: unknown): unknown {
     return value.map((item) => normalizeSnapshotValue(item));
   }
 
-  if (value && typeof value === "object") {
+  if (isRecord(value)) {
     return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>)
+      Object.entries(value)
         .sort(([left], [right]) => left.localeCompare(right))
         .map(([key, entryValue]) => [key, normalizeSnapshotValue(entryValue)]),
     );
@@ -305,6 +315,9 @@ class SummaryAggregator {
   private thinkingFinishedForMessages: Set<string> = new Set();
   private deliveredExternalUserMessageIds: Set<string> = new Set();
   private knownTextPartIds: Map<string, Set<string>> = new Map();
+  // Parts OpenCode injected itself, tracked by id because `message.part.delta` events may
+  // carry only the id and would otherwise stream their content past the synthetic filter.
+  private syntheticPartIds: Map<string, Set<string>> = new Map();
   private bot: Bot | null = null;
   private chatId: number | null = null;
   private typingTimer: ReturnType<typeof setInterval> | null = null;
@@ -449,12 +462,7 @@ class SummaryAggregator {
   }
 
   processEvent(event: Event): void {
-    const eventType = (event as unknown as { type: string }).type;
-
-    if (eventType === "message.part.delta") {
-      this.handleMessagePartDelta(event as unknown as MessagePartDeltaEventRaw);
-      return;
-    }
+    const eventType: string = event.type;
 
     if (eventType === "server.heartbeat") {
       logger.debug("[Aggregator] Heartbeat received");
@@ -478,6 +486,13 @@ class SummaryAggregator {
     }
 
     switch (event.type) {
+      case "message.part.delta":
+        if (!isMessagePartDeltaEvent(event)) {
+          logger.warn(`[Aggregator] message.part.delta with unexpected shape, ignoring`);
+          break;
+        }
+        this.handleMessagePartDelta(event);
+        break;
       case "session.created":
       case "session.updated":
         this.handleSessionCreatedOrUpdated(event);
@@ -540,6 +555,7 @@ class SummaryAggregator {
     this.messages.clear();
     this.partHashes.clear();
     this.knownTextPartIds.clear();
+    this.syntheticPartIds.clear();
     this.processedToolStates.clear();
     this.thinkingFiredForMessages.clear();
     this.thinkingFinishedForMessages.clear();
@@ -645,7 +661,11 @@ class SummaryAggregator {
         currentTool: state.currentTool,
         currentToolInput: state.currentToolInput ? { ...state.currentToolInput } : undefined,
         currentToolTitle: state.currentToolTitle,
+        currentToolCallId: state.currentToolCallId,
+        currentToolStartedAt: state.currentToolStartedAt,
         terminalMessage: state.terminalMessage,
+        createdAt: state.createdAt,
+        finishedAt: state.finishedAt,
         updatedAt: state.updatedAt,
       }));
 
@@ -666,7 +686,10 @@ class SummaryAggregator {
         currentTool: subagent.currentTool,
         currentToolInput: normalizeSnapshotValue(subagent.currentToolInput),
         currentToolTitle: subagent.currentToolTitle,
+        currentToolCallId: subagent.currentToolCallId,
+        currentToolStartedAt: subagent.currentToolStartedAt,
         terminalMessage: subagent.terminalMessage,
+        finishedAt: subagent.finishedAt,
       })),
     );
 
@@ -988,6 +1011,7 @@ class SummaryAggregator {
     sessionId: string,
     state: ToolState,
     tool: string,
+    callId: string,
     input?: { [key: string]: unknown },
     title?: string,
   ): void {
@@ -1002,6 +1026,11 @@ class SummaryAggregator {
     if (status === "pending" && subagent.status === "pending") {
       subagent.status = "pending";
       subagent.terminalMessage = undefined;
+    }
+
+    if (callId && subagent.currentToolCallId !== callId) {
+      subagent.currentToolCallId = callId;
+      subagent.currentToolStartedAt = Date.now();
     }
 
     subagent.currentTool = tool;
@@ -1070,7 +1099,12 @@ class SummaryAggregator {
     subagent.currentTool = undefined;
     subagent.currentToolInput = undefined;
     subagent.currentToolTitle = undefined;
+    subagent.currentToolCallId = undefined;
+    subagent.currentToolStartedAt = undefined;
     subagent.terminalMessage = terminalMessage?.trim() || undefined;
+    // Frozen on purpose: the card is re-rendered on a heartbeat, so a duration
+    // derived from the current time would keep growing after the run ended.
+    subagent.finishedAt = Date.now();
     subagent.updatedAt = Date.now();
     this.emitSubagentState();
   }
@@ -1092,20 +1126,7 @@ class SummaryAggregator {
 
     if (this.isTrackedChildSession(info.sessionID)) {
       if (info.role === "assistant") {
-        const assistantInfo = info as {
-          sessionID: string;
-          providerID?: string;
-          modelID?: string;
-          agent?: string;
-          tokens?: {
-            input: number;
-            output: number;
-            reasoning: number;
-            cache: { read: number; write: number };
-          };
-          cost?: number;
-        };
-        this.updateSubagentFromAssistantMessage(assistantInfo);
+        this.updateSubagentFromAssistantMessage(info);
       }
       return;
     }
@@ -1136,13 +1157,7 @@ class SummaryAggregator {
 
       const textState = this.getOrCreateTextMessageState(messageID);
 
-      const assistantMessage = info as {
-        agent?: string;
-        providerID?: string;
-        modelID?: string;
-        time?: { created: number; completed?: number };
-      };
-      const time = assistantMessage.time;
+      const time = info.time;
       const isCompleted = Boolean(time?.completed);
       const messageText = this.getCombinedMessageText(messageID, isCompleted);
 
@@ -1152,15 +1167,8 @@ class SummaryAggregator {
 
       // Extract and report tokens for EVERY message.updated with token data
       // (both intermediate and completed). This keeps keyboard context in sync.
-      const assistantInfo = info as {
-        tokens?: {
-          input: number;
-          output: number;
-          reasoning: number;
-          cache: { read: number; write: number };
-        };
-        cost?: number;
-      };
+      const assistantInfo = info;
+
 
       if (this.onTokensCallback && assistantInfo.tokens) {
         const tokens: TokensInfo = {
@@ -1203,9 +1211,9 @@ class SummaryAggregator {
 
         if (this.onCompleteCallback && finalText.length > 0) {
           this.onCompleteCallback(this.currentSessionId!, messageID, finalText, {
-            agent: assistantMessage.agent,
-            providerID: assistantMessage.providerID,
-            modelID: assistantMessage.modelID,
+            agent: info.agent,
+            providerID: info.providerID,
+            modelID: info.modelID,
             createdAt: time?.created,
             completedAt: time?.completed,
           });
@@ -1260,9 +1268,9 @@ class SummaryAggregator {
     if (isTrackedChildSession) {
       if (part.type === "tool") {
         const state = part.state;
-        const input = "input" in state ? (state.input as { [key: string]: unknown }) : undefined;
+        const input = state.input;
         const title = "title" in state ? state.title : undefined;
-        this.updateSubagentToolState(part.sessionID, state, part.tool, input, title);
+        this.updateSubagentToolState(part.sessionID, state, part.tool, part.callID, input, title);
       }
 
       if (part.type === "step-start") {
@@ -1280,6 +1288,15 @@ class SummaryAggregator {
     const messageID = part.messageID;
     const messageInfo = this.messages.get(messageID);
 
+    // OpenCode injects synthetic text parts of its own: expanded file attachments,
+    // MCP resource dumps, plan-mode hints. They are context for the model, never content
+    // for the user - rendering them would echo a whole attached file back into the chat.
+    if (part.type === "text" && "synthetic" in part && part.synthetic === true) {
+      this.registerSyntheticPart(messageID, part.id);
+      this.lastUpdated = Date.now();
+      return;
+    }
+
     if (part.type === "text") {
       this.registerKnownTextPart(messageID, part.id);
       this.registerTextPart(messageID, part.id);
@@ -1289,11 +1306,11 @@ class SummaryAggregator {
       this.registerThinkingPart(
         messageID,
         part.id,
-        this.extractReasoningTitle(part as unknown as Record<string, unknown>),
+        this.extractReasoningTitle(part),
       );
     }
 
-    const deltaFromUpdated = (event.properties as { delta?: unknown }).delta;
+    const deltaFromUpdated = "delta" in event.properties ? event.properties.delta : undefined;
     if (
       part.type === "text" &&
       typeof deltaFromUpdated === "string" &&
@@ -1317,7 +1334,7 @@ class SummaryAggregator {
         part.id,
         deltaFromUpdated,
         partText,
-        this.extractReasoningTitle(part as unknown as Record<string, unknown>),
+        this.extractReasoningTitle(part),
       );
       this.lastUpdated = Date.now();
       return;
@@ -1337,7 +1354,7 @@ class SummaryAggregator {
         messageID,
         part.id,
         partText,
-        this.extractReasoningTitle(part as unknown as Record<string, unknown>),
+        this.extractReasoningTitle(part),
       );
       if (isFirstUpdate || wasUpdated) {
         this.emitThinkingUpdate(part.sessionID, messageID, isFirstUpdate);
@@ -1370,7 +1387,7 @@ class SummaryAggregator {
       }
     } else if (part.type === "tool") {
       const state = part.state;
-      const input = "input" in state ? (state.input as { [key: string]: unknown }) : undefined;
+      const input = state.input;
       const title = "title" in state ? state.title : undefined;
 
       if (part.tool === "task") {
@@ -1390,7 +1407,7 @@ class SummaryAggregator {
           state: part.state,
           input,
           title,
-          metadata: "metadata" in state ? (state.metadata as { [key: string]: unknown }) : undefined,
+          metadata: "metadata" in state ? state.metadata : undefined,
           hasFileAttachment: false,
         });
       }
@@ -1431,7 +1448,7 @@ class SummaryAggregator {
             part.tool,
             input,
             title,
-            state.metadata as { [key: string]: unknown } | undefined,
+            state.metadata,
           );
 
           const toolData: ToolInfo = {
@@ -1442,7 +1459,7 @@ class SummaryAggregator {
             state: part.state,
             input,
             title,
-            metadata: state.metadata as { [key: string]: unknown },
+            metadata: state.metadata,
             hasFileAttachment: !!preparedFileContext.fileData,
           };
 
@@ -1487,10 +1504,18 @@ class SummaryAggregator {
       return;
     }
 
+    // Same filter as in handleMessagePartUpdated, applied to the streaming path: a delta
+    // event often carries only the part id, so the flag is looked up in the registry too.
+    const isSynthetic =
+      part?.synthetic === true ||
+      (this.syntheticPartIds.get(messageID)?.has(partID) ?? false);
+    if (isSynthetic) {
+      this.registerSyntheticPart(messageID, partID);
+      return;
+    }
+
     if (partType === "reasoning" || (!partType && this.isKnownThinkingPart(messageID, partID))) {
-      const title = part
-        ? this.extractReasoningTitle(part as unknown as Record<string, unknown>)
-        : undefined;
+      const title = part ? this.extractReasoningTitle(part) : undefined;
       this.applyThinkingDelta(sessionID, messageID, partID, delta, part?.text, title);
       return;
     }
@@ -1559,7 +1584,11 @@ class SummaryAggregator {
     this.emitPartialText(sessionID, messageID, combined);
   }
 
-  private extractReasoningTitle(part: Record<string, unknown>): string | undefined {
+  private extractReasoningTitle(part: unknown): string | undefined {
+    if (!isRecord(part)) {
+      return undefined;
+    }
+
     for (const key of ["title", "heading", "summary", "name"]) {
       const value = part[key];
       if (typeof value === "string" && value.trim()) {
@@ -1568,9 +1597,9 @@ class SummaryAggregator {
     }
 
     const metadata = part.metadata;
-    if (metadata && typeof metadata === "object") {
+    if (isRecord(metadata)) {
       for (const key of ["title", "heading", "summary", "name"]) {
-        const value = (metadata as Record<string, unknown>)[key];
+        const value = metadata[key];
         if (typeof value === "string" && value.trim()) {
           return value;
         }
@@ -1752,6 +1781,7 @@ class SummaryAggregator {
     this.messages.delete(messageId);
     this.partHashes.delete(messageId);
     this.knownTextPartIds.delete(messageId);
+    this.syntheticPartIds.delete(messageId);
     this.thinkingFiredForMessages.delete(messageId);
     this.thinkingFinishedForMessages.delete(messageId);
 
@@ -1794,6 +1824,14 @@ class SummaryAggregator {
     }
 
     this.knownTextPartIds.get(messageID)!.add(partID);
+  }
+
+  private registerSyntheticPart(messageID: string, partID: string): void {
+    if (!this.syntheticPartIds.has(messageID)) {
+      this.syntheticPartIds.set(messageID, new Set());
+    }
+
+    this.syntheticPartIds.get(messageID)!.add(partID);
   }
 
   private registerTextPart(messageID: string, partID: string): void {
@@ -1862,8 +1900,8 @@ class SummaryAggregator {
     if (tool === "write" && input) {
       const filePath =
         typeof input.filePath === "string" ? normalizePathForDisplay(input.filePath) : "";
+      const content = typeof input.content === "string" ? input.content : "";
       const hasContent = typeof input.content === "string";
-      const content = hasContent ? (input.content as string) : "";
 
       if (!filePath || !hasContent) {
         return { fileData: null, fileChange: null };
@@ -1880,14 +1918,12 @@ class SummaryAggregator {
     }
 
     if (tool === "edit" && metadata) {
-      const editMetadata = metadata as {
-        diff?: unknown;
-        filediff?: { file?: string; additions?: number; deletions?: number };
-      };
-      const filePath = editMetadata.filediff?.file
-        ? normalizePathForDisplay(editMetadata.filediff.file)
-        : "";
-      const diffText = typeof editMetadata.diff === "string" ? editMetadata.diff : "";
+      const filediff = isRecord(metadata.filediff) ? metadata.filediff : undefined;
+      const filePath =
+        typeof filediff?.file === "string" && filediff.file
+          ? normalizePathForDisplay(filediff.file)
+          : "";
+      const diffText = typeof metadata.diff === "string" ? metadata.diff : "";
 
       if (!filePath || !diffText) {
         return { fileData: null, fileChange: null };
@@ -1897,19 +1933,14 @@ class SummaryAggregator {
         fileData: prepareCodeFile(diffText, filePath, "edit"),
         fileChange: {
           file: filePath,
-          additions: editMetadata.filediff?.additions || 0,
-          deletions: editMetadata.filediff?.deletions || 0,
+          additions: typeof filediff?.additions === "number" ? filediff.additions : 0,
+          deletions: typeof filediff?.deletions === "number" ? filediff.deletions : 0,
         },
       };
     }
 
     if (tool === "apply_patch") {
-      const patchMetadata = metadata as
-        | {
-            filediff?: { file?: string; additions?: number; deletions?: number };
-            diff?: string;
-          }
-        | undefined;
+      const filediff = isRecord(metadata?.filediff) ? metadata.filediff : undefined;
 
       const filePathFromInput =
         input && typeof input.filePath === "string"
@@ -1920,12 +1951,12 @@ class SummaryAggregator {
       const filePathFromTitle = title ? extractFirstUpdatedFileFromTitle(title) : "";
 
       const filePath =
-        (patchMetadata?.filediff?.file && normalizePathForDisplay(patchMetadata.filediff.file)) ||
+        (typeof filediff?.file === "string" && filediff.file && normalizePathForDisplay(filediff.file)) ||
         filePathFromInput ||
         normalizePathForDisplay(filePathFromTitle);
       const diffText =
-        typeof patchMetadata?.diff === "string"
-          ? patchMetadata.diff
+        typeof metadata?.diff === "string"
+          ? metadata.diff
           : input && typeof input.patchText === "string"
             ? input.patchText
             : "";
@@ -1934,11 +1965,11 @@ class SummaryAggregator {
         return { fileData: null, fileChange: null };
       }
 
-      const fileChange = patchMetadata?.filediff
+      const fileChange = filediff
         ? {
             file: filePath,
-            additions: patchMetadata.filediff.additions || 0,
-            deletions: patchMetadata.filediff.deletions || 0,
+            additions: typeof filediff.additions === "number" ? filediff.additions : 0,
+            deletions: typeof filediff.deletions === "number" ? filediff.deletions : 0,
           }
         : diffText
           ? (() => {
@@ -1975,15 +2006,7 @@ class SummaryAggregator {
       type: "session.status";
     },
   ): void {
-    const { sessionID, status } = event.properties as {
-      sessionID: string;
-      status?: {
-        type?: string;
-        attempt?: number;
-        message?: string;
-        next?: number;
-      };
-    };
+    const { sessionID, status } = event.properties;
 
     if (sessionID !== this.currentSessionId) {
       return;
@@ -2045,7 +2068,7 @@ class SummaryAggregator {
       type: "session.compacted";
     },
   ): void {
-    const properties = event.properties as { sessionID: string };
+    const properties = event.properties;
     const { sessionID } = properties;
 
     if (sessionID !== this.currentSessionId) {
@@ -2070,17 +2093,12 @@ class SummaryAggregator {
       type: "session.error";
     },
   ): void {
-    const { sessionID, error } = event.properties as {
-      sessionID: string;
-      error?: {
-        name?: string;
-        message?: string;
-        data?: { message?: string };
-      };
-    };
+    const { sessionID, error } = event.properties;
 
-    const message =
-      error?.data?.message || error?.message || error?.name || "Unknown session error";
+    const message = extractErrorMessage(error) ?? "Unknown session error";
+    if (error !== undefined && !isRecord(error)) {
+      logger.warn(`[Aggregator] session.error with unexpected error shape`, error);
+    }
 
     if (sessionID && this.isTrackedChildSession(sessionID)) {
       logger.warn(`[Aggregator] Subagent session error: ${sessionID}: ${message}`);
@@ -2123,7 +2141,7 @@ class SummaryAggregator {
       const callback = this.onQuestionCallback;
       setImmediate(async () => {
         try {
-          await callback(questions as Question[], id, sessionID);
+          await callback(questions, id, sessionID);
         } catch (err) {
           logger.error("[Aggregator] Error in question callback:", err);
         }
@@ -2131,11 +2149,12 @@ class SummaryAggregator {
     }
   }
 
-  private handleSessionDiff(event: Event): void {
-    const properties = event.properties as {
-      sessionID: string;
-      diff: Array<{ file: string; additions: number; deletions: number }>;
-    };
+  private handleSessionDiff(
+    event: Event & {
+      type: "session.diff";
+    },
+  ): void {
+    const properties = event.properties;
 
     if (properties.sessionID !== this.currentSessionId) {
       return;
@@ -2145,7 +2164,7 @@ class SummaryAggregator {
 
     if (this.onSessionDiffCallback) {
       const diffs: FileChange[] = properties.diff.map((d) => ({
-        file: d.file,
+        file: d.file ?? "",
         additions: d.additions,
         deletions: d.deletions,
       }));
@@ -2181,7 +2200,7 @@ class SummaryAggregator {
     if (this.onPermissionCallback) {
       const callback = this.onPermissionCallback;
       this.permissionQueue = this.permissionQueue
-        .then(() => callback(request as PermissionRequest))
+        .then(() => callback(request))
         .catch((err) => {
           logger.error("[Aggregator] Error in permission callback:", err);
         });

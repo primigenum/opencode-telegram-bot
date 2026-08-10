@@ -43,6 +43,35 @@ describe("bot/keyboards/main-reply-keyboard", () => {
     expect(getButtonText(keyboard.keyboard[1][1])).toBe("⚡ Fast");
   });
 
+  it("keeps the fixed 2x2 grid when no prompt is queued", () => {
+    const keyboard = createMainKeyboard(
+      "build",
+      { providerID: "openrouter", modelID: "openai/gpt-4o" },
+      undefined,
+      undefined,
+      [],
+    );
+
+    expect(keyboard.keyboard.filter((row) => row.length > 0)).toHaveLength(2);
+  });
+
+  it("puts queued prompt rows above the fixed grid", () => {
+    const keyboard = createMainKeyboard(
+      "build",
+      { providerID: "openrouter", modelID: "openai/gpt-4o" },
+      undefined,
+      undefined,
+      ["❌ 1. first", "❌ 2. second"],
+    );
+
+    expect(getButtonText(keyboard.keyboard[0][0])).toBe("❌ 1. first");
+    expect(getButtonText(keyboard.keyboard[1][0])).toBe("❌ 2. second");
+    expect(getButtonText(keyboard.keyboard[2][0])).toBe("🛠️ Build Agent");
+    expect(getButtonText(keyboard.keyboard[2][1])).toBe("📊 0");
+    expect(getButtonText(keyboard.keyboard[3][0])).toBe("🧠 openrouter\nopenai/gpt-4o");
+    expect(getButtonText(keyboard.keyboard[3][1])).toBe("💡 Default");
+  });
+
   it("creates custom agent keyboard and remove payload", () => {
     const keyboard = createAgentKeyboard("custom");
     const nonEmptyRows = keyboard.keyboard.filter((row) => row.length > 0);

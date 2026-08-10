@@ -113,9 +113,21 @@ const TEXT_FILE_EXTENSIONS = new Set([
   "vue",
   "ts",
   "tsx",
+  "js",
   "jsx",
   "mjs",
   "cjs",
+  "json",
+  "txt",
+  "xml",
+  "csv",
+  "tsv",
+  "sql",
+  "env",
+  "lock",
+  "conf",
+  "properties",
+  "tf",
   "go",
   "rs",
   "rb",
@@ -148,6 +160,43 @@ const TEXT_FILE_EXTENSIONS = new Set([
   "proto",
   "gradle",
 ]);
+
+// Text files that carry no extension, plus dotfiles whose whole name is the marker.
+const TEXT_FILE_NAMES = new Set([
+  "makefile",
+  "dockerfile",
+  "license",
+  "readme",
+  "changelog",
+  ".gitignore",
+  ".dockerignore",
+  ".editorconfig",
+  ".env",
+  ".env.example",
+  ".npmrc",
+  ".prettierrc",
+  ".eslintrc",
+]);
+
+/**
+ * Whether a local file looks like text, judging by its name alone.
+ *
+ * Files picked from the /ls browser carry no MIME type - Telegram only provides one for
+ * uploaded documents - so `isTextMimeType` cannot be used for them.
+ */
+export function isTextFileName(filename: string): boolean {
+  const baseName = filename.split(/[\\/]/).pop()?.toLowerCase();
+  if (!baseName) {
+    return false;
+  }
+
+  if (TEXT_FILE_NAMES.has(baseName)) {
+    return true;
+  }
+
+  const ext = baseName.includes(".") ? baseName.split(".").pop() : undefined;
+  return Boolean(ext && TEXT_FILE_EXTENSIONS.has(ext));
+}
 
 export function isTextMimeType(mimeType: string | undefined, filename?: string): boolean {
   if (!mimeType) {

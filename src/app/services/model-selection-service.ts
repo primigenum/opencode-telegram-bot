@@ -1,6 +1,7 @@
 import { getCurrentModel, setCurrentModel } from "../stores/settings-store.js";
 import { config } from "../../config.js";
 import { opencodeClient } from "../../opencode/client.js";
+import { isServerUnavailableError } from "../../utils/opencode-error.js";
 import { logger } from "../../utils/logger.js";
 import { getDefaultVariantFromConfig } from "./variant-selection-service.js";
 import type {
@@ -17,12 +18,6 @@ interface OpenCodeModelState {
 }
 
 const MODEL_CATALOG_CACHE_TTL_MS = 10 * 60 * 1000;
-const SERVER_UNAVAILABLE_ERROR_MARKERS = [
-  "fetch failed",
-  "econnrefused",
-  "connection refused",
-  "connect refused",
-];
 
 let cachedValidModelKeys: Set<string> | null = null;
 let cachedAllModels: FavoriteModel[] | null = null;
@@ -70,69 +65,6 @@ function filterModelsByCatalog(
   }
 
   return models.filter((model) => validModelKeys.has(getModelKey(model.providerID, model.modelID)));
-}
-
-function hasServerUnavailableMarker(value: string): boolean {
-  const lower = value.toLowerCase();
-  return SERVER_UNAVAILABLE_ERROR_MARKERS.some((marker) => lower.includes(marker));
-}
-
-function isServerUnavailableError(error: unknown): boolean {
-  const queue: unknown[] = [error];
-  const seen = new Set<unknown>();
-
-  while (queue.length > 0) {
-    const current = queue.pop();
-
-    if (!current || seen.has(current)) {
-      continue;
-    }
-
-    seen.add(current);
-
-    if (typeof current === "string") {
-      if (hasServerUnavailableMarker(current)) {
-        return true;
-      }
-
-      continue;
-    }
-
-    if (current instanceof Error) {
-      if (hasServerUnavailableMarker(`${current.name}: ${current.message}`)) {
-        return true;
-      }
-
-      const errorWithCause = current as Error & { cause?: unknown };
-      if (errorWithCause.cause) {
-        queue.push(errorWithCause.cause);
-      }
-
-      continue;
-    }
-
-    if (typeof current === "object") {
-      const value = current as {
-        code?: unknown;
-        message?: unknown;
-        cause?: unknown;
-      };
-
-      if (typeof value.code === "string" && hasServerUnavailableMarker(value.code)) {
-        return true;
-      }
-
-      if (typeof value.message === "string" && hasServerUnavailableMarker(value.message)) {
-        return true;
-      }
-
-      if (value.cause) {
-        queue.push(value.cause);
-      }
-    }
-  }
-
-  return false;
 }
 
 function logModelCatalogRefreshFailure(error: unknown, type: "error" | "exception"): void {

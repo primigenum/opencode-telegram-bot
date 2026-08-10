@@ -52,6 +52,7 @@ No public inbound ports are required for normal usage.
 - Send text prompts to OpenCode
 - Accept voice/audio messages, transcribe via Whisper-compatible STT API, and forward recognized text as prompts
 - Interrupt current task (ESC equivalent)
+- Optionally queue text messages sent while a task is running (max 5) and send them one by one after completion
 - Handle OpenCode questions with inline options and custom text answers
 - Send selected/custom answers back to OpenCode (`question.reply`)
 - Handle permission requests interactively (`allow once` / `always` / `reject`)
@@ -59,6 +60,7 @@ No public inbound ports are required for normal usage.
 ### Result delivery
 
 - Send each completed assistant response after completion signal from SSE
+- Show elapsed time for tool calls running longer than 20 seconds, updated on a timer so it keeps counting while a tool blocks without producing output; covers subagent cards and compact mode, and the total duration stays on the finished tool line. A finished subagent card keeps the time its whole run took. Durations use the same `· 🕒 1h 2m 3s` format as the assistant run footer
 - Hide full model reasoning by default; optionally stream it in the thinking message when explicitly enabled
 - Split long responses into multiple Telegram messages
 - Send code updates as files (size-limited)
@@ -87,7 +89,7 @@ No public inbound ports are required for normal usage.
 - Configurable scheduled task limit (default: 10)
 - Configurable bot locale
 - Configurable visibility for thinking content and diff-file attachments
-- Configurable compact output, assistant footer, and TTS modes (`/settings`)
+- Configurable compact output, assistant footer, message queue, and TTS modes (`/settings`)
 - Configurable opt-in display of full thinking/reasoning content
 - Configurable max code file size in KB (default: 100)
 - Optional STT settings for voice transcription (`STT_API_URL`, `STT_API_KEY`, `STT_MODEL`, `STT_LANGUAGE`)
@@ -117,7 +119,7 @@ Current command set:
 - `/opencode_start` - start local OpenCode server
 - `/opencode_stop` - stop local OpenCode server
 - `/help` - show command help
-- `/ls` - interactive file browser for the current project directory
+- `/ls` - interactive file browser for the current project directory; a text file can be attached to the next prompt from its detail view
 
 Model, agent, variant, and context actions are available from the persistent bottom keyboard.
 
@@ -154,7 +156,7 @@ Model picker behavior:
 - [x] In-chat controls for model, agent, variant, and context
 - [x] Built-in and custom command catalog access (`/commands`)
 - [x] Skills catalog access (`/skills`)
-- [x] Scheduled task creation flow (`/task`)
+- [x] Scheduled task creation flow (`/task`), remembering the agent selected at creation and showing it (alongside the model) in the task confirmation and task details
 - [x] Scheduled task runtime execution with deferred Telegram delivery
 - [x] Scheduled task list and deletion flow (`/tasklist`)
 - [x] Persistent settings between restarts (`settings.json`)
@@ -172,7 +174,9 @@ Model picker behavior:
 - [x] `/mcps` command: browse available MCP servers
 - [x] Optional local OpenCode server monitoring with automatic restart
 - [x] Interactive project file browsing and file download from Telegram (`/ls`)
+- [x] Attaching a project file from `/ls` to the next prompt as a native OpenCode file part
 - [x] `/messages` command: browse session messages with revert and fork functionality
+- [x] Optional message queue for text sent while the agent is busy, managed from the bottom keyboard
 
 ## Current Task List
 

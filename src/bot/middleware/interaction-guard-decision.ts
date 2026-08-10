@@ -10,6 +10,7 @@ import type {
 } from "../../app/types/interaction.js";
 import { foregroundSessionState } from "../../app/managers/foreground-session-state-manager.js";
 import { attachManager } from "../../app/managers/attach-manager.js";
+import { QUEUED_PROMPT_BUTTON_TEXT_PATTERN } from "../message-patterns.js";
 
 const BUSY_ALLOWED_COMMANDS = ["/abort", "/detach", "/status", "/help"] as const;
 const BUSY_ALLOWED_COMMAND_SET = new Set<string>(BUSY_ALLOWED_COMMANDS);
@@ -20,6 +21,13 @@ function isBusyAllowedCommand(command?: string): boolean {
 
 function allowsBusyInteraction(kind: InteractionKind | undefined): boolean {
   return kind === "question" || kind === "permission";
+}
+
+// Removing a queued prompt only makes sense while the session is busy, so the
+// button press has to pass the busy gate the same way /abort does.
+function isQueuedPromptButtonPress(ctx: Context): boolean {
+  const text = ctx.message?.text;
+  return typeof text === "string" && QUEUED_PROMPT_BUTTON_TEXT_PATTERN.test(text);
 }
 
 function normalizeIncomingCommand(text: string): string | null {
@@ -177,6 +185,10 @@ export function resolveInteractionGuardDecision(ctx: Context): GuardDecision {
         getExpectedInputBlockReason(state.expectedInput),
         command,
       );
+    }
+
+    if (inputType === "text" && isQueuedPromptButtonPress(ctx)) {
+      return createAllowDecision(inputType, state, command, true);
     }
 
     return createBusyBlockDecision(inputType, state, "expected_text", command);

@@ -12,6 +12,7 @@ import { logger } from "../utils/logger.js";
 import { safeBackgroundTask } from "../utils/safe-background-task.js";
 import { withTelegramRateLimitRetry } from "../utils/telegram-rate-limit-retry.js";
 import { registerCallbackRouter } from "./callbacks/callback-router.js";
+import { initializePromptQueueDispatch } from "./handlers/prompt-queue-dispatch.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { interactionGuardMiddleware } from "./middleware/interaction-guard.js";
 import { staleUpdateMiddleware } from "./middleware/stale-update.js";
@@ -48,6 +49,11 @@ export function createBot(): Bot<Context> {
   configureAttachPresentation(createAttachPresentation());
 
   eventSubscriptionService.setTelegramContext(bot, config.telegram.allowedUserId);
+
+  initializePromptQueueDispatch({
+    bot,
+    ensureEventSubscription: eventSubscriptionService.ensureEventSubscription,
+  });
 
   unsubscribeReadyRestore?.();
   unsubscribeReadyRestore = opencodeReadyLifecycle.onReady(async (reason) => {

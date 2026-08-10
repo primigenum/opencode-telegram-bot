@@ -3,6 +3,7 @@ import { getUnsupportedNodeVersionMessage } from "./runtime/node-version.js";
 
 const EXIT_RUNTIME_ERROR = 1;
 const EXIT_INVALID_ARGS = 2;
+const LOG_FLUSH_TIMEOUT_MS = 1000;
 
 async function main(): Promise<void> {
   const unsupportedNodeVersion = getUnsupportedNodeVersionMessage();
@@ -33,12 +34,19 @@ async function main(): Promise<void> {
   await startBotApp();
 }
 
-void main().catch((error: unknown) => {
+void main().catch(async (error: unknown) => {
   if (error instanceof Error) {
     process.stderr.write(`Failed to start bot: ${error.message}\n`);
   } else {
     process.stderr.write(`Failed to start bot: ${String(error)}\n`);
   }
 
+  // The file log is initialized by now; give buffered lines a bounded chance
+  // to reach the file before the exit. A failed flush must not defeat the exit.
+  const { flushLogger } = await import("./utils/logger.js");
+  await Promise.race([
+    flushLogger().catch(() => {}),
+    new Promise<void>((resolve) => setTimeout(resolve, LOG_FLUSH_TIMEOUT_MS)),
+  ]);
   process.exit(EXIT_RUNTIME_ERROR);
 });

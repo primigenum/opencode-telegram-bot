@@ -952,6 +952,38 @@ class PinnedMessageManager {
       logger.error("[PinnedManager] Error clearing pinned message:", err);
     }
   }
+
+  __resetForTests(): void {
+    if (this.updateDebounceTimer) {
+      clearTimeout(this.updateDebounceTimer);
+    }
+
+    this.api = null;
+    this.chatId = null;
+    this.contextLimit = null;
+    this.onKeyboardUpdateCallback = undefined;
+    this.updateDebounceTimer = null;
+    this.updateTask = null;
+    this.pendingUpdate = false;
+    this.pendingForceUpdate = false;
+    this.lastRenderedMessageText = null;
+    this.state = {
+      messageId: null,
+      chatId: null,
+      sessionId: null,
+      sessionTitle: t("pinned.default_session_title"),
+      attachActive: false,
+      attachBusy: false,
+      projectPath: "",
+      projectBranch: null,
+      projectWorktreePath: null,
+      tokensUsed: 0,
+      tokensLimit: 0,
+      lastUpdated: 0,
+      changedFiles: [],
+      cost: 0,
+    };
+  }
 }
 
 export const pinnedMessageManager = new PinnedMessageManager();

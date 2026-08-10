@@ -9,6 +9,8 @@ import { assistantRunState } from "../../app/managers/assistant-run-state-manage
 import { markAttachedSessionIdle } from "../../app/services/attach-service.js";
 import { clearPromptResponseMode } from "../handlers/prompt.js";
 import { markUserAbortRequested } from "../../app/managers/abort-suppression-manager.js";
+import { promptQueue } from "../../app/managers/prompt-queue-manager.js";
+import { promptAttachment } from "../../app/managers/prompt-attachment-manager.js";
 
 type SessionState = "idle" | "busy" | "not-found";
 
@@ -76,6 +78,10 @@ export async function abortCurrentOperation(
 
   try {
     abortLocalStreaming();
+    promptQueue.clear("abort_command");
+    // abortLocalStreaming drops the waiting mode, so the attachment has to go with it -
+    // otherwise it would ride along on the next, unrelated prompt with no confirmation left.
+    promptAttachment.clear("abort_command");
 
     const currentSession = getCurrentSession();
 
@@ -90,6 +96,8 @@ export async function abortCurrentOperation(
     let chatId: number | null = null;
 
     if (notifyUser) {
+      // No reply_markup here: this message is edited below, and Telegram
+      // refuses to edit a message that carries a custom reply keyboard.
       const waitingMessage = await ctx.reply(t("stop.in_progress"));
       waitingMessageId = waitingMessage.message_id;
       chatId = ctx.chat?.id ?? null;

@@ -25,26 +25,6 @@ interface KeyboardManagerPrivateState {
   lastUpdateTime: number;
 }
 
-interface PinnedMessageManagerPrivateState {
-  api: null;
-  chatId: null;
-  contextLimit: null;
-  updateDebounceTimer: ReturnType<typeof setTimeout> | null;
-  onKeyboardUpdateCallback: undefined;
-  state: {
-    messageId: null;
-    chatId: null;
-    sessionId: null;
-    sessionTitle: string;
-    projectName: string;
-    projectBranch: string | null;
-    tokensUsed: number;
-    tokensLimit: number;
-    lastUpdated: number;
-    changedFiles: Array<{ file: string; additions: number; deletions: number }>;
-  };
-}
-
 export async function resetSingletonState(): Promise<void> {
   const [
     { questionManager },
@@ -77,19 +57,28 @@ export async function resetSingletonState(): Promise<void> {
   interactionManager.clear("test_reset");
   summaryAggregator.clear();
 
-  // message-merger's graph pulls in prompt.ts → session-service. When the
-  // current test mocks any module in that chain, bun's mock.module replaces
-  // the whole module and the import link can fail — so load it separately
-  // and treat failure as "nothing to reset" (same spirit as the logger).
-  try {
-    const { __resetMessageMergerForTests } = await import(
-      "../../src/bot/handlers/message-merger.js"
-    );
-    if (typeof __resetMessageMergerForTests === "function") {
-      __resetMessageMergerForTests();
+  // The queue/merger/attachment modules pull in prompt.ts → session-service
+  // and friends. When the current test mocks any module in that chain, bun's
+  // mock.module replaces the whole module and the import link can fail — so
+  // load each one separately and treat failure as "nothing to reset" (same
+  // spirit as the logger below).
+  type ResetModule = { __resetForTests?: () => void; __resetMessageMergerForTests?: () => void };
+  const resettable = [
+    ["../../src/bot/handlers/message-merger.js", "__resetMessageMergerForTests"],
+    ["../../src/app/managers/prompt-queue-manager.js", "__resetForTests"],
+    ["../../src/bot/handlers/prompt-queue-dispatch.js", "__resetPromptQueueDispatchForTests"],
+    ["../../src/app/managers/prompt-attachment-manager.js", "__resetForTests"],
+  ] as const;
+  for (const [specifier, resetFn] of resettable) {
+    try {
+      const mod = (await import(specifier)) as ResetModule;
+      const fn = mod[resetFn];
+      if (typeof fn === "function") {
+        fn();
+      }
+    } catch {
+      // module graph mocked away — nothing to reset
     }
-  } catch {
-    // module graph mocked away — nothing to reset
   }
 
   const aggregator = summaryAggregator as unknown as SummaryAggregatorPrivateState;
@@ -117,27 +106,11 @@ export async function resetSingletonState(): Promise<void> {
   keyboard.chatId = null;
   keyboard.lastUpdateTime = 0;
 
-  const pinned = pinnedMessageManager as unknown as PinnedMessageManagerPrivateState;
-  if (pinned.updateDebounceTimer) {
-    clearTimeout(pinned.updateDebounceTimer);
+  // Test files that mock the pinned manager module supply their own stub,
+  // which has nothing to reset.
+  if (typeof pinnedMessageManager.__resetForTests === "function") {
+    pinnedMessageManager.__resetForTests();
   }
-  pinned.updateDebounceTimer = null;
-  pinned.api = null;
-  pinned.chatId = null;
-  pinned.contextLimit = null;
-  pinned.onKeyboardUpdateCallback = undefined;
-  pinned.state = {
-    messageId: null,
-    chatId: null,
-    sessionId: null,
-    sessionTitle: "new session",
-    projectName: "",
-    projectBranch: null,
-    tokensUsed: 0,
-    tokensLimit: 0,
-    lastUpdated: 0,
-    changedFiles: [],
-  };
 
   __resetSessionDirectoryCacheForTests();
 

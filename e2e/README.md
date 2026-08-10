@@ -16,8 +16,10 @@ a human does first.
 | `run-test-bot.ps1` / `.sh` | Starts the bot against an isolated home |
 | `stop-test-bot.ps1` / `.sh` | Stops the test bot and its OpenCode server |
 | `probes.js` | DOM probes and confirmed Telegram Web selectors |
+| `scenarios/` | Regression scenarios the subagent runs before any feature check |
 | `.tmp/e2e/home/` | Runtime state: `settings.json`, `logs/` |
 | `.tmp/e2e/browser-profile/` | Persistent Telegram Web login |
+| `.tmp/e2e/output/` | Screenshots and console logs the subagent produces |
 
 ## One-time setup
 
@@ -88,8 +90,14 @@ newer release may require a newer Chromium revision than the one installed
 locally. The browser config (profile path, viewport, output dir) lives there
 too — there is no `.mcp.json` in this project.
 
+`scenarios/` holds the regression scenarios. The subagent runs them before any
+feature check, so a change that breaks the basic loop is caught before anything
+else is judged. Today there is one, [`smoke.md`](./scenarios/smoke.md) — longer
+scenarios get added as separate files next to it.
+
 ## What to test
 
 Commands, features, and interaction routing rules are documented in
-[`PRODUCT.md`](../PRODUCT.md). Scenarios are passed to the subagent per task;
-a regression suite is not written yet.
+[`PRODUCT.md`](../PRODUCT.md). The feature scenario itself is passed to the
+subagent per task, as behaviour only: it gets no diff and no implementation
+detail, and writes its own cases.

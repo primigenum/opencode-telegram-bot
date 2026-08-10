@@ -162,6 +162,7 @@ export const de: I18nDictionary = {
   "settings.diff_files.label": "Diff-Dateien",
   "settings.assistant_footer.label": "Antwort-Footer",
   "settings.tts.label": "Audioantworten",
+  "settings.prompt_queue.label": "Nachrichtenwarteschlange",
   "settings.value.on": "Ein",
   "settings.value.off": "Aus",
   "settings.saved": "✅ Einstellung gespeichert.",
@@ -418,6 +419,14 @@ export const de: I18nDictionary = {
   "keyboard.context_empty": "📊 0",
   "keyboard.variant": "💭 {name}",
   "keyboard.variant_default": "💡 Standard",
+  "keyboard.queued_prompt": "❌ {index}. {text}",
+  "queue.added":
+    "📥 Zur Warteschlange hinzugefügt ({count}/{max}). Die Nachricht wird gesendet, sobald die aktuelle Aufgabe abgeschlossen ist.",
+  "queue.full":
+    "⚠️ Die Warteschlange ist voll ({max}). Entferne eine Nachricht oder warte, bis die aktuelle Aufgabe abgeschlossen ist.",
+  "queue.removed": "🗑 Nachricht aus der Warteschlange entfernt.",
+  "queue.not_found": "Diese Nachricht ist nicht mehr in der Warteschlange.",
+  "queue.disabled_hint": "Die Nachrichtenwarteschlange lässt sich in /settings aktivieren.",
   "keyboard.updated": "⌨️ Tastatur aktualisiert",
 
   "pinned.default_session_title": "neue Sitzung",
@@ -505,7 +514,7 @@ export const de: I18nDictionary = {
   "task.prompt.body": "📝 Sende jetzt, was der Bot nach Zeitplan tun soll.",
   "task.prompt_empty": "⚠️ Der Aufgabentext darf nicht leer sein.",
   "task.created":
-    "✅ Geplante Aufgabe erstellt\n\nAufgabe: {description}\nProjekt: {project}\nModell: {model}\nZeitplan: {schedule}\n{cronLine}Nächster Lauf: {nextRunAt}",
+    "✅ Geplante Aufgabe erstellt\n\nAufgabe: {description}\nProjekt: {project}\nAgent: {agent}\nModell: {model}\nZeitplan: {schedule}\n{cronLine}Nächster Lauf: {nextRunAt}",
   "task.created.cron": "Cron: {cron}",
   "task.button.retry_schedule": "🔁 Zeitplan neu eingeben",
   "task.button.cancel": "❌ Abbrechen",
@@ -668,4 +677,10 @@ export const de: I18nDictionary = {
   "ls.file.header": "Dateidetails",
   "ls.file.download": "📥 Herunterladen",
   "ls.file.back": "⬅️ Zurück",
+  "ls.file.attach": "📎 An nächsten Prompt anhängen",
+  "attachment.added": "📎 Angehängt: {path}\n\nSende deine Nachricht, dann geht die Datei mit.",
+  "attachment.cancel": "❌ Anhang entfernen",
+  "attachment.cancelled": "❌ Anhang entfernt",
+  "attachment.invalid":
+    "⚠️ Die angehängte Datei ist nicht mehr verfügbar. Die Nachricht wird ohne sie gesendet.",
 };

@@ -3,7 +3,7 @@ import type { Context } from "grammy";
 import { loadSut } from "#helpers/sut-loader.js";
 
 const mocked = vi.hoisted(() => ({
-  clearAllInteractionState: vi.fn(),
+  clearInteractionErrorState: vi.fn(),
   handleAgentSelect: vi.fn(),
   handleCommandsCallback: vi.fn(),
   handleCompactConfirm: vi.fn(),
@@ -18,10 +18,12 @@ const mocked = vi.hoisted(() => ({
   handleModelSelect: vi.fn(),
   handlePermissionCallback: vi.fn(),
   handleProjectSelect: vi.fn(),
+  handlePromptAttachmentCancel: vi.fn(),
   handleQuestionCallback: vi.fn(),
   handleRenameCancel: vi.fn(),
   handleBackgroundSessionOpen: vi.fn(),
   handleSessionSelect: vi.fn(),
+  handleSettingsCallback: vi.fn(),
   handleSkillsCallback: vi.fn(),
   handleTaskCallback: vi.fn(),
   handleTaskListCallback: vi.fn(),
@@ -32,6 +34,7 @@ const mocked = vi.hoisted(() => ({
 }));
 
 vi.mock("#src/app/managers/interaction-manager.ts", () => ({
+  clearInteractionErrorState: mocked.clearInteractionErrorState,
   interactionManager: { clear: vi.fn() },
   clearAllInteractionState: mocked.clearAllInteractionState,
   DEFAULT_ALLOWED_INTERACTION_COMMANDS: ["/abort", "/detach", "/status", "/help"],
@@ -112,19 +115,26 @@ vi.mock("#src/bot/menus/file-browser-menu.ts", () => ({
   clearLsPathIndex: mocked.clearLsPathIndex,
   clearOpenPathIndex: mocked.clearOpenPathIndex,
 }));
+vi.mock("#src/bot/callbacks/prompt-attachment-callback-handler.ts", () => ({
+  handlePromptAttachmentCancel: mocked.handlePromptAttachmentCancel,
+}));
+vi.mock("#src/bot/callbacks/settings-callback-handler.ts", () => ({
+  handleSettingsCallback: mocked.handleSettingsCallback,
+}));
 
+// NOTE: keep this AFTER every vi.mock above — bun only intercepts dynamic
+// imports, so the SUT must be loaded once all mocks are registered.
 const sut = await loadSut<typeof import("#src/bot/callbacks/callback-router.js")>(
   "#src/bot/callbacks/callback-router.ts",
   import.meta.url,
 );
 
-const allHandlers = [
+const tableHandlers = [
   mocked.handleAgentSelect,
   mocked.handleCommandsCallback,
   mocked.handleCompactConfirm,
   mocked.handleLsCallback,
   mocked.handleOpenCallback,
-  mocked.handleInlineMenuCancel,
   mocked.handleMcpsCallback,
   mocked.handleMessagesCallback,
   mocked.handleModelProvidersCallback,
@@ -133,10 +143,11 @@ const allHandlers = [
   mocked.handleModelSelect,
   mocked.handlePermissionCallback,
   mocked.handleProjectSelect,
+  mocked.handlePromptAttachmentCancel,
   mocked.handleQuestionCallback,
   mocked.handleRenameCancel,
-  mocked.handleBackgroundSessionOpen,
   mocked.handleSessionSelect,
+  mocked.handleSettingsCallback,
   mocked.handleSkillsCallback,
   mocked.handleTaskCallback,
   mocked.handleTaskListCallback,
@@ -147,8 +158,86 @@ const allHandlers = [
 describe("bot/callbacks/callback-router", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    for (const handler of allHandlers) {
+    for (const handler of [
+      ...tableHandlers,
+      mocked.handleBackgroundSessionOpen,
+      mocked.handleInlineMenuCancel,
+    ]) {
       handler.mockResolvedValue(false);
+    }
+  });
+
+  it("dispatches a callback only to the handler matching its prefix", async () => {
+    mocked.handleAgentSelect.mockResolvedValue(true);
+    const callback = registerAndGetCallback();
+    const ctx = createCallbackContext("agent:subagent");
+
+    await callback(ctx);
+
+    expect(mocked.handleAgentSelect).toHaveBeenCalledTimes(1);
+    for (const handler of tableHandlers) {
+      if (handler !== mocked.handleAgentSelect) {
+        expect(handler).not.toHaveBeenCalled();
+      }
+    }
+    expect(ctx.answerCallbackQuery).not.toHaveBeenCalled();
+  });
+
+  it("does not call other handlers when the callback is handled", async () => {
+    mocked.handleSettingsCallback.mockResolvedValue(true);
+    const callback = registerAndGetCallback();
+
+    await callback(createCallbackContext("settings:tts"));
+
+    const calledHandlers = tableHandlers.filter((handler) => handler.mock.calls.length > 0);
+    expect(calledHandlers).toEqual([mocked.handleSettingsCallback]);
+  });
+
+  it("runs the model handlers as a chain until one handles the callback", async () => {
+    mocked.handleModelSelect.mockResolvedValue(true);
+    const callback = registerAndGetCallback();
+
+    await callback(createCallbackContext("model:anthropic:claude"));
+
+    expect(mocked.handleModelSearchCallback).toHaveBeenCalledTimes(1);
+    expect(mocked.handleModelSearchResults).toHaveBeenCalledTimes(1);
+    expect(mocked.handleModelProvidersCallback).toHaveBeenCalledTimes(1);
+    expect(mocked.handleModelSelect).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops the model chain when an earlier handler handles the callback", async () => {
+    mocked.handleModelSearchResults.mockResolvedValue(true);
+    const callback = registerAndGetCallback();
+
+    await callback(createCallbackContext("model:result:0"));
+
+    expect(mocked.handleModelSearchCallback).toHaveBeenCalledTimes(1);
+    expect(mocked.handleModelSearchResults).toHaveBeenCalledTimes(1);
+    expect(mocked.handleModelProvidersCallback).not.toHaveBeenCalled();
+    expect(mocked.handleModelSelect).not.toHaveBeenCalled();
+  });
+
+  it("does not call table handlers when the background session pre-hook handles the callback", async () => {
+    mocked.handleBackgroundSessionOpen.mockResolvedValue(true);
+    const callback = registerAndGetCallback();
+
+    await callback(createCallbackContext("background-session:session-1"));
+
+    for (const handler of tableHandlers) {
+      expect(handler).not.toHaveBeenCalled();
+    }
+  });
+
+  it("clears path indexes when the inline cancel pre-hook handles the callback", async () => {
+    mocked.handleInlineMenuCancel.mockResolvedValue(true);
+    const callback = registerAndGetCallback();
+
+    await callback(createCallbackContext("inline:cancel:model"));
+
+    expect(mocked.clearOpenPathIndex).toHaveBeenCalledTimes(1);
+    expect(mocked.clearLsPathIndex).toHaveBeenCalledTimes(1);
+    for (const handler of tableHandlers) {
+      expect(handler).not.toHaveBeenCalled();
     }
   });
 
@@ -175,12 +264,63 @@ describe("bot/callbacks/callback-router", () => {
   it("clears interaction state when a callback handler throws", async () => {
     mocked.handleAgentSelect.mockRejectedValueOnce(new Error("boom"));
     const callback = registerAndGetCallback();
-    const ctx = createCallbackContext();
+    const ctx = createCallbackContext("nonexistent:action");
 
     await callback(ctx);
 
-    expect(mocked.clearAllInteractionState).toHaveBeenCalledWith("callback_handler_error");
+    expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({ text: "callback.unknown_command" });
+    for (const handler of tableHandlers) {
+      expect(handler).not.toHaveBeenCalled();
+    }
+  });
+
+  it("answers callbacks without a colon as unknown", async () => {
+    const callback = registerAndGetCallback();
+    const ctx = createCallbackContext("noseparator");
+
+    await callback(ctx);
+
+    expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({ text: "callback.unknown_command" });
+  });
+
+  it("clears the interaction scope when a callback handler throws", async () => {
+    mocked.handleAgentSelect.mockRejectedValueOnce(new Error("boom"));
+    const callback = registerAndGetCallback();
+    const ctx = createCallbackContext("agent:subagent");
+
+    await callback(ctx);
+
+    expect(mocked.clearInteractionErrorState).toHaveBeenCalledWith(
+      "interaction",
+      "callback_handler_error",
+    );
     expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({ text: "callback.processing_error" });
+  });
+
+  it("clears the permission scope when the permission handler throws", async () => {
+    mocked.handlePermissionCallback.mockRejectedValueOnce(new Error("boom"));
+    const callback = registerAndGetCallback();
+    const ctx = createCallbackContext("permission:req-1:allow");
+
+    await callback(ctx);
+
+    expect(mocked.clearInteractionErrorState).toHaveBeenCalledWith(
+      "permission",
+      "callback_handler_error",
+    );
+  });
+
+  it("does not clear state when a pre-hook throws before dispatch", async () => {
+    mocked.handleBackgroundSessionOpen.mockRejectedValueOnce(new Error("boom"));
+    const callback = registerAndGetCallback();
+    const ctx = createCallbackContext("background-session:session-1");
+
+    await callback(ctx);
+
+    expect(mocked.clearInteractionErrorState).toHaveBeenCalledWith(
+      "interaction",
+      "callback_handler_error",
+    );
   });
 });
 

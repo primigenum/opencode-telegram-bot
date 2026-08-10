@@ -164,6 +164,7 @@ export const fr: I18nDictionary = {
   "settings.diff_files.label": "Fichiers diff",
   "settings.assistant_footer.label": "Pied de réponse",
   "settings.tts.label": "Réponses audio",
+  "settings.prompt_queue.label": "File d'attente des messages",
   "settings.value.on": "Activé",
   "settings.value.off": "Désactivé",
   "settings.saved": "✅ Paramètre enregistré.",
@@ -419,6 +420,14 @@ export const fr: I18nDictionary = {
   "keyboard.context_empty": "📊 0",
   "keyboard.variant": "💭 {name}",
   "keyboard.variant_default": "💡 Par défaut",
+  "keyboard.queued_prompt": "❌ {index}. {text}",
+  "queue.added":
+    "📥 Ajouté à la file d'attente ({count}/{max}). Le message sera envoyé à la fin de la tâche en cours.",
+  "queue.full":
+    "⚠️ La file d'attente est pleine ({max}). Supprimez un message ou attendez la fin de la tâche en cours.",
+  "queue.removed": "🗑 Message retiré de la file d'attente.",
+  "queue.not_found": "Ce message n'est plus dans la file d'attente.",
+  "queue.disabled_hint": "La file d'attente des messages s'active dans /settings.",
   "keyboard.updated": "⌨️ Clavier mis à jour",
 
   "pinned.default_session_title": "nouvelle session",
@@ -507,7 +516,7 @@ export const fr: I18nDictionary = {
   "task.prompt.body": "📝 Envoyez maintenant ce que le bot doit faire selon ce planning.",
   "task.prompt_empty": "⚠️ Le texte de la tâche ne peut pas être vide.",
   "task.created":
-    "✅ Tâche planifiée créée\n\nTâche : {description}\nProjet : {project}\nModèle : {model}\nPlanning : {schedule}\n{cronLine}Prochaine exécution : {nextRunAt}",
+    "✅ Tâche planifiée créée\n\nTâche : {description}\nProjet : {project}\nAgent : {agent}\nModèle : {model}\nPlanning : {schedule}\n{cronLine}Prochaine exécution : {nextRunAt}",
   "task.created.cron": "Cron : {cron}",
   "task.button.retry_schedule": "🔁 Ressaisir le planning",
   "task.button.cancel": "❌ Annuler",
@@ -667,4 +676,10 @@ export const fr: I18nDictionary = {
   "ls.file.header": "Détails du fichier",
   "ls.file.download": "📥 Télécharger",
   "ls.file.back": "⬅️ Retour",
+  "ls.file.attach": "📎 Joindre au prochain prompt",
+  "attachment.added": "📎 Joint : {path}\n\nEnvoyez votre message et le fichier partira avec.",
+  "attachment.cancel": "❌ Annuler la pièce jointe",
+  "attachment.cancelled": "❌ Pièce jointe annulée",
+  "attachment.invalid":
+    "⚠️ Le fichier joint n'est plus disponible. Envoi du message sans celui-ci.",
 };

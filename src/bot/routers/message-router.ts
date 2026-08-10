@@ -16,9 +16,14 @@ import { showModelSelectionMenu } from "../menus/model-selection-menu.js";
 import { showVariantSelectionMenu } from "../menus/variant-selection-menu.js";
 import {
   AGENT_MODE_BUTTON_TEXT_PATTERN,
+  CONTEXT_BUTTON_TEXT_PATTERN,
   MODEL_BUTTON_TEXT_PATTERN,
+  QUEUED_PROMPT_BUTTON_TEXT_PATTERN,
   VARIANT_BUTTON_TEXT_PATTERN,
 } from "../message-patterns.js";
+import { promptQueue } from "../../app/managers/prompt-queue-manager.js";
+import { keyboardManager } from "../keyboards/keyboard-manager.js";
+import { findQueuedPromptByButtonLabel } from "../keyboards/queued-prompt-button.js";
 import { handleDocumentMessage } from "../handlers/document-handler.js";
 import { createMediaGroupAttachmentMiddleware } from "../handlers/media-group-handler.js";
 import { handlePhotoMessage } from "../handlers/photo-handler.js";
@@ -47,6 +52,28 @@ async function blockMenuWhileInteractionActive(ctx: Context): Promise<boolean> {
 
 export function registerMessageRouter(bot: Bot<Context>, deps: MessageRouterDeps): void {
   bot.on("message:text", unknownCommandMiddleware);
+
+  bot.hears(QUEUED_PROMPT_BUTTON_TEXT_PATTERN, async (ctx) => {
+    logger.debug(`[Bot] Queued prompt button pressed: ${ctx.message?.text}`);
+
+    if (await blockMenuWhileInteractionActive(ctx)) {
+      return;
+    }
+
+    const label = ctx.message?.text;
+    const queuedPrompt = label ? findQueuedPromptByButtonLabel(label) : null;
+
+    if (queuedPrompt) {
+      promptQueue.removeById(queuedPrompt.id);
+      await ctx.reply(t("queue.removed"), { reply_markup: keyboardManager.getKeyboard() });
+      return;
+    }
+
+    // The queue was drained or cleared after Telegram rendered the keyboard the
+    // user pressed. Never fall through to the prompt handler: that would send
+    // the button label itself to OpenCode as a prompt.
+    await ctx.reply(t("queue.not_found"), { reply_markup: keyboardManager.getKeyboard() });
+  });
 
   bot.hears(AGENT_MODE_BUTTON_TEXT_PATTERN, async (ctx) => {
     logger.debug(`[Bot] Agent button pressed: ${ctx.message?.text}`);
@@ -78,7 +105,7 @@ export function registerMessageRouter(bot: Bot<Context>, deps: MessageRouterDeps
     }
   });
 
-  bot.hears(/^📊(?:\s|$)/, async (ctx) => {
+  bot.hears(CONTEXT_BUTTON_TEXT_PATTERN, async (ctx) => {
     logger.debug(`[Bot] Context button pressed: ${ctx.message?.text}`);
 
     try {

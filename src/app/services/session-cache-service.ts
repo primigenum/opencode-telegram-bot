@@ -2,6 +2,8 @@ import path from "bun:path";
 import { Database } from "bun:sqlite";
 import { opencodeClient } from "../../opencode/client.js";
 import { getSessionDirectoryCache, setSessionDirectoryCache } from "../stores/settings-store.js";
+import { isServerUnavailableError } from "../../utils/opencode-error.js";
+import { isRecord } from "../../utils/type-guards.js";
 import { logger } from "../../utils/logger.js";
 import type { CachedSessionDirectory, SessionDirectoryProject } from "../types/session.js";
 
@@ -19,12 +21,6 @@ const SYNC_SAFETY_WINDOW_MS = 60_000;
 const SYNC_COOLDOWN_MS = 60_000;
 const STORAGE_FALLBACK_SCAN_LIMIT = 200;
 const SQLITE_FALLBACK_QUERY_LIMIT = 200;
-const SERVER_UNAVAILABLE_ERROR_MARKERS = [
-  "fetch failed",
-  "econnrefused",
-  "connection refused",
-  "connect refused",
-];
 
 const EMPTY_CACHE: SessionDirectoryCacheData = {
   version: CACHE_VERSION,
@@ -60,29 +56,22 @@ function isValidWorktree(worktree: string): boolean {
 }
 
 function normalizeCacheData(raw: unknown): SessionDirectoryCacheData {
-  if (!raw || typeof raw !== "object") {
+  if (!isRecord(raw)) {
     return createEmptyCacheData();
   }
 
-  const value = raw as {
-    version?: unknown;
-    lastSyncedUpdatedAt?: unknown;
-    directories?: unknown;
-  };
-
   const lastSyncedUpdatedAt =
-    typeof value.lastSyncedUpdatedAt === "number" && Number.isFinite(value.lastSyncedUpdatedAt)
-      ? value.lastSyncedUpdatedAt
+    typeof raw.lastSyncedUpdatedAt === "number" && Number.isFinite(raw.lastSyncedUpdatedAt)
+      ? raw.lastSyncedUpdatedAt
       : 0;
 
-  const directories: CachedSessionDirectory[] = Array.isArray(value.directories)
-    ? value.directories
+  const directories: CachedSessionDirectory[] = Array.isArray(raw.directories)
+    ? raw.directories
         .filter(
           (item): item is { worktree: string; lastUpdated: number } =>
-            Boolean(item) &&
-            typeof item === "object" &&
-            typeof (item as { worktree?: unknown }).worktree === "string" &&
-            typeof (item as { lastUpdated?: unknown }).lastUpdated === "number",
+            isRecord(item) &&
+            typeof item.worktree === "string" &&
+            typeof item.lastUpdated === "number",
         )
         .map((item) => ({
           worktree: item.worktree.trim(),
@@ -197,69 +186,6 @@ function createVirtualProjectId(worktree: string): string {
   hasher.update(worktree);
   const hash = Buffer.from(hasher.digest()).toString("hex").slice(0, 16);
   return `dir_${hash}`;
-}
-
-function hasServerUnavailableMarker(value: string): boolean {
-  const lower = value.toLowerCase();
-  return SERVER_UNAVAILABLE_ERROR_MARKERS.some((marker) => lower.includes(marker));
-}
-
-function isServerUnavailableError(error: unknown): boolean {
-  const queue: unknown[] = [error];
-  const seen = new Set<unknown>();
-
-  while (queue.length > 0) {
-    const current = queue.pop();
-
-    if (!current || seen.has(current)) {
-      continue;
-    }
-
-    seen.add(current);
-
-    if (typeof current === "string") {
-      if (hasServerUnavailableMarker(current)) {
-        return true;
-      }
-
-      continue;
-    }
-
-    if (current instanceof Error) {
-      if (hasServerUnavailableMarker(`${current.name}: ${current.message}`)) {
-        return true;
-      }
-
-      const errorWithCause = current as Error & { cause?: unknown };
-      if (errorWithCause.cause) {
-        queue.push(errorWithCause.cause);
-      }
-
-      continue;
-    }
-
-    if (typeof current === "object") {
-      const value = current as {
-        code?: unknown;
-        message?: unknown;
-        cause?: unknown;
-      };
-
-      if (typeof value.code === "string" && hasServerUnavailableMarker(value.code)) {
-        return true;
-      }
-
-      if (typeof value.message === "string" && hasServerUnavailableMarker(value.message)) {
-        return true;
-      }
-
-      if (value.cause) {
-        queue.push(value.cause);
-      }
-    }
-  }
-
-  return false;
 }
 
 async function runSync(options?: { force?: boolean }): Promise<void> {

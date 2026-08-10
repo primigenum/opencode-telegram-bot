@@ -2,6 +2,7 @@ import type { Context } from "grammy";
 import type { McpCatalogServerItem } from "../../app/services/mcp-catalog-service.js";
 import {
   loadMcpCatalog,
+  parseMcpCatalogServers,
   toggleMcpCatalogServer,
 } from "../../app/services/mcp-catalog-service.js";
 import { interactionManager } from "../../app/managers/interaction-manager.js";
@@ -49,64 +50,6 @@ function getCallbackMessageId(ctx: Context): number | null {
   return typeof messageId === "number" ? messageId : null;
 }
 
-function parseMcpsServers(value: unknown): McpCatalogServerItem[] | null {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-
-  if (Array.isArray(value)) {
-    const servers: McpCatalogServerItem[] = [];
-    for (const item of value) {
-      if (!item || typeof item !== "object") {
-        return null;
-      }
-
-      const name = (item as { name?: unknown }).name;
-      const status = (item as { status?: unknown }).status;
-      if (typeof name !== "string" || !status || typeof status !== "object") {
-        return null;
-      }
-
-      const s = status as { status?: unknown; error?: unknown };
-      if (typeof s.status !== "string") {
-        return null;
-      }
-
-      const mcpStatus = { status: s.status } as McpCatalogServerItem["status"];
-      if ("error" in s && typeof s.error === "string") {
-        (mcpStatus as McpCatalogServerItem["status"] & { error: string }).error = s.error;
-      }
-
-      servers.push({ name, status: mcpStatus });
-    }
-
-    return servers;
-  }
-
-  const entries = Object.entries(value as Record<string, unknown>);
-  const servers: McpCatalogServerItem[] = [];
-
-  for (const [name, status] of entries) {
-    if (!status || typeof status !== "object") {
-      return null;
-    }
-
-    const s = status as { status?: unknown; error?: unknown };
-    if (typeof s.status !== "string") {
-      return null;
-    }
-
-    const mcpStatus = { status: s.status } as McpCatalogServerItem["status"];
-    if ("error" in s && typeof s.error === "string") {
-      (mcpStatus as McpCatalogServerItem["status"] & { error: string }).error = s.error;
-    }
-
-    servers.push({ name, status: mcpStatus });
-  }
-
-  return servers;
-}
-
 function parseMcpsMetadata(state: InteractionState | null): McpsMetadata | null {
   if (!state || state.kind !== "custom") {
     return null;
@@ -121,7 +64,7 @@ function parseMcpsMetadata(state: InteractionState | null): McpsMetadata | null 
     return null;
   }
 
-  const servers = parseMcpsServers(state.metadata.servers);
+  const servers = parseMcpCatalogServers(state.metadata.servers);
   if (!servers) {
     return null;
   }

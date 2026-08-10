@@ -1,4 +1,10 @@
 import { t } from "../../i18n/index.js";
+import {
+  TOOL_ELAPSED_THRESHOLD_MS,
+  appendDuration,
+  bucketElapsedMs,
+  formatDuration,
+} from "./duration-formatter.js";
 import { formatCompactToolInfo } from "./summary-formatter.js";
 import type { SubagentInfo } from "../managers/summary-aggregation-manager.js";
 import type { ToolInfo } from "../managers/summary-aggregation-manager.js";
@@ -69,9 +75,32 @@ function formatToolStep(subagent: SubagentInfo): string {
   return formatted;
 }
 
-function formatSubagentActivity(subagent: SubagentInfo): string {
+function formatToolElapsed(subagent: SubagentInfo, now: number): string | null {
+  if (subagent.currentToolStartedAt === undefined) {
+    return null;
+  }
+
+  const elapsedMs = now - subagent.currentToolStartedAt;
+  if (elapsedMs < TOOL_ELAPSED_THRESHOLD_MS) {
+    return null;
+  }
+
+  return formatDuration(bucketElapsedMs(elapsedMs));
+}
+
+function formatSubagentActivity(subagent: SubagentInfo, now: number): string {
   if (subagent.status === "completed") {
-    return `✅ ${t("subagent.completed")}`;
+    const completed = `✅ ${t("subagent.completed")}`;
+    if (subagent.finishedAt === undefined) {
+      return completed;
+    }
+
+    // No threshold here: this is one line per subagent rather than a stream of
+    // updates, matching how the assistant run footer always reports its time.
+    return appendDuration(
+      completed,
+      formatDuration(subagent.finishedAt - subagent.createdAt),
+    );
   }
 
   if (subagent.status === "error") {
@@ -81,30 +110,34 @@ function formatSubagentActivity(subagent: SubagentInfo): string {
 
   const toolStep = formatToolStep(subagent);
   if (toolStep) {
-    return toolStep;
+    const elapsed = formatToolElapsed(subagent, now);
+    return elapsed ? appendDuration(toolStep, elapsed) : toolStep;
   }
 
   return `⚙️ ${t("subagent.working")}`;
 }
 
-async function formatSubagentCard(subagent: SubagentInfo): Promise<string> {
+async function formatSubagentCard(subagent: SubagentInfo, now: number): Promise<string> {
   const modelName = formatModelDisplayName(subagent.providerID, subagent.modelID);
   const lines = [
     `🧩 ${t("subagent.line.task", { task: subagent.description })}`,
     t("subagent.line.agent", { agent: subagent.agent }),
     t("pinned.line.model", { model: modelName }),
     "",
-    formatSubagentActivity(subagent),
+    formatSubagentActivity(subagent, now),
   ];
 
   return lines.join("\n");
 }
 
-export async function renderSubagentCards(subagents: SubagentInfo[]): Promise<string> {
+export async function renderSubagentCards(
+  subagents: SubagentInfo[],
+  now: number = Date.now(),
+): Promise<string> {
   if (subagents.length === 0) {
     return "";
   }
 
-  const parts = await Promise.all(subagents.map((subagent) => formatSubagentCard(subagent)));
+  const parts = await Promise.all(subagents.map((subagent) => formatSubagentCard(subagent, now)));
   return parts.filter(Boolean).join("\n\n");
 }

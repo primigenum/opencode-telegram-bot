@@ -1,5 +1,6 @@
 import type { Api } from "grammy";
 import { createMainKeyboard } from "./main-reply-keyboard.js";
+import { getQueuedPromptButtonLabels } from "./queued-prompt-button.js";
 import { getStoredAgent } from "../../app/services/agent-selection-service.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
 import { formatVariantForButton } from "../../app/services/variant-selection-service.js";
@@ -129,6 +130,7 @@ class KeyboardManager {
       this.state.currentModel,
       this.state.contextInfo ?? undefined,
       this.state.variantName,
+      getQueuedPromptButtonLabels(),
     );
   }
 

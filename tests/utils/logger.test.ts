@@ -34,6 +34,35 @@ describe("utils/logger", () => {
     __resetLoggerForTests();
   });
 
+  it("flushes buffered lines to the file through the public flushLogger", async () => {
+    const tempHome = await createTempHome();
+    const consoleLogMock = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const consoleWarnMock = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-11T12:34:56.000Z"));
+    vi.stubEnv("LOG_LEVEL", "info");
+    vi.stubEnv("OPENCODE_TELEGRAM_HOME", tempHome);
+    setRuntimeMode("sources");
+
+    const { initializeLogger, logger, flushLogger, __resetLoggerForTests } =
+      await loadLoggerModule();
+
+    await initializeLogger();
+    logger.info("line before flush");
+    logger.warn("second line");
+    await flushLogger();
+
+    const expectedPath = path.join(tempHome, "logs", `bot-2026-04-11_12-34-56_${process.pid}.log`);
+    const content = await fs.readFile(expectedPath, "utf-8");
+    expect(content).toContain("[INFO] line before flush");
+    expect(content).toContain("[WARN] second line");
+    expect(consoleLogMock).toHaveBeenCalledTimes(1);
+    expect(consoleWarnMock).toHaveBeenCalledTimes(1);
+
+    __resetLoggerForTests();
+  });
+
   it("writes one log file per launch in sources mode", async () => {
     const tempHome = await createTempHome();
     const consoleLogMock = vi.spyOn(console, "log").mockImplementation(() => undefined);
