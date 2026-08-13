@@ -11,9 +11,14 @@ Telegram photo
   → bot downloads the largest size
   → POST {LOCAL_VISION_API_URL}/chat/completions  (image + short prompt)
   → local model returns a text description
+  → bot saves the ORIGINAL photo to ~/.opencode/uploads/ (or LOCAL_VISION_UPLOAD_DIR)
   → bot sends caption + "[Local vision description of the attached photo] ..."
-    as a normal text prompt to OpenCode
+    + the photo path as a normal text prompt to OpenCode
 ```
+
+The agent can inspect the saved photo itself (e.g. with the `describe_image`
+tool) while working on your request — like *"implement the web with this
+style"*.
 
 If the active model supports image input, the photo is sent directly as an
 image part (the fallback is skipped).
