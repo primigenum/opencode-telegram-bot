@@ -3,10 +3,8 @@ import type { FilePartInput, Model } from "@opencode-ai/sdk/v2";
 import { downloadTelegramFile, toDataUri } from "../../app/services/file-download-service.js";
 import { getModelCapabilities, supportsInput } from "../../app/services/model-capabilities-service.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
-import {
-  describeImageWithLocalVision,
-  type LocalVisionResult,
-} from "../../app/services/local-vision-service.js";
+import { describeImageWithLocalVision, type LocalVisionResult } from "../../app/services/local-vision-service.js";
+import { savePhotoForAgent } from "../../app/services/photo-save-service.js";
 import { t } from "../../i18n/index.js";
 import { logger } from "../../utils/logger.js";
 import { flushPendingPrompt } from "./message-merger.js";
@@ -33,6 +31,7 @@ export interface PhotoHandlerDeps extends ProcessPromptDeps {
     mime?: string,
     question?: string,
   ) => Promise<LocalVisionResult>;
+  savePhoto?: (buffer: Buffer, extension?: string) => string;
 }
 
 export async function handlePhotoMessage(ctx: Context, deps: PhotoHandlerDeps): Promise<void> {
@@ -79,7 +78,13 @@ export async function handlePhotoMessage(ctx: Context, deps: PhotoHandlerDeps): 
         return;
       }
 
-      const visionNote = `[Local vision description of the attached photo]\n${visionResult.description}`;
+      // Save the original photo so the opencode agent can inspect it itself
+      // (e.g. with the describe_image tool) while working on the prompt.
+      const savePhoto = deps.savePhoto ?? savePhotoForAgent;
+      const photoPath = savePhoto(downloadedFile.buffer);
+      logger.info(`[Bot] Photo saved for agent inspection: ${photoPath}`);
+
+      const visionNote = `[Local vision description of the attached photo]\n${visionResult.description}\n\n[The original photo is available on disk at: ${photoPath} — use the describe_image tool on that path whenever you need visual details (colors, layout, exact text).]`;
       const combinedText = caption ? `${caption}\n\n${visionNote}` : visionNote;
       logger.info(
         `[Bot] Photo described by local vision (${visionResult.description.length} chars), sending as text`,

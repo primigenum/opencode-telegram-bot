@@ -126,6 +126,7 @@ function createDeps(overrides: Partial<PhotoHandlerDeps> = {}): {
   const describeImageMock = vi
     .fn()
     .mockResolvedValue({ ok: true, description: "A photo showing a salon booking." });
+  const savePhotoMock = vi.fn().mockReturnValue("/home/test/.opencode/uploads/photo-123.png");
   const deps: PhotoHandlerDeps = {
     bot: {} as PhotoHandlerDeps["bot"],
     ensureEventSubscription: vi.fn().mockResolvedValue(undefined),
@@ -134,10 +135,18 @@ function createDeps(overrides: Partial<PhotoHandlerDeps> = {}): {
     getStoredModel: vi.fn(() => ({ providerID: "test-provider", modelID: "test-model" })),
     processPrompt: processPromptMock,
     describeImage: describeImageMock,
+    savePhoto: savePhotoMock,
     ...overrides,
   };
 
-  return { deps, processPromptMock, downloadMock, getCapabilitiesMock, describeImageMock };
+  return {
+    deps,
+    processPromptMock,
+    downloadMock,
+    getCapabilitiesMock,
+    describeImageMock,
+    savePhotoMock,
+  };
 }
 
 describe("bot/handlers/photo-handler", () => {
@@ -191,6 +200,11 @@ describe("bot/handlers/photo-handler", () => {
     expect(processPromptMock).toHaveBeenCalledWith(
       ctx,
       expect.stringContaining("A photo showing a salon booking."),
+      deps,
+    );
+    expect(processPromptMock).toHaveBeenCalledWith(
+      ctx,
+      expect.stringContaining("/home/test/.opencode/uploads/photo-123.png"),
       deps,
     );
   });

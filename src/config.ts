@@ -361,6 +361,12 @@ export function createConfig(env: EnvRecord) {
       // via llama.cpp on 127.0.0.1:8082) and the description is sent as text.
       apiUrl: getEnvVar(env, "LOCAL_VISION_API_URL", false) || "http://127.0.0.1:8082/v1",
       model: getEnvVar(env, "LOCAL_VISION_MODEL", false) || "lfm2.5-vl-3b",
+      // Photos are also saved here so the opencode agent can inspect the
+      // original image itself (e.g. with the describe_image tool) while
+      // working on the prompt — "implement the web with this style".
+      uploadDir:
+        getEnvVar(env, "LOCAL_VISION_UPLOAD_DIR", false) ||
+        (process.env.HOME ?? process.env.USERPROFILE ?? "") + "/.opencode/uploads",
     },
     docExtractor: {
       apiUrl: getEnvVar(env, "DOC_EXTRACTOR_URL", false),
