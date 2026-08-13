@@ -3,6 +3,10 @@ import type { FilePartInput, Model } from "@opencode-ai/sdk/v2";
 import { downloadTelegramFile, toDataUri } from "../../app/services/file-download-service.js";
 import { getModelCapabilities, supportsInput } from "../../app/services/model-capabilities-service.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
+import {
+  describeImageWithLocalVision,
+  type LocalVisionResult,
+} from "../../app/services/local-vision-service.js";
 import { t } from "../../i18n/index.js";
 import { logger } from "../../utils/logger.js";
 import { flushPendingPrompt } from "./message-merger.js";
@@ -24,6 +28,11 @@ export interface PhotoHandlerDeps extends ProcessPromptDeps {
     deps: ProcessPromptDeps,
     fileParts?: FilePartInput[],
   ) => Promise<boolean>;
+  describeImage?: (
+    buffer: Buffer,
+    mime?: string,
+    question?: string,
+  ) => Promise<LocalVisionResult>;
 }
 
 export async function handlePhotoMessage(ctx: Context, deps: PhotoHandlerDeps): Promise<void> {
@@ -40,20 +49,42 @@ export async function handlePhotoMessage(ctx: Context, deps: PhotoHandlerDeps): 
   const getCapabilities = deps.getModelCapabilities ?? getModelCapabilities;
   const getStored = deps.getStoredModel ?? getStoredModel;
   const processPrompt = deps.processPrompt ?? processUserPrompt;
+  const describeImage = deps.describeImage ?? describeImageWithLocalVision;
 
   try {
     const storedModel = getStored();
     const capabilities = await getCapabilities(storedModel.providerID, storedModel.modelID);
 
     if (!supportsInput(capabilities, "image")) {
+      // Vision fallback: the active model is text-only. Describe the photo
+      // with the LOCAL vision model and send the description as text.
       logger.warn(
-        `[Bot] Model ${storedModel.providerID}/${storedModel.modelID} doesn't support image input`,
+        `[Bot] Model ${storedModel.providerID}/${storedModel.modelID} doesn't support image input — using local vision fallback`,
       );
-      await ctx.reply(t("bot.photo_model_no_image"));
+      await ctx.reply(t("bot.photo_vision_describing"));
 
-      if (caption.trim().length > 0) {
-        await processPrompt(ctx, caption, deps);
+      let downloadedFile;
+      try {
+        downloadedFile = await downloadFile(ctx.api, largestPhoto.file_id);
+      } catch (err) {
+        logger.error("[Bot] Failed to download photo for local vision:", err);
+        await ctx.reply(t("bot.photo_download_error"));
+        return;
       }
+
+      const visionResult = await describeImage(downloadedFile.buffer, "image/jpeg");
+      if (!visionResult.ok) {
+        logger.error(`[Bot] Local vision fallback failed: ${visionResult.error}`);
+        await ctx.reply(t("bot.photo_vision_fallback_error"));
+        return;
+      }
+
+      const visionNote = `[Local vision description of the attached photo]\n${visionResult.description}`;
+      const combinedText = caption ? `${caption}\n\n${visionNote}` : visionNote;
+      logger.info(
+        `[Bot] Photo described by local vision (${visionResult.description.length} chars), sending as text`,
+      );
+      await processPrompt(ctx, combinedText, deps);
       return;
     }
 

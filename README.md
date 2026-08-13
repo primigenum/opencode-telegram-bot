@@ -248,6 +248,8 @@ The first time you start the bot, the configuration wizard runs and writes `.env
 | `STT_NOTE_PROMPT`                          | Optional note prepended to the LLM prompt as `[Note: ...]` for voice transcriptions; empty / `false` / `0` disable it |    No    | —                        |
 | `DOC_EXTRACTOR_URL`                        | Document text extraction API URL (enables PDF/DOCX/PPTX extraction)                                                    |    No    | —                        |
 | `DOC_EXTRACTOR_API_KEY`                    | API key for the document extractor (optional for self-hosted extractors)                                                |    No    | —                        |
+| `LOCAL_VISION_API_URL`                     | OpenAI-compatible local vision model base URL. Used as fallback when the active model doesn't support image input: the bot describes your photo locally and sends the description as text | No | `http://127.0.0.1:8082/v1` |
+| `LOCAL_VISION_MODEL`                       | Local vision model ID sent to the vision API                                                                           |    No    | `lfm2.5-vl-3b`           |
 | `TTS_PROVIDER`                             | TTS provider: `openai` for OpenAI-compatible APIs, `elevenlabs` for ElevenLabs, or `google` for Google Cloud TTS      |    No    | `openai`                 |
 | `TTS_API_URL`                              | TTS API base URL for OpenAI-compatible APIs or ElevenLabs                                                             |    No    | —                        |
 | `TTS_API_KEY`                              | TTS API key for OpenAI-compatible APIs or ElevenLabs                                                                  |    No    | —                        |
@@ -429,6 +431,24 @@ The API contract is:
 - **Response:** JSON `{ "text": "extracted content..." }`
 
 If the extractor is not configured and the model doesn't support documents, the bot replies with a notice and forwards only the caption text.
+
+### Local Vision for Photos (Optional)
+
+If you send a photo and the active model doesn't support image input, the bot falls back to a **local vision model** (default: `LFM2.5-VL-3B` via llama.cpp on `127.0.0.1:8082`):
+
+1. The bot downloads your photo and sends it to the local vision endpoint
+2. The local model describes it (all visible text, layout, statuses) — 100% local, nothing leaves your machine
+3. The description is sent to OpenCode as text, together with your caption
+
+If the model DOES support images, the photo is sent directly as an image part (default behavior).
+
+```env
+# Optional — defaults work for a llama.cpp vision server on the same machine:
+LOCAL_VISION_API_URL=http://127.0.0.1:8082/v1
+LOCAL_VISION_MODEL=lfm2.5-vl-3b
+```
+
+Full setup guide (model download + llama.cpp server): see [docs/LOCAL_VISION.md](./docs/LOCAL_VISION.md).
 
 ### Model Configuration
 

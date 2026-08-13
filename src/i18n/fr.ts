@@ -104,8 +104,9 @@ export const fr: I18nDictionary = {
   "bot.photo_model_no_image":
     "⚠️ Le modèle actuel ne prend pas en charge les images. Envoi du texte uniquement.",
   "bot.photo_download_error": "🔴 Impossible de télécharger la photo",
-  "bot.photo_no_caption":
-    "💡 Conseil : ajoutez une légende pour décrire ce que vous voulez faire avec cette photo.",
+  "bot.photo_no_caption": "💡 Conseil : ajoutez une légende pour décrire ce que vous voulez faire avec cette photo.",
+    "bot.photo_vision_describing": "🔍 Description de la photo avec le modèle de vision local...",
+  "bot.photo_vision_fallback_error": "🔴 Service de vision local indisponible (127.0.0.1:8082). Lancez-le avec ~/models/lfm2.5-vl-3b/start.sh",
   "bot.file_downloading": "⏳ Téléchargement du fichier...",
   "bot.files_downloading": "⏳ Téléchargement des fichiers...",
   "bot.file_too_large": "⚠️ Le fichier est trop volumineux (max {maxSizeMb}MB)",

@@ -89,6 +89,8 @@ export const zh: I18nDictionary = {
   "bot.photo_model_no_image": "⚠️ 当前模型不支持图像输入。将仅发送文本。",
   "bot.photo_download_error": "🔴 下载照片失败",
   "bot.photo_no_caption": "💡 提示：添加说明文字以描述你希望对这张照片做什么。",
+  "bot.photo_vision_describing": "🔍 正在使用本地视觉模型描述照片...",
+  "bot.photo_vision_fallback_error": "🔴 本地视觉服务不可用 (127.0.0.1:8082)。请使用 ~/models/lfm2.5-vl-3b/start.sh 启动",
   "bot.file_downloading": "⏳ 正在下载文件...",
   "bot.files_downloading": "⏳ 正在下载文件...",
   "bot.file_too_large": "⚠️ 文件过大（最大 {maxSizeMb}MB）",
