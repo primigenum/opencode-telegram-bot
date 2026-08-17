@@ -7,6 +7,14 @@ const SERVER_UNAVAILABLE_ERROR_MARKERS = [
   "connect refused",
 ];
 
+/**
+ * Detects the OpenCode API's "session/project not found" error (HTTP 404).
+ * The SDK surfaces it as an object with `name: "NotFoundError"`.
+ */
+export function isNotFoundError(error: unknown): boolean {
+  return isRecord(error) && error.name === "NotFoundError";
+}
+
 export function isExpectedOpencodeUnavailableError(error: unknown): boolean {
   if (!error) {
     return false;

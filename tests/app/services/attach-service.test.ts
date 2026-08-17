@@ -52,14 +52,26 @@ const mocked = vi.hoisted(() => ({
   showPermissionRequestMock: vi.fn(),
   ensureEventSubscriptionMock: vi.fn(),
   stopEventListeningMock: vi.fn(),
+  sessionGetMock: vi.fn(),
+  clearSessionMock: vi.fn(),
+  clearProjectMock: vi.fn(),
+  clearPinnedMessageIdMock: vi.fn(),
+  getProjectsMock: vi.fn(),
 }));
 
 vi.mock("#src/app/stores/settings-store.ts", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
+  clearProject: mocked.clearProjectMock,
+  clearPinnedMessageId: mocked.clearPinnedMessageIdMock,
 }));
 
 vi.mock("#src/app/services/session-service.ts", () => ({
   getCurrentSession: vi.fn(() => mocked.currentSession),
+  clearSession: mocked.clearSessionMock,
+}));
+
+vi.mock("#src/app/services/project-service.ts", () => ({
+  getProjects: mocked.getProjectsMock,
 }));
 
 vi.mock("#src/opencode/client.ts", () => ({
@@ -69,6 +81,7 @@ vi.mock("#src/opencode/client.ts", () => ({
     },
     session: {
       status: mocked.sessionStatusMock,
+      get: mocked.sessionGetMock,
     },
     question: {
       list: mocked.questionListMock,
@@ -154,6 +167,18 @@ describe("attach/service", () => {
       },
       error: null,
     });
+    mocked.sessionGetMock.mockReset();
+    mocked.sessionGetMock.mockResolvedValue({
+      data: { id: "session-1", directory: "D:\\Projects\\Repo" },
+      error: null,
+    });
+    mocked.getProjectsMock.mockReset();
+    mocked.getProjectsMock.mockResolvedValue([
+      { id: "project-1", worktree: "D:\\Projects\\Repo", name: "Repo" },
+    ]);
+    mocked.clearSessionMock.mockReset();
+    mocked.clearProjectMock.mockReset();
+    mocked.clearPinnedMessageIdMock.mockReset();
     mocked.questionListMock.mockReset();
     mocked.questionListMock.mockResolvedValue({ data: [], error: null });
     mocked.permissionListMock.mockReset();
@@ -332,6 +357,81 @@ describe("attach/service", () => {
     expect(mocked.questionListMock).not.toHaveBeenCalled();
     expect(mocked.permissionListMock).not.toHaveBeenCalled();
     expect(mocked.ensureEventSubscriptionMock).not.toHaveBeenCalled();
+  });
+
+  it("clears a stale stored session that no longer exists on the server", async () => {
+    mocked.sessionGetMock.mockResolvedValueOnce({
+      data: null,
+      error: { name: "NotFoundError", data: { message: "Session not found: session-1" } },
+    });
+
+    const restored = await restoreAttachedCurrentSession({
+      bot: createBot(),
+      chatId: 777,
+      ensureEventSubscription: mocked.ensureEventSubscriptionMock,
+    });
+
+    expect(restored).toBe(false);
+    expect(mocked.clearSessionMock).toHaveBeenCalledOnce();
+    expect(mocked.clearPinnedMessageIdMock).toHaveBeenCalledOnce();
+    expect(mocked.ensureEventSubscriptionMock).not.toHaveBeenCalled();
+    expect(attachManager.getSnapshot()).toBeNull();
+  });
+
+  it("clears the stored project too when it is no longer in the visible list", async () => {
+    mocked.sessionGetMock.mockResolvedValueOnce({
+      data: null,
+      error: { name: "NotFoundError", data: { message: "Session not found: session-1" } },
+    });
+    mocked.getProjectsMock.mockResolvedValueOnce([
+      { id: "other-project", worktree: "D:\\Projects\\Other", name: "Other" },
+    ]);
+
+    const restored = await restoreAttachedCurrentSession({
+      bot: createBot(),
+      chatId: 777,
+      ensureEventSubscription: mocked.ensureEventSubscriptionMock,
+    });
+
+    expect(restored).toBe(false);
+    expect(mocked.clearSessionMock).toHaveBeenCalledOnce();
+    expect(mocked.clearProjectMock).toHaveBeenCalledOnce();
+    expect(attachManager.getSnapshot()).toBeNull();
+  });
+
+  it("keeps the stored project when it is still in the visible list", async () => {
+    mocked.sessionGetMock.mockResolvedValueOnce({
+      data: null,
+      error: { name: "NotFoundError", data: { message: "Session not found: session-1" } },
+    });
+
+    const restored = await restoreAttachedCurrentSession({
+      bot: createBot(),
+      chatId: 777,
+      ensureEventSubscription: mocked.ensureEventSubscriptionMock,
+    });
+
+    expect(restored).toBe(false);
+    expect(mocked.clearSessionMock).toHaveBeenCalledOnce();
+    expect(mocked.clearProjectMock).not.toHaveBeenCalled();
+  });
+
+  it("does not clear session state on unexpected session lookup errors", async () => {
+    mocked.sessionGetMock.mockResolvedValueOnce({
+      data: null,
+      error: { name: "InternalError", data: { message: "boom" } },
+    });
+
+    const restored = await restoreAttachedCurrentSession({
+      bot: createBot(),
+      chatId: 777,
+      ensureEventSubscription: mocked.ensureEventSubscriptionMock,
+    });
+
+    expect(restored).toBe(false);
+    expect(mocked.clearSessionMock).not.toHaveBeenCalled();
+    expect(mocked.clearProjectMock).not.toHaveBeenCalled();
+    expect(mocked.clearPinnedMessageIdMock).not.toHaveBeenCalled();
   });
 
   it("full restore repeats API-backed state without duplicating event subscription", async () => {
