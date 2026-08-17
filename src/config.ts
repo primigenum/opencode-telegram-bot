@@ -355,6 +355,19 @@ export function createConfig(env: EnvRecord) {
       // "json" = base64 audio in an `input_audio` JSON body (e.g. OpenRouter).
       requestFormat: getOptionalSttRequestFormatEnvVar(env, "STT_REQUEST_FORMAT", "multipart"),
     },
+    vision: {
+      // Local vision fallback: when the active model doesn't support image
+      // input, photos are described by the LOCAL vision model (LFM2.5-VL-3B
+      // via llama.cpp on 127.0.0.1:8082) and the description is sent as text.
+      apiUrl: getEnvVar(env, "LOCAL_VISION_API_URL", false) || "http://127.0.0.1:8082/v1",
+      model: getEnvVar(env, "LOCAL_VISION_MODEL", false) || "lfm2.5-vl-3b",
+      // Photos are also saved here so the opencode agent can inspect the
+      // original image itself (e.g. with the describe_image tool) while
+      // working on the prompt — "implement the web with this style".
+      uploadDir:
+        getEnvVar(env, "LOCAL_VISION_UPLOAD_DIR", false) ||
+        (process.env.HOME ?? process.env.USERPROFILE ?? "") + "/.opencode/uploads",
+    },
     docExtractor: {
       apiUrl: getEnvVar(env, "DOC_EXTRACTOR_URL", false),
       apiKey: getEnvVar(env, "DOC_EXTRACTOR_API_KEY", false),

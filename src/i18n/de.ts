@@ -103,8 +103,9 @@ export const de: I18nDictionary = {
   "bot.photo_model_no_image":
     "⚠️ Das aktuelle Modell unterstützt keine Bildeingabe. Sende nur Text.",
   "bot.photo_download_error": "🔴 Foto konnte nicht heruntergeladen werden",
-  "bot.photo_no_caption":
-    "💡 Tipp: Füge eine Bildunterschrift hinzu, um zu beschreiben, was du mit diesem Foto tun möchtest.",
+  "bot.photo_no_caption": "💡 Tipp: Füge eine Bildunterschrift hinzu, um zu beschreiben, was du mit diesem Foto tun möchtest.",
+  "bot.photo_vision_describing": "🔍 Beschreibe Foto mit lokalem Vision-Modell...",
+  "bot.photo_vision_fallback_error": "🔴 Lokaler Vision-Dienst nicht erreichbar (127.0.0.1:8082). Starte ihn mit ~/models/lfm2.5-vl-3b/start.sh",
   "bot.file_downloading": "⏳ Lade Datei herunter...",
   "bot.files_downloading": "⏳ Lade Dateien herunter...",
   "bot.file_too_large": "⚠️ Datei ist zu groß (max. {maxSizeMb}MB)",

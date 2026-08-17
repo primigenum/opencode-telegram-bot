@@ -101,6 +101,8 @@ export const ar: I18nDictionary = {
   "bot.photo_model_no_image": "⚠️ النموذج الحالي لا يدعم الصور. سيتم إرسال النص فقط.",
   "bot.photo_download_error": "🔴 تعذر تنزيل الصورة",
   "bot.photo_no_caption": "💡 نصيحة: أضف وصفًا للصورة حتى يفهم الوكيل المطلوب منها.",
+  "bot.photo_vision_describing": "🔍 جارٍ وصف الصورة بنموذج الرؤية المحلي...",
+  "bot.photo_vision_fallback_error": "🔴 خدمة الرؤية المحلية غير متاحة (127.0.0.1:8082). شغّلها عبر ~/models/lfm2.5-vl-3b/start.sh",
   "bot.file_downloading": "⏳ جارٍ تنزيل الملف...",
   "bot.files_downloading": "⏳ جارٍ تنزيل الملفات...",
   "bot.file_too_large": "⚠️ حجم الملف أكبر من الحد المسموح ({maxSizeMb}MB)",

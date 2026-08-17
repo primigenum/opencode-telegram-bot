@@ -98,6 +98,8 @@ export const ru: I18nDictionary = {
     "⚠️ Текущая модель не поддерживает изображения. Отправляю только текст.",
   "bot.photo_download_error": "🔴 Не удалось скачать фото",
   "bot.photo_no_caption": "💡 Совет: Добавьте подпись, чтобы описать, что делать с этим фото.",
+  "bot.photo_vision_describing": "🔍 Описываю фото локальной vision-моделью...",
+  "bot.photo_vision_fallback_error": "🔴 Локальный vision-сервис недоступен (127.0.0.1:8082). Запустите через ~/models/lfm2.5-vl-3b/start.sh",
   "bot.file_downloading": "⏳ Скачиваю файл...",
   "bot.files_downloading": "⏳ Скачиваю файлы...",
   "bot.file_too_large": "⚠️ Файл слишком большой (макс. {maxSizeMb}МБ)",
