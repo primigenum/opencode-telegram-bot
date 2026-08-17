@@ -6,11 +6,15 @@ import { questionManager } from "../managers/question-manager.js";
 import { permissionManager } from "../managers/permission-manager.js";
 import type { PermissionRequest } from "../types/permission.js";
 import type { SessionInfo } from "../types/session.js";
-import { getCurrentSession } from "./session-service.js";
-import { getCurrentProject } from "../stores/settings-store.js";
+import { clearSession, getCurrentSession } from "./session-service.js";
+import { clearProject, getCurrentProject } from "../stores/settings-store.js";
+import { getProjects } from "./project-service.js";
 import { attachManager } from "../managers/attach-manager.js";
 import { logger } from "../../utils/logger.js";
-import { isExpectedOpencodeUnavailableError } from "../../utils/opencode-error.js";
+import {
+  isExpectedOpencodeUnavailableError,
+  isNotFoundError,
+} from "../../utils/opencode-error.js";
 
 interface EnsureAttachPinnedSessionParams {
   api: Bot<Context>["api"];
@@ -229,6 +233,41 @@ export async function restoreAttachedCurrentSession(
       return false;
     }
 
+    // Validate that the stored session still exists on the server. A session
+    // can disappear if the server storage is reset or the session is deleted
+    // while the bot is stopped; restoring a ghost session would make every
+    // prompt fail with "Session not found".
+    const { error: sessionGetError } = await opencodeClient.session.get({
+      sessionID: currentSession.id,
+      directory: currentSession.directory,
+    });
+
+    if (sessionGetError) {
+      if (!isNotFoundError(sessionGetError)) {
+        logger.warn(
+          `[Attach] Failed to validate stored session during restore; skipping restore: session=${currentSession.id}, directory=${currentSession.directory}`,
+          sessionGetError,
+        );
+        return false;
+      }
+
+      logger.warn(
+        `[Attach] Stored session no longer exists on the server; clearing stale session state: session=${currentSession.id}, directory=${currentSession.directory}`,
+      );
+      clearSession();
+
+      // If the stored project is no longer visible (server list / whitelist),
+      // clear it too so the bot does not stay pinned to an unreachable project.
+      if (!(await isProjectVisible(currentProject.worktree))) {
+        logger.warn(
+          `[Attach] Stored project is no longer visible; clearing stale project: project=${currentProject.worktree}`,
+        );
+        clearProject();
+      }
+
+      return false;
+    }
+
     await attachToSession({
       bot: deps.bot,
       chatId: deps.chatId,
@@ -243,6 +282,16 @@ export async function restoreAttachedCurrentSession(
   } catch (error) {
     logger.error("[Attach] Failed to restore followed session on startup:", error);
     return false;
+  }
+}
+
+async function isProjectVisible(worktree: string): Promise<boolean> {
+  try {
+    const projects = await getProjects();
+    return projects.some((project) => project.worktree === worktree);
+  } catch (error) {
+    logger.warn("[Attach] Failed to check project visibility:", error);
+    return true;
   }
 }
 
