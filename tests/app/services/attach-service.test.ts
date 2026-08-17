@@ -55,12 +55,14 @@ const mocked = vi.hoisted(() => ({
   sessionGetMock: vi.fn(),
   clearSessionMock: vi.fn(),
   clearProjectMock: vi.fn(),
+  clearPinnedMessageIdMock: vi.fn(),
   getProjectsMock: vi.fn(),
 }));
 
 vi.mock("#src/app/stores/settings-store.ts", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
   clearProject: mocked.clearProjectMock,
+  clearPinnedMessageId: mocked.clearPinnedMessageIdMock,
 }));
 
 vi.mock("#src/app/services/session-service.ts", () => ({
@@ -176,6 +178,7 @@ describe("attach/service", () => {
     ]);
     mocked.clearSessionMock.mockReset();
     mocked.clearProjectMock.mockReset();
+    mocked.clearPinnedMessageIdMock.mockReset();
     mocked.questionListMock.mockReset();
     mocked.questionListMock.mockResolvedValue({ data: [], error: null });
     mocked.permissionListMock.mockReset();
@@ -370,6 +373,7 @@ describe("attach/service", () => {
 
     expect(restored).toBe(false);
     expect(mocked.clearSessionMock).toHaveBeenCalledOnce();
+    expect(mocked.clearPinnedMessageIdMock).toHaveBeenCalledOnce();
     expect(mocked.ensureEventSubscriptionMock).not.toHaveBeenCalled();
     expect(attachManager.getSnapshot()).toBeNull();
   });
@@ -427,6 +431,7 @@ describe("attach/service", () => {
     expect(restored).toBe(false);
     expect(mocked.clearSessionMock).not.toHaveBeenCalled();
     expect(mocked.clearProjectMock).not.toHaveBeenCalled();
+    expect(mocked.clearPinnedMessageIdMock).not.toHaveBeenCalled();
   });
 
   it("full restore repeats API-backed state without duplicating event subscription", async () => {

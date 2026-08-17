@@ -7,7 +7,7 @@ import { permissionManager } from "../managers/permission-manager.js";
 import type { PermissionRequest } from "../types/permission.js";
 import type { SessionInfo } from "../types/session.js";
 import { clearSession, getCurrentSession } from "./session-service.js";
-import { clearProject, getCurrentProject } from "../stores/settings-store.js";
+import { clearPinnedMessageId, clearProject, getCurrentProject } from "../stores/settings-store.js";
 import { getProjects } from "./project-service.js";
 import { attachManager } from "../managers/attach-manager.js";
 import { logger } from "../../utils/logger.js";
@@ -255,6 +255,9 @@ export async function restoreAttachedCurrentSession(
         `[Attach] Stored session no longer exists on the server; clearing stale session state: session=${currentSession.id}, directory=${currentSession.directory}`,
       );
       clearSession();
+      // The pinned message points at the dead session; drop it so the next
+      // startup does not try to restore an orphaned Telegram message.
+      clearPinnedMessageId();
 
       // If the stored project is no longer visible (server list / whitelist),
       // clear it too so the bot does not stay pinned to an unreachable project.
