@@ -67,6 +67,7 @@ const configMock = {
   vision: {
     apiUrl: "http://127.0.0.1:8082/v1",
     model: "lfm2.5-vl-3b",
+    uploadDir: "/home/test/.opencode/uploads",
   },
   tts: {
     apiUrl: "",
@@ -75,7 +76,7 @@ const configMock = {
     model: "gpt-4o-mini-tts",
     voice: "alloy",
   },
-};;
+};
 
 vi.mock("#src/config.ts", () => ({
   config: configMock,
@@ -209,8 +210,22 @@ describe("bot/handlers/photo-handler", () => {
     );
   });
 
-  it("reports an error when the local vision service is unavailable", async () => {
+  it("reports an error when the local vision service is unavailable and degrades to caption-only", async () => {
     const { ctx, replyMock } = createPhotoContext("Use this caption");
+    const { deps, processPromptMock } = createDeps({
+      getModelCapabilities: vi.fn().mockResolvedValue({ input: { image: false } }),
+      describeImage: vi.fn().mockResolvedValue({ ok: false, error: "fetch failed" }),
+    });
+
+    const { handlePhotoMessage } = await getSut();
+    await handlePhotoMessage(ctx, deps);
+
+    expect(replyMock).toHaveBeenCalledWith((await getT()).t("bot.photo_vision_fallback_error"));
+    expect(processPromptMock).toHaveBeenCalledWith(ctx, "Use this caption", deps);
+  });
+
+  it("reports an error and drops the message when vision fails and there is no caption", async () => {
+    const { ctx, replyMock } = createPhotoContext("");
     const { deps, processPromptMock } = createDeps({
       getModelCapabilities: vi.fn().mockResolvedValue({ input: { image: false } }),
       describeImage: vi.fn().mockResolvedValue({ ok: false, error: "fetch failed" }),

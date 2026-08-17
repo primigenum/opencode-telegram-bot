@@ -74,7 +74,13 @@ export async function handlePhotoMessage(ctx: Context, deps: PhotoHandlerDeps): 
       const visionResult = await describeImage(downloadedFile.buffer, "image/jpeg");
       if (!visionResult.ok) {
         logger.error(`[Bot] Local vision fallback failed: ${visionResult.error}`);
+        // Degrade gracefully: without a vision description we still forward
+        // the caption as text (pre-fallback behavior) instead of dropping
+        // the user's message entirely.
         await ctx.reply(t("bot.photo_vision_fallback_error"));
+        if (caption.trim().length > 0) {
+          await processPrompt(ctx, caption, deps);
+        }
         return;
       }
 

@@ -5,6 +5,8 @@ export type LocalVisionResult =
   | { ok: true; description: string }
   | { ok: false; error: string };
 
+const REQUEST_TIMEOUT_MS = 30_000;
+
 /**
  * Describes an image with the LOCAL vision model (LFM2.5-VL-3B via llama.cpp,
  * OpenAI-compatible endpoint, default http://127.0.0.1:8082/v1).
@@ -44,6 +46,7 @@ export async function describeImageWithLocalVision(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     if (!res.ok) {
       return { ok: false, error: `HTTP ${res.status}` };
