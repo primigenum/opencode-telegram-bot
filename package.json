@@ -39,7 +39,7 @@
     "lint": "eslint src tests --max-warnings=0",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
     "test": "bash scripts/run-tests.sh",
-    "test:all": "bun test",
+    "test:all": "bun test --isolate",
     "test:coverage": "bun test --coverage",
     "check": "bun run lint && bun run build && bash scripts/run-tests.sh"
   },

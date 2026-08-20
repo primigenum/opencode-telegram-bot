@@ -40,6 +40,11 @@ describe("utils/telegram-rate-limit-retry", () => {
   });
 
   it("retries failed operations with Telegram retry_after", async () => {
+    // accelerateTime (manual clock) instead of vi.useFakeTimers(): this SUT
+    // settles a promise inside a timer callback, and on bun 1.4.0 an
+    // `expect(promise).resolves/rejects` registered while fake timers are
+    // active hangs when the promise settles from a fake timer. See the same
+    // note in tests/app/services/edge-tts.test.ts.
     const { restore } = accelerateTime();
     try {
       const operation = vi

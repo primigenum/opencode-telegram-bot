@@ -39,41 +39,9 @@ jobs:
         run: bun run build
 
       - name: Test
-        # Run each test file in its own bun process. mock.module is
-        # process-global in bun, so two test files that mock the same
-        # source module would otherwise pollute each other.
+        # bun test --isolate gives each file a fresh global object in one
+        # process: mock.module() registrations and fake-timer state don't leak
+        # between files (bun >= 1.4.0). No skip list — the fake-timer hangs
+        # that used to force per-file processes are fixed.
         timeout-minutes: 15
-        run: |
-          set +e
-          mkdir -p test-logs
-          overall_status=0
-          for f in $(find tests -name "*.test.ts" | sort); do
-            name=$(basename "$f" .test.ts)
-            log="test-logs/${name}.log"
-            # skip: response-streamer, edge-tts, tool-call-streamer and event-subscription-service.test use accelerateTime /
-            # fakeTimers helpers that hang on bun (fake timer heap corruption)
-            # locally (bun test v1.4.0, Linux).
-            if echo "$f" | grep -qE "response-streamer|edge-tts|tool-call-streamer|event-subscription-service\.test"; then
-              echo "SKIP: $f (accelerateTime/useFakeTimers hang on bun)"
-              continue
-            fi
-            echo "=== $f ==="
-            timeout 180 bun test "./$f" 2>&1 | tee "$log"
-            status=${PIPESTATUS[0]}
-            if [ $status -ne 0 ]; then
-              echo "FAILED: $f (exit $status)"
-              overall_status=1
-            fi
-          done
-          echo "---"
-          awk -F/ '/^Results:/ {print}' test-logs/*.log | sort | uniq -c
-          exit $overall_status
-
-      - name: Upload test logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-logs
-          path: test-logs/
-          retention-days: 7
-          if-no-files-found: ignore
+        run: bun test --isolate

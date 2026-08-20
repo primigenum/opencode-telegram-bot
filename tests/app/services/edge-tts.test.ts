@@ -360,9 +360,12 @@ describe("synthesizeWithEdgeTts (WebSocket flow)", () => {
     // The second chunk only has 10s left; 10s later the whole call times out.
     expect(sockets).toHaveLength(2);
     emitOn(sockets[1], "open");
-    const rejection = expect(promise).rejects.toThrow("timed out after 60000ms");
+    // NOTE (bun 1.4.0): creating `expect(promise).rejects` BEFORE the fake
+    // clock rejects the promise hangs (the assertion is registered against a
+    // still-pending promise; the rejection that arrives from a fake timer
+    // never settles it). Create the assertion after advancing instead.
     await vi.advanceTimersByTimeAsync(10_000);
-    await rejection;
+    await expect(promise).rejects.toThrow("timed out after 60000ms");
   });
 
   it("rejects on WebSocket error", async () => {

@@ -267,7 +267,8 @@ Important:
 - `bun test` discovers `tests/**/*.test.ts` by default.
 - `bunfig.toml` loads `tests/setup-preload.ts` (a no-op forward-compat hook) and `tests/setup.ts` (per-test env defaults + singleton reset).
 - Test files import from `"#vitest"`, which is a subpath alias defined in `package.json` `imports`. This avoids bun's built-in vitest namespace (which is intentionally limited) and routes every `import { vi } from "vitest"` to the shim.
-- `vi.useFakeTimers()` + `vi.setSystemTime(...)` work: bun mocks the system clock so log file names use the controlled date. The shim's `vi.advanceTimersByTime(ms)` advances the mocked clock (and not the timer queue — bun's `jest.advanceTimersByTime` resets `Date.now()` to real time, so the shim is the source of truth for time travel in tests).
+- `vi.useFakeTimers()` + `vi.setSystemTime(...)` work: bun mocks the system clock so log file names use the controlled date. The shim's `vi.advanceTimersByTime(ms)` delegates straight to `bun:test.jest.advanceTimersByTime` — since bun >= 1.4.0 that advances the fake clock accumulatively from wherever it is (the old "resets `Date.now()` to real time" bug is fixed). `vi.waitFor` advances the fake clock itself when fake timers are active, matching vitest/testing-library semantics.
+- **Known bun 1.4.0 bug**: an `expect(promise).rejects`/`.resolves` registered while fake timers are active hangs when the promise settles from a fake timer. Create the assertion after advancing the clock (see `tests/app/services/edge-tts.test.ts`), or use `accelerateTime()` (manual clock) in tests that settle promises from timers (see `tests/utils/telegram-rate-limit-retry.test.ts`).
 
 ### Bun limitations that affect vitest-style tests
 
