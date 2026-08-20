@@ -405,7 +405,7 @@ describe("bot/commands/messages", () => {
 
     expect(handled).toBe(true);
     expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({
-      text: t("messages.cancelled_callback"),
+      text: t("common.cancelled"),
     });
     expect(ctx.deleteMessage).toHaveBeenCalledTimes(1);
     expect(interactionManager.getSnapshot()).toBeNull();
@@ -432,7 +432,7 @@ describe("bot/commands/messages", () => {
 
     expect(handled).toBe(true);
     expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({
-      text: t("messages.cancelled_callback"),
+      text: t("common.cancelled"),
     });
     expect(ctx.deleteMessage).toHaveBeenCalledTimes(1);
     expect(interactionManager.getSnapshot()).toBeNull();

@@ -9,6 +9,7 @@ import { interactionManager } from "../../app/managers/interaction-manager.js";
 import type { InteractionState } from "../../app/types/interaction.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
+import { cancelMenu } from "./feedback.js";
 import {
   buildMcpsDetailKeyboard,
   buildMcpsDetailText,
@@ -122,21 +123,20 @@ export async function handleMcpsCallback(ctx: Context): Promise<boolean> {
   try {
     if (data === MCPS_CALLBACK_CANCEL) {
       clearMcpsInteraction("mcps_cancelled");
-      await ctx.answerCallbackQuery({ text: t("inline.cancelled_callback") });
-      await ctx.deleteMessage().catch(() => {});
+      await cancelMenu(ctx);
       return true;
     }
 
     if (data === MCPS_CALLBACK_BACK) {
       if (metadata.stage !== "detail") {
-        await ctx.answerCallbackQuery({ text: t("callback.processing_error"), show_alert: true });
+        await ctx.answerCallbackQuery({ text: t("callback.processing_error") });
         return true;
       }
 
       const servers = await loadMcpCatalog(metadata.projectDirectory);
       const keyboard = buildMcpsListKeyboard(servers);
-      await ctx.editMessageText(t("mcps.select"), { reply_markup: keyboard });
       await ctx.answerCallbackQuery();
+      await ctx.editMessageText(t("mcps.select"), { reply_markup: keyboard });
 
       interactionManager.transition({
         expectedInput: "callback",
@@ -154,7 +154,7 @@ export async function handleMcpsCallback(ctx: Context): Promise<boolean> {
 
     if (data === MCPS_CALLBACK_TOGGLE) {
       if (metadata.stage !== "detail") {
-        await ctx.answerCallbackQuery({ text: t("callback.processing_error"), show_alert: true });
+        await ctx.answerCallbackQuery({ text: t("callback.processing_error") });
         return true;
       }
 
@@ -210,7 +210,7 @@ export async function handleMcpsCallback(ctx: Context): Promise<boolean> {
 
     if (data.startsWith(MCPS_CALLBACK_SELECT_PREFIX)) {
       if (metadata.stage !== "list") {
-        await ctx.answerCallbackQuery({ text: t("callback.processing_error"), show_alert: true });
+        await ctx.answerCallbackQuery({ text: t("callback.processing_error") });
         return true;
       }
 

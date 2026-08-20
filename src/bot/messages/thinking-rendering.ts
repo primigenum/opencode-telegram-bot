@@ -1,6 +1,8 @@
 import type { MessageEntity } from "grammy/types";
 
 import { t } from "../../i18n/index.js";
+import { PLAIN_MAX_PART_CHARS } from "../render/limits.js";
+import { splitTextIntoChunks } from "../render/text-splitter.js";
 import type { TelegramRenderedPart } from "../render/types.js";
 import type { StreamingMessagePayload } from "../streaming/response-streamer.js";
 
@@ -10,8 +12,12 @@ export interface ThinkingSection {
   text: string;
 }
 
-interface ThinkingStreamingPayloadOptions {
-  expandable?: boolean;
+interface ThinkingPayloadOptions {
+  /**
+   * Final render: the reasoning is complete, so the quote is collapsed. While
+   * the model is still thinking the quote stays open so the text is readable.
+   */
+  final?: boolean;
 }
 
 function formatHeader(title?: string): string {
@@ -20,81 +26,50 @@ function formatHeader(title?: string): string {
   return normalizedTitle ? `${fallback} — ${normalizedTitle}` : fallback;
 }
 
-function quoteFallbackText(text: string): string {
-  return text
-    .split("\n")
-    .map((line) => `> ${line}`)
-    .join("\n");
-}
-
-function splitText(text: string, maxLength: number): string[] {
-  if (text.length <= maxLength) {
-    return [text];
-  }
-
-  const chunks: string[] = [];
-  for (let offset = 0; offset < text.length; offset += maxLength) {
-    chunks.push(text.slice(offset, offset + maxLength));
-  }
-  return chunks;
-}
-
-function createThinkingPart(header: string, text: string, expandable: boolean): TelegramRenderedPart {
+/**
+ * Reasoning is delivered as a plain text message with a quote entity: rich
+ * blocks have no collapsed quotation, only the `details` disclosure widget.
+ */
+function createThinkingPart(
+  header: string,
+  text: string,
+  collapsed: boolean,
+): TelegramRenderedPart {
   if (!text) {
-    return {
-      text: header,
-      fallbackText: header,
-      source: "entities",
-    };
+    return { blocks: [], fallbackText: header, source: "plain" };
   }
 
-  const renderedText = `${header}\n${text}`;
   const entity: MessageEntity = {
-    type: expandable ? "expandable_blockquote" : "blockquote",
+    type: collapsed ? "expandable_blockquote" : "blockquote",
     offset: header.length + 1,
     length: text.length,
   };
 
   return {
-    text: renderedText,
+    blocks: [],
+    fallbackText: `${header}\n${text}`,
+    source: "plain",
     entities: [entity],
-    fallbackText: `${header}\n${quoteFallbackText(text)}`,
-    source: "entities",
   };
 }
 
-export function prepareThinkingStreamingPayload(
+export function prepareThinkingPayload(
   sections: ThinkingSection[],
-  maxPartLength: number,
-  options: ThinkingStreamingPayloadOptions = {},
+  options: ThinkingPayloadOptions = {},
 ): StreamingMessagePayload | null {
+  const collapsed = options.final ?? false;
   const parts: TelegramRenderedPart[] = [];
-  const expandable = options.expandable ?? true;
 
   for (const section of sections) {
     const header = formatHeader(section.title);
     const text = section.text.replace(/\r\n/g, "\n").trimEnd();
-    const textLimit = Math.max(1, maxPartLength - header.length - 1);
-    const chunks = text ? splitText(text, textLimit) : [""];
+    const textLimit = Math.max(1, PLAIN_MAX_PART_CHARS - header.length - 1);
+    const chunks = text ? splitTextIntoChunks(text, textLimit) : [""];
 
     for (const chunk of chunks) {
-      parts.push(createThinkingPart(header, chunk, expandable));
+      parts.push(createThinkingPart(header, chunk, collapsed));
     }
   }
 
   return parts.length > 0 ? { parts } : null;
-}
-
-export function makeThinkingPayloadExpandable(
-  payload: StreamingMessagePayload,
-): StreamingMessagePayload {
-  return {
-    ...payload,
-    parts: payload.parts.map((part) => ({
-      ...part,
-      entities: part.entities?.map((entity) =>
-        entity.type === "blockquote" ? { ...entity, type: "expandable_blockquote" } : entity,
-      ),
-    })),
-  };
 }

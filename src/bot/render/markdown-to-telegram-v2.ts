@@ -39,6 +39,11 @@ function renderInlineNodes(nodes: InlineNode[]): string {
           return `__${renderInlineNodes(node.children)}__`;
         case "spoiler":
           return `||${renderInlineNodes(node.children)}||`;
+        // MarkdownV2 has no counterpart for these, so only the content survives.
+        case "subscript":
+        case "superscript":
+        case "marked":
+          return renderInlineNodes(node.children);
         default:
           return escapeMarkdownV2(String(node));
       }
@@ -55,20 +60,27 @@ function renderBlock(block: TelegramBlock): string {
       return `*${content}*`;
     }
     case "blockquote":
-      return block.lines
-        .map((line) =>
-          renderInlineNodes(line)
+      return block.blocks
+        .map(renderBlock)
+        .filter(Boolean)
+        .map((rendered) =>
+          rendered
             .split("\n")
-            .map((part) => `> ${part}`)
+            .map((line) => `> ${line}`)
             .join("\n"),
         )
         .join("\n");
     case "list":
       return block.items
         .map((item, index) => {
-          const prefix = block.ordered ? `${index + 1}\\. ` : "\\- ";
-          const body = renderInlineNodes(item);
-          return `${prefix}${body}`;
+          const marker = block.ordered ? `${(block.start ?? 1) + index}\\. ` : "\\- ";
+          const taskPrefix = item.checked === true ? "✅ " : item.checked === false ? "🔲 " : "";
+          const body = item.blocks.map(renderBlock).filter(Boolean).join("\n");
+          const continuation = " ".repeat(marker.length);
+          return `${taskPrefix}${body}`
+            .split("\n")
+            .map((line, lineIndex) => `${lineIndex === 0 ? marker : continuation}${line}`)
+            .join("\n");
         })
         .join("\n");
     case "code":

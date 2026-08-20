@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/primigenum/opencode-telegram-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/primigenum/opencode-telegram-bot/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Bun](https://img.shields.io/badge/bun-%3E%3D1.3.0-f9f1e1)](https://bun.sh)
+[![Bun](https://img.shields.io/badge/bun-%3E%3D1.4.0-f9f1e1)](https://bun.sh)
 
 OpenCode Telegram Bot is a secure Telegram client for [OpenCode](https://opencode.ai) CLI that runs on your local machine. This is a **Bun port of [grinev/opencode-telegram-bot](https://github.com/grinev/opencode-telegram-bot)** — same feature set, same UX, but no `npm` and no `node` in the toolchain.
 
@@ -18,7 +18,7 @@ Platforms: macOS, Windows, Linux
 
 Languages: English (`en`), العربية (`ar`), Deutsch (`de`), Español (`es`), Français (`fr`), Italiano (`it`), Português (Brasil) (`pt`), Русский (`ru`), 简体中文 (`zh`)
 
-- **Runtime**: Node.js 20+ → **Bun ≥ 1.3.0** (`bun run` everywhere; the bin entry is `#!/usr/bin/env bun`)
+- **Runtime**: Node.js 20+ → **Bun ≥ 1.4.0** (`bun run` everywhere; the bin entry is `#!/usr/bin/env bun`)
 - **Package manager**: npm → **bun install** (no `package-lock.json`, just `bun.lock`)
 - **Test runner**: vitest → **bun test** (with a thin vitest-compatible shim — see [Test status](#test-status))
 - **SQLite driver**: `better-sqlite3` (native node addon) → **`bun:sqlite`** (built-in to Bun, no compile)
@@ -59,7 +59,7 @@ Planned features currently in development are listed in [Current Task List](PROD
 
 ## Prerequisites
 
-- **Bun ≥ 1.3.0** — [install](https://bun.sh)
+- **Bun ≥ 1.4.0** — [install](https://bun.sh)
 - **OpenCode** — install from [opencode.ai](https://opencode.ai) or [GitHub](https://github.com/sst/opencode)
 - **Telegram Bot** — you'll create one during setup (takes 1 minute)
 
@@ -236,7 +236,7 @@ The first time you start the bot, the configuration wizard runs and writes `.env
 | `BASH_TOOL_DISPLAY_MAX_LENGTH`             | Maximum displayed length for `bash` tool commands in Telegram summaries; longer commands are truncated                |    No    | `128`                    |
 | `TRACK_BACKGROUND_SESSIONS`                | Track detached/non-current sessions in the current selected project/worktree and send short notifications             |    No    | `true`                   |
 | `RESPONSE_STREAM_THROTTLE_MS`              | Stream update throttle in milliseconds for assistant, thinking, and tool message edits                                |    No    | `1000`                   |
-| `MESSAGE_FORMAT_MODE`                      | Assistant reply formatting mode: `markdown` (Telegram MarkdownV2) or `raw`                                            |    No    | `markdown`               |
+| `MESSAGE_FORMAT_MODE`                      | Assistant reply formatting mode: `markdown` (native Telegram rich blocks) or `raw` (plain text)                       |    No    | `markdown`               |
 | `MESSAGE_MERGE_WINDOW_MS`                  | Merge Telegram-split long text messages into one prompt after this wait window (ms); `0` disables merging             |    No    | `1500`                   |
 | `INITIAL_SETTINGS_PRESET`                  | JSON object that seeds default `/settings` values on first run (keys not yet persisted); see [Runtime Settings](#runtime-settings) |    No    | `{}`                     |
 | `CODE_FILE_MAX_SIZE_KB`                    | Max file size (KB) to send as document                                                                                |    No    | `100`                    |

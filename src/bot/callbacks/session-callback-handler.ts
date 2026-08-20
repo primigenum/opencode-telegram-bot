@@ -13,6 +13,7 @@ import { logger } from "../../utils/logger.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { config } from "../../config.js";
 import { t } from "../../i18n/index.js";
+import { alert, failure } from "./feedback.js";
 import { attachToSession } from "../../app/services/attach-service.js";
 import { renderAssistantFinalPartsSafe } from "../messages/assistant-rendering.js";
 import { sendRenderedBotPart } from "../messages/telegram-text.js";
@@ -77,8 +78,7 @@ async function selectSessionById(
 
   if (!currentProject) {
     clearAllInteractionState("session_select_project_missing");
-    await ctx.answerCallbackQuery();
-    await ctx.reply(t("sessions.select_project_first"));
+    await alert(ctx, "sessions.select_project_first");
     return;
   }
 
@@ -264,8 +264,7 @@ export async function handleSessionSelect(ctx: Context, deps: SessionSelectDeps)
 
     if (!currentProject) {
       clearAllInteractionState("session_select_project_missing");
-      await ctx.answerCallbackQuery();
-      await ctx.reply(t("sessions.select_project_first"));
+      await alert(ctx, "sessions.select_project_first");
       return true;
     }
 
@@ -280,10 +279,10 @@ export async function handleSessionSelect(ctx: Context, deps: SessionSelectDeps)
 
         const { text, keyboard } = buildSessionSelectionMenuView(pageData, pageSize);
         appendInlineMenuCancelButton(keyboard, "session");
+        await ctx.answerCallbackQuery();
         await ctx.editMessageText(text, {
           reply_markup: keyboard,
         });
-        await ctx.answerCallbackQuery();
       } catch (error) {
         logger.error("[Sessions] Error loading sessions page:", error);
         await ctx.answerCallbackQuery({ text: t("sessions.page_load_error_callback") });
@@ -306,8 +305,7 @@ export async function handleSessionSelect(ctx: Context, deps: SessionSelectDeps)
   } catch (error) {
     clearAllInteractionState("session_select_error");
     logger.error("[Sessions] Error selecting session:", error);
-    await ctx.answerCallbackQuery();
-    await ctx.reply(t("sessions.select_error"));
+    await failure(ctx, "sessions.select_error");
   }
 
   return true;
@@ -491,7 +489,7 @@ async function sendLatestAssistantResponse(
     return;
   }
 
-  const parts = renderAssistantFinalPartsSafe(responseText, TELEGRAM_MESSAGE_LIMIT);
+  const parts = renderAssistantFinalPartsSafe(responseText);
   for (const part of parts) {
     await sendRenderedBotPart({
       api,

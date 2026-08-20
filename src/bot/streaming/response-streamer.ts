@@ -1,5 +1,7 @@
 import type { Api, RawApi } from "grammy";
 import { logger } from "../../utils/logger.js";
+import { chunkPlainText } from "../render/chunker.js";
+import { getTelegramRenderedPartSignature } from "../render/part-signature.js";
 import type { TelegramRenderedPart } from "../render/types.js";
 
 type SendMessageApi = Pick<Api<RawApi>, "sendMessage">;
@@ -29,12 +31,12 @@ interface ResponseStreamerOptions {
   sendPart: (
     part: TelegramRenderedPart,
     options?: TelegramSendMessageOptions,
-  ) => Promise<{ messageId: number; deliveredSignature: string }>;
+  ) => Promise<{ messageId: number; deliveredSignature: string; degradedToPlain?: boolean }>;
   editPart: (
     messageId: number,
     part: TelegramRenderedPart,
     options?: TelegramEditMessageOptions,
-  ) => Promise<{ deliveredSignature: string }>;
+  ) => Promise<{ deliveredSignature: string; degradedToPlain?: boolean }>;
   deleteText: (messageId: number) => Promise<void>;
   completePart?: (
     part: TelegramRenderedPart,
@@ -53,6 +55,7 @@ interface StreamState {
   task: Promise<boolean>;
   cancelled: boolean;
   isBroken: boolean;
+  plainOnly: boolean;
   fatalErrorMessage: string | null;
   fatalErrorLogged: boolean;
 }
@@ -63,15 +66,42 @@ function buildStateKey(sessionId: string, messageId: string): string {
 
 function clonePart(part: TelegramRenderedPart): TelegramRenderedPart {
   return {
-    text: part.text,
-    entities: part.entities ? [...part.entities] : undefined,
+    blocks: [...part.blocks],
     fallbackText: part.fallbackText,
     source: part.source,
+    ...(part.entities ? { entities: [...part.entities] } : {}),
+  };
+}
+
+function isEmptyPart(part: TelegramRenderedPart): boolean {
+  return part.blocks.length === 0 && part.fallbackText.length === 0;
+}
+
+/**
+ * Rebuilds a payload as plain text. Native parts may hold far more than a text
+ * message can carry, so the whole representation is re-chunked rather than
+ * swapped part by part; the resulting part count may differ.
+ */
+function toPlainPayload(payload: StreamingMessagePayload): StreamingMessagePayload {
+  // Nothing native to degrade: re-chunking here would only invalidate the
+  // entity offsets a plain part carries.
+  if (payload.parts.every((part) => part.blocks.length === 0)) {
+    return payload;
+  }
+
+  const text = payload.parts
+    .map((part) => part.fallbackText)
+    .filter(Boolean)
+    .join("\n\n");
+
+  return {
+    ...payload,
+    parts: chunkPlainText(text),
   };
 }
 
 function normalizePayload(payload: StreamingMessagePayload): StreamingMessagePayload | null {
-  const normalizedParts = payload.parts.map(clonePart).filter((part) => part.text.length > 0);
+  const normalizedParts = payload.parts.map(clonePart).filter((part) => !isEmptyPart(part));
   if (normalizedParts.length === 0) {
     logger.debug("[ResponseStreamer] Dropped empty streaming payload after normalization");
     return null;
@@ -109,10 +139,6 @@ function getRetryAfterMs(error: unknown): number | null {
   }
 
   return seconds * 1000;
-}
-
-function createSignature(part: Pick<TelegramRenderedPart, "text" | "entities">): string {
-  return `${part.text}\n${JSON.stringify(part.entities ?? null)}`;
 }
 
 function delay(ms: number): Promise<void> {
@@ -217,15 +243,20 @@ export class ResponseStreamer {
 
     if (synced && this.completePart && state.latestPayload) {
       try {
+        // The message this persists is the end of the same answer, so it
+        // inherits the plain-text degradation the stream already fell back to.
+        const completionPayload = state.plainOnly
+          ? toPlainPayload(state.latestPayload)
+          : state.latestPayload;
         const realMessageIds: number[] = [];
         let notifyNextCompletePart = options?.notifyFirstCompletePart === true;
-        for (const part of state.latestPayload.parts) {
-          if (!part.text) {
+        for (const part of completionPayload.parts) {
+          if (isEmptyPart(part)) {
             continue;
           }
           const completeOptions = notifyNextCompletePart
-            ? enableNotificationForOptions(state.latestPayload.sendOptions)
-            : state.latestPayload.sendOptions;
+            ? enableNotificationForOptions(completionPayload.sendOptions)
+            : completionPayload.sendOptions;
           notifyNextCompletePart = false;
           const result = await this.completePart(part, completeOptions);
           realMessageIds.push(result.messageId);
@@ -315,6 +346,7 @@ export class ResponseStreamer {
       task: Promise.resolve(true),
       cancelled: false,
       isBroken: false,
+      plainOnly: false,
       fatalErrorMessage: null,
       fatalErrorLogged: false,
     };
@@ -381,12 +413,17 @@ export class ResponseStreamer {
     }
 
     while (!state.cancelled) {
-      const payload = state.latestPayload;
-      if (!payload) {
+      const latestPayload = state.latestPayload;
+      if (!latestPayload) {
         return state.telegramMessageIds.length > 0;
       }
 
-      const targetSignatures = payload.parts.map((part) => createSignature(part));
+      // Signatures must describe what actually goes out, otherwise the
+      // "unchanged" checks below compare two different representations.
+      const payload = state.plainOnly ? toPlainPayload(latestPayload) : latestPayload;
+      const targetSignatures = payload.parts.map((part) =>
+        getTelegramRenderedPartSignature(part),
+      );
       const unchanged =
         targetSignatures.length === state.lastSentSignatures.length &&
         targetSignatures.every((signature, index) => signature === state.lastSentSignatures[index]);
@@ -406,21 +443,42 @@ export class ResponseStreamer {
         return true;
       } catch (error) {
         const retryAfterMs = getRetryAfterMs(error);
-        if (retryAfterMs === null) {
-          this.markStreamBroken(state, error, reason);
-          return false;
+        if (retryAfterMs !== null) {
+          const delayMs = Math.max(this.throttleMs, retryAfterMs);
+          logger.warn(
+            `[ResponseStreamer] Stream sync rate-limited, retrying in ${delayMs}ms: session=${state.sessionId}, message=${state.messageId}, reason=${reason}`,
+            error,
+          );
+          await delay(delayMs);
+          continue;
         }
 
-        const delayMs = Math.max(this.throttleMs, retryAfterMs);
-        logger.warn(
-          `[ResponseStreamer] Stream sync rate-limited, retrying in ${delayMs}ms: session=${state.sessionId}, message=${state.messageId}, reason=${reason}`,
-          error,
-        );
-        await delay(delayMs);
+        // First native failure: fall back to plain text for the rest of this
+        // message instead of tearing the stream down. A payload that is already
+        // plain has nothing left to degrade to, so it breaks straight away.
+        if (!state.plainOnly && payload.parts.some((part) => part.blocks.length > 0)) {
+          this.markStreamPlainOnly(state, error, reason);
+          continue;
+        }
+
+        this.markStreamBroken(state, error, reason);
+        return false;
       }
     }
 
     return false;
+  }
+
+  private markStreamPlainOnly(state: StreamState, error: unknown, reason: string): void {
+    if (state.plainOnly) {
+      return;
+    }
+
+    state.plainOnly = true;
+    logger.warn(
+      `[ResponseStreamer] Native rendering failed, continuing this message as plain text: session=${state.sessionId}, message=${state.messageId}, reason=${reason}`,
+      error,
+    );
   }
 
   private markStreamBroken(state: StreamState, error: unknown, reason: string): void {
@@ -483,12 +541,18 @@ export class ResponseStreamer {
 
         const result = await this.editPart(currentMessageId, part, payload.editOptions);
         state.lastSentSignatures[index] = result.deliveredSignature;
+        if (result.degradedToPlain) {
+          this.markStreamPlainOnly(state, null, "transport_degraded_to_plain");
+        }
         continue;
       }
 
       const result = await this.sendPart(part, payload.sendOptions);
       state.telegramMessageIds[index] = result.messageId;
       state.lastSentSignatures[index] = result.deliveredSignature;
+      if (result.degradedToPlain) {
+        this.markStreamPlainOnly(state, null, "transport_degraded_to_plain");
+      }
     }
 
     for (let index = state.telegramMessageIds.length - 1; index >= payload.parts.length; index--) {

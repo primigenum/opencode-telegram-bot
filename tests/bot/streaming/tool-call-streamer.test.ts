@@ -292,6 +292,64 @@ describe("bot/streaming/tool-call-streamer", () => {
     expect(deleteText).not.toHaveBeenCalled();
   });
 
+  it("removes an entry by prefix and keeps the remaining ones", async () => {
+    vi.useFakeTimers();
+
+    const sendText = vi.fn().mockResolvedValue(1);
+    const editText = vi.fn().mockResolvedValue(undefined);
+    const deleteText = vi.fn().mockResolvedValue(undefined);
+    const streamer = new ToolCallStreamer({
+      throttleMs: 0,
+      sendText,
+      editText,
+      deleteText,
+    });
+
+    streamer.append("s1", "tool one");
+    await vi.waitFor(() => {
+      expect(sendText).toHaveBeenCalledTimes(1);
+    });
+
+    streamer.replaceByPrefix("s1", "⏳call-1", "⏳ 💻 bash npm test — 20 sec");
+    await vi.waitFor(() => {
+      expect(editText).toHaveBeenCalledTimes(1);
+    });
+
+    streamer.removeByPrefix("s1", "⏳call-1");
+    await vi.waitFor(() => {
+      expect(editText).toHaveBeenCalledTimes(2);
+    });
+
+    expect(editText).toHaveBeenLastCalledWith("s1", 1, "tool one");
+    expect(deleteText).not.toHaveBeenCalled();
+  });
+
+  it("ignores removal of a prefix that is not in the stream", async () => {
+    vi.useFakeTimers();
+
+    const sendText = vi.fn().mockResolvedValue(1);
+    const editText = vi.fn().mockResolvedValue(undefined);
+    const deleteText = vi.fn().mockResolvedValue(undefined);
+    const streamer = new ToolCallStreamer({
+      throttleMs: 0,
+      sendText,
+      editText,
+      deleteText,
+    });
+
+    streamer.append("s1", "tool one");
+    await vi.waitFor(() => {
+      expect(sendText).toHaveBeenCalledTimes(1);
+    });
+
+    streamer.removeByPrefix("s1", "⏳missing");
+    streamer.removeByPrefix("unknown-session", "⏳call-1");
+    await vi.advanceTimersByTimeAsync(50);
+
+    expect(editText).not.toHaveBeenCalled();
+    expect(deleteText).not.toHaveBeenCalled();
+  });
+
   it("starts a new tool stream after a file boundary break", async () => {
     const { restore } = accelerateTime();
     try {

@@ -6,6 +6,7 @@ import { interactionManager } from "../../app/managers/interaction-manager.js";
 import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
+import { cancelPrompt } from "./feedback.js";
 import { RENAME_CANCEL_CALLBACK } from "../menus/rename-menu.js";
 
 function getCallbackMessageId(ctx: Context): number | null {
@@ -55,8 +56,7 @@ export async function handleRenameCancel(ctx: Context): Promise<boolean> {
   renameManager.clear();
   clearRenameInteraction("rename_cancelled");
 
-  await ctx.answerCallbackQuery();
-  await ctx.editMessageText(t("rename.cancelled")).catch(() => {});
+  await cancelPrompt(ctx, "rename.cancelled");
 
   return true;
 }
@@ -86,7 +86,9 @@ export async function handleRenameTextAnswer(ctx: Context): Promise<boolean> {
   if (!sessionInfo) {
     renameManager.clear();
     clearRenameInteraction("rename_missing_session_info");
-    return false;
+    // Answer here: returning false would send the new title to OpenCode as a prompt.
+    await ctx.reply(t("rename.inactive"));
+    return true;
   }
 
   const newTitle = text.trim();

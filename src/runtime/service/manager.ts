@@ -111,7 +111,6 @@ async function execAsync(command: string): Promise<{ stdout: string; stderr: str
   }
   return { stdout, stderr };
 }
-
 async function getProcessCreationTime(pid: number): Promise<Date | null> {
   try {
     if (process.platform === "win32") {

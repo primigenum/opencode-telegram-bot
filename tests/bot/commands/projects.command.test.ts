@@ -65,6 +65,10 @@ vi.mock("#src/bot/keyboards/keyboard-manager.ts", () => ({
 
 vi.mock("#src/app/services/agent-selection-service.ts", () => ({
   getStoredAgent: vi.fn(() => "build"),
+  getAvailableAgents: vi.fn().mockResolvedValue([]),
+  resolveProjectAgent: vi.fn().mockResolvedValue(undefined),
+  fetchCurrentAgent: vi.fn().mockResolvedValue(undefined),
+  selectAgent: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("#src/app/services/model-selection-service.ts", () => ({

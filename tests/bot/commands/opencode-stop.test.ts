@@ -41,6 +41,12 @@ vi.mock("#src/opencode/process.ts", () => ({
 
 vi.mock("#src/bot/messages/telegram-text.ts", () => ({
   editBotText: mocked.editBotTextMock,
+  getTelegramRenderedPartSignature: vi.fn(),
+  sendBotText: vi.fn().mockResolvedValue(undefined),
+  sendRenderedBotPart: vi.fn().mockResolvedValue(undefined),
+  editRenderedBotPart: vi.fn().mockResolvedValue(undefined),
+  sendDraftBotPart: vi.fn().mockResolvedValue(undefined),
+  completeDraftPart: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("#src/utils/logger.ts", () => ({

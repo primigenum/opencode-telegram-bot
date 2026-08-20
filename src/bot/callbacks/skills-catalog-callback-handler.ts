@@ -6,6 +6,7 @@ import { interactionManager } from "../../app/managers/interaction-manager.js";
 import type { InteractionState } from "../../app/types/interaction.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
+import { cancelMenu } from "./feedback.js";
 import { processUserPrompt, type ProcessPromptDeps } from "../handlers/prompt.js";
 import {
   buildSkillsConfirmKeyboard,
@@ -186,8 +187,7 @@ export async function handleSkillsCallback(
   try {
     if (data === SKILLS_CALLBACK_CANCEL) {
       clearSkillsInteraction("skills_cancelled");
-      await ctx.answerCallbackQuery({ text: t("skills.cancelled_callback") });
-      await ctx.deleteMessage().catch(() => {});
+      await cancelMenu(ctx);
       return true;
     }
 
@@ -212,7 +212,7 @@ export async function handleSkillsCallback(
     const page = parseSkillPageCallback(data);
     if (page !== null) {
       if (metadata.stage !== "list") {
-        await ctx.answerCallbackQuery({ text: t("callback.processing_error"), show_alert: true });
+        await ctx.answerCallbackQuery({ text: t("callback.processing_error") });
         return true;
       }
 
@@ -229,10 +229,10 @@ export async function handleSkillsCallback(
       }
 
       const keyboard = buildSkillsListKeyboard(metadata.skills, normalizedPage, pageSize);
+      await ctx.answerCallbackQuery();
       await ctx.editMessageText(formatSkillsSelectText(normalizedPage), {
         reply_markup: keyboard,
       });
-      await ctx.answerCallbackQuery();
 
       interactionManager.transition({
         expectedInput: "callback",
@@ -251,7 +251,7 @@ export async function handleSkillsCallback(
 
     const skillIndex = parseSkillSelectCallback(data);
     if (skillIndex === null || metadata.stage !== "list") {
-      await ctx.answerCallbackQuery({ text: t("callback.processing_error"), show_alert: true });
+      await ctx.answerCallbackQuery({ text: t("callback.processing_error") });
       return true;
     }
 

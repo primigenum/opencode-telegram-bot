@@ -8,6 +8,7 @@ import { upsertSessionDirectory } from "../../app/services/session-cache-service
 import { getCurrentProject } from "../../app/stores/settings-store.js";
 import { t } from "../../i18n/index.js";
 import { logger } from "../../utils/logger.js";
+import { alert, failure } from "./feedback.js";
 import { appendInlineMenuCancelButton, ensureActiveInlineMenu } from "../menus/inline-menu.js";
 import {
   buildWorktreeMenuView,
@@ -59,8 +60,7 @@ export async function handleWorktreeCallback(
 
     if (!currentProject) {
       clearAllInteractionState("worktree_project_missing");
-      await ctx.answerCallbackQuery();
-      await ctx.reply(t("worktree.project_not_selected"));
+      await alert(ctx, "worktree.project_not_selected");
       return true;
     }
 
@@ -91,12 +91,12 @@ export async function handleWorktreeCallback(
 
     const selectedWorktree = context.worktrees[index];
     if (!selectedWorktree) {
-      await ctx.answerCallbackQuery({ text: t("worktree.selection_missing_callback") });
+      await alert(ctx, "worktree.selection_missing_callback");
       return true;
     }
 
     if (selectedWorktree.isCurrent) {
-      await ctx.answerCallbackQuery({ text: t("worktree.already_selected_callback") });
+      await alert(ctx, "worktree.already_selected_callback");
       return true;
     }
 
@@ -119,8 +119,7 @@ export async function handleWorktreeCallback(
   } catch (error) {
     logger.error("[Bot] Error handling worktree callback:", error);
     clearAllInteractionState("worktree_select_error");
-    await ctx.answerCallbackQuery({ text: t("callback.processing_error") });
-    await ctx.reply(t("worktree.select_error"));
+    await failure(ctx, "worktree.select_error");
     return true;
   }
 }

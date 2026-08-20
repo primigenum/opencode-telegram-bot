@@ -127,7 +127,6 @@ export async function startBotApp(): Promise<void> {
   let shutdownStarted = false;
   let shutdownTimeout: ReturnType<typeof setTimeout> | null = null;
 
-
   const shutdown = (signal: NodeJS.Signals): void => {
     if (shutdownStarted) {
       return;

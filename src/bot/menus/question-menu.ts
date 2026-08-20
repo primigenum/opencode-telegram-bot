@@ -9,8 +9,7 @@ import { logger } from "../../utils/logger.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { t } from "../../i18n/index.js";
 import { editRenderedBotPart, sendRenderedBotPart } from "../messages/telegram-text.js";
-import type { TelegramRenderedPart } from "../render/types.js";
-import type { MessageEntity } from "grammy/types";
+import type { TelegramRenderedPart, TelegramRichBlock } from "../render/types.js";
 
 const MAX_BUTTON_LENGTH = 60;
 const TELEGRAM_MESSAGE_LIMIT = 4096;
@@ -262,6 +261,93 @@ async function sendAllAnswersToAgent(bot: Context["api"], chatId: number): Promi
   });
 }
 
+/** A paragraph of the question card: an optional bold lead-in plus regular text. */
+interface QuestionSegment {
+  label?: string;
+  rest: string;
+}
+
+function segmentLength(segment: QuestionSegment): number {
+  return (segment.label?.length ?? 0) + segment.rest.length;
+}
+
+function segmentToPlainText(segment: QuestionSegment): string {
+  return `${segment.label ?? ""}${segment.rest}`;
+}
+
+function segmentToBlock(segment: QuestionSegment): TelegramRichBlock {
+  if (!segment.label) {
+    return { type: "paragraph", text: segment.rest };
+  }
+
+  const bold = { type: "bold" as const, text: segment.label };
+  return { type: "paragraph", text: segment.rest ? [bold, segment.rest] : bold };
+}
+
+function sliceOnSafeBoundary(text: string, maxLength: number): string {
+  let endIndex = Math.max(0, Math.min(text.length, maxLength));
+  if (endIndex > 0 && isHighSurrogate(text.charCodeAt(endIndex - 1))) {
+    endIndex -= 1;
+  }
+
+  return text.slice(0, endIndex);
+}
+
+function appendTruncationSuffix(segment: QuestionSegment): QuestionSegment {
+  return { ...segment, rest: `${segment.rest}${TRUNCATION_SUFFIX}` };
+}
+
+/**
+ * Keeps the card within the Telegram message limit by dropping whole segments
+ * from the tail, cutting only the last one that still partially fits.
+ */
+function truncateQuestionSegments(
+  segments: QuestionSegment[],
+  limit: number,
+): QuestionSegment[] {
+  const separatorLength = 2;
+  const result: QuestionSegment[] = [];
+  let used = 0;
+
+  for (const segment of segments) {
+    const prefix = result.length > 0 ? separatorLength : 0;
+    const length = segmentLength(segment);
+
+    if (used + prefix + length <= limit) {
+      result.push(segment);
+      used += prefix + length;
+      continue;
+    }
+
+    const available = limit - used - prefix - TRUNCATION_SUFFIX.length;
+    const labelLength = segment.label?.length ?? 0;
+
+    if (available > labelLength) {
+      result.push(
+        appendTruncationSuffix({
+          label: segment.label,
+          rest: sliceOnSafeBoundary(segment.rest, available - labelLength),
+        }),
+      );
+    } else if (result.length > 0) {
+      result[result.length - 1] = appendTruncationSuffix(result[result.length - 1]);
+    } else {
+      result.push(
+        appendTruncationSuffix({
+          rest: sliceOnSafeBoundary(
+            segmentToPlainText(segment),
+            Math.max(0, limit - TRUNCATION_SUFFIX.length),
+          ),
+        }),
+      );
+    }
+
+    break;
+  }
+
+  return result;
+}
+
 function formatQuestionDetailsPart(question: {
   header: string;
   question: string;
@@ -273,81 +359,37 @@ function formatQuestionDetailsPart(question: {
   const progressText = totalQuestions > 0 ? `${currentIndex + 1}/${totalQuestions}` : "";
 
   const headerTitle = [QUESTION_EMOJI, progressText, question.header].filter(Boolean).join(" ");
-  const textParts: string[] = [];
-  const entities: MessageEntity[] = [];
-
-  if (headerTitle) {
-    textParts.push(headerTitle);
-    entities.push({ type: "bold", offset: 0, length: headerTitle.length });
-  }
-
   const multiple = question.multiple ? t("question.multi_hint") : "";
   const questionText = `${question.question}${multiple}`;
+
+  const segments: QuestionSegment[] = [];
+  if (headerTitle) {
+    segments.push({ label: headerTitle, rest: "" });
+  }
   if (questionText) {
-    textParts.push(questionText);
+    segments.push({ rest: questionText });
   }
-
   for (const option of question.options) {
-    const optionText = formatOptionDetails(option);
-    const offset = textParts.join("\n\n").length + (textParts.length > 0 ? 2 : 0);
-
-    if (option.label) {
-      entities.push({ type: "bold", offset, length: option.label.length });
-    }
-
-    textParts.push(optionText);
+    segments.push({
+      label: option.label || undefined,
+      rest: option.description ? `${option.label ? " — " : ""}${option.description}` : "",
+    });
   }
 
-  const text = textParts.filter(Boolean).join("\n\n");
-  const truncated = truncateQuestionPart(text, entities);
+  const visibleSegments = truncateQuestionSegments(
+    segments.filter((segment) => segmentLength(segment) > 0),
+    TELEGRAM_MESSAGE_LIMIT,
+  );
 
   return {
-    text: truncated.text,
-    entities: truncated.entities.length > 0 ? truncated.entities : undefined,
-    fallbackText: truncated.text,
-    source: truncated.entities.length > 0 ? "entities" : "plain",
+    blocks: visibleSegments.map(segmentToBlock),
+    fallbackText: visibleSegments.map(segmentToPlainText).join("\n\n"),
+    source: "blocks",
   };
-}
-
-function truncateQuestionPart(
-  text: string,
-  entities: MessageEntity[],
-): { text: string; entities: MessageEntity[] } {
-  if (text.length <= TELEGRAM_MESSAGE_LIMIT) {
-    return { text, entities };
-  }
-
-  const maxBaseLength = TELEGRAM_MESSAGE_LIMIT - TRUNCATION_SUFFIX.length;
-  let endIndex = maxBaseLength;
-
-  if (endIndex > 0 && isHighSurrogate(text.charCodeAt(endIndex - 1))) {
-    endIndex -= 1;
-  }
-
-  const truncatedText = `${text.slice(0, endIndex)}${TRUNCATION_SUFFIX}`;
-  const truncatedEntities = entities
-    .filter((entity) => entity.offset < endIndex)
-    .map((entity) => ({
-      ...entity,
-      length: Math.min(entity.length, endIndex - entity.offset),
-    }))
-    .filter((entity) => entity.length > 0);
-
-  return { text: truncatedText, entities: truncatedEntities };
 }
 
 function isHighSurrogate(codeUnit: number): boolean {
   return codeUnit >= 0xd800 && codeUnit <= 0xdbff;
-}
-
-function formatOptionDetails(option: { label: string; description: string }): string {
-  const optionTitle = option.label;
-
-  if (!option.description) {
-    return optionTitle;
-  }
-
-  return `${optionTitle} — ${option.description}`;
 }
 
 function buildQuestionKeyboard(

@@ -8,6 +8,7 @@ import {
 } from "../../app/services/variant-selection-service.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
+import { failure, notify, switched } from "./feedback.js";
 import { createMainKeyboard } from "../keyboards/main-reply-keyboard.js";
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
 import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
@@ -49,8 +50,8 @@ export async function handleVariantSelect(ctx: Context): Promise<boolean> {
 
     if (!currentModel.providerID || !currentModel.modelID) {
       logger.error("[VariantHandler] No model selected");
-      await ctx.answerCallbackQuery({ text: t("variant.model_not_selected_callback") });
-      return false;
+      await notify(ctx, "variant.model_not_selected_callback");
+      return true;
     }
 
     // Set variant
@@ -90,19 +91,14 @@ export async function handleVariantSelect(ctx: Context): Promise<boolean> {
 
     clearActiveInlineMenu("variant_selected");
 
-    await ctx.answerCallbackQuery({ text: t("variant.changed_callback", { name: displayName }) });
-    await ctx.reply(t("variant.changed_message", { name: displayName }), {
-      reply_markup: keyboard,
-    });
-
-    // Delete the inline menu message
-    await ctx.deleteMessage().catch(() => {});
+    // Send confirmation message with updated keyboard, then drop the inline menu
+    await switched(ctx, t("variant.changed_message", { name: displayName }), keyboard);
 
     return true;
   } catch (err) {
     clearActiveInlineMenu("variant_select_error");
     logger.error("[VariantHandler] Error handling variant select:", err);
-    await ctx.answerCallbackQuery({ text: t("variant.change_error_callback") }).catch(() => {});
-    return false;
+    await failure(ctx, "variant.change_error_callback");
+    return true;
   }
 }

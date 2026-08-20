@@ -16,6 +16,7 @@ import { getStoredModel } from "../../app/services/model-selection-service.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
+import { cancelMenu } from "./feedback.js";
 import { foregroundSessionState } from "../../app/managers/foreground-session-state-manager.js";
 import { assistantRunState } from "../../app/managers/assistant-run-state-manager.js";
 import {
@@ -354,8 +355,7 @@ export async function handleCommandsCallback(
   try {
     if (data === COMMANDS_CALLBACK_CANCEL) {
       clearCommandsInteraction("commands_cancelled");
-      await ctx.answerCallbackQuery({ text: t("commands.cancelled_callback") });
-      await ctx.deleteMessage().catch(() => {});
+      await cancelMenu(ctx);
       return true;
     }
 
@@ -380,7 +380,7 @@ export async function handleCommandsCallback(
     const page = parseCommandPageCallback(data);
     if (page !== null) {
       if (metadata.stage !== "list") {
-        await ctx.answerCallbackQuery({ text: t("callback.processing_error"), show_alert: true });
+        await ctx.answerCallbackQuery({ text: t("callback.processing_error") });
         return true;
       }
 
@@ -397,10 +397,10 @@ export async function handleCommandsCallback(
       }
 
       const keyboard = buildCommandsListKeyboard(metadata.commands, normalizedPage, pageSize);
+      await ctx.answerCallbackQuery();
       await ctx.editMessageText(formatCommandsSelectText(normalizedPage), {
         reply_markup: keyboard,
       });
-      await ctx.answerCallbackQuery();
 
       interactionManager.transition({
         expectedInput: "callback",
@@ -419,7 +419,7 @@ export async function handleCommandsCallback(
 
     const commandIndex = parseCommandSelectCallback(data);
     if (commandIndex === null || metadata.stage !== "list") {
-      await ctx.answerCallbackQuery({ text: t("callback.processing_error"), show_alert: true });
+      await ctx.answerCallbackQuery({ text: t("callback.processing_error") });
       return true;
     }
 

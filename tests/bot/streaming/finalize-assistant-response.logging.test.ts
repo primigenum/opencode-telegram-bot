@@ -28,7 +28,7 @@ describe("bot/streaming/finalize-assistant-response logging", () => {
       prepareStreamingPayload: vi.fn(() => null),
       renderFinalParts: vi.fn(() => [
         {
-          text: "raw model output",
+          blocks: [],
           fallbackText: "raw model output",
           source: "plain" as const,
         },

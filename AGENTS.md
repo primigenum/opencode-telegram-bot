@@ -12,7 +12,7 @@ Functional requirements, features, and development status are in [PRODUCT.md](./
 ## Technology stack
 
 - **Language:** TypeScript 5.x
-- **Runtime:** Bun >= 1.3.0
+- **Runtime:** Bun >= 1.4.0
 - **Package manager:** Bun (`bun install`)
 - **Test runner:** `bun test` (vitest API shimmed through the `#vitest` subpath alias in `package.json` `imports`, which resolves to `tests/helpers/vitest-shim.ts`)
 - **Configuration:** environment variables (`.env`)

@@ -1,25 +1,12 @@
 import { config } from "../../config.js";
 import { logger } from "../../utils/logger.js";
-import { chunkTelegramRenderedBlocks } from "../render/chunker.js";
-import { renderTelegramBlocks, renderTelegramParts } from "../render/pipeline.js";
+import { chunkPlainText, chunkTelegramRenderedBlocks } from "../render/chunker.js";
+import { renderTelegramBlocks, renderTelegramParts, toRenderedBlocks } from "../render/pipeline.js";
 import type { TelegramRenderedBlock, TelegramRenderedPart } from "../render/types.js";
 import type { StreamingMessagePayload } from "../streaming/response-streamer.js";
 
-export function createPlainRenderedBlock(text: string): TelegramRenderedBlock {
-  return {
-    blockType: "plain",
-    mode: "plain",
-    text,
-    fallbackText: text,
-    source: "plain",
-  };
-}
-
-export function createPlainRenderedParts(
-  text: string,
-  maxPartLength: number,
-): TelegramRenderedPart[] {
-  return chunkTelegramRenderedBlocks([createPlainRenderedBlock(text)], { maxPartLength });
+export function createPlainRenderedParts(text: string): TelegramRenderedPart[] {
+  return chunkPlainText(text);
 }
 
 function useAssistantEntitiesFormat(): boolean {
@@ -38,22 +25,19 @@ function renderAssistantBlocksSafe(text: string): TelegramRenderedBlock[] {
       "[AssistantRender] Block rendering failed, falling back to plain streaming block",
       error,
     );
-    return [createPlainRenderedBlock(text)];
+    return toRenderedBlocks([{ type: "plain", text }]);
   }
 }
 
-export function renderAssistantFinalPartsSafe(
-  text: string,
-  maxPartLength = 4096,
-): TelegramRenderedPart[] {
+export function renderAssistantFinalPartsSafe(text: string): TelegramRenderedPart[] {
   if (!text) {
     return [];
   }
 
-  const formatMode = useAssistantEntitiesFormat() ? "entities" : "raw";
+  const formatMode = useAssistantEntitiesFormat() ? "blocks" : "raw";
 
   if (!useAssistantEntitiesFormat()) {
-    const parts = createPlainRenderedParts(text, maxPartLength);
+    const parts = createPlainRenderedParts(text);
     logger.debug("[AssistantRender] Built final assistant parts in raw mode", {
       formatMode,
       textLength: text.length,
@@ -63,18 +47,16 @@ export function renderAssistantFinalPartsSafe(
   }
 
   try {
-    const parts = renderTelegramParts(text, { maxPartLength });
-    logger.debug("[AssistantRender] Built final assistant parts in entities mode", {
+    const parts = renderTelegramParts(text);
+    logger.debug("[AssistantRender] Built final assistant parts in blocks mode", {
       formatMode,
       textLength: text.length,
       partCount: parts.length,
-      richParts: parts.filter((part) => part.source === "entities").length,
-      plainParts: parts.filter((part) => part.source === "plain").length,
     });
     return parts;
   } catch (error) {
     logger.warn("[AssistantRender] Part rendering failed, falling back to plain text parts", error);
-    const parts = createPlainRenderedParts(text, maxPartLength);
+    const parts = createPlainRenderedParts(text);
     logger.debug("[AssistantRender] Built final assistant parts in raw fallback mode", {
       formatMode,
       textLength: text.length,
@@ -97,26 +79,12 @@ function getStableStreamingBoundary(messageText: string): number {
   return lastBlockSeparatorIndex >= 0 ? lastBlockSeparatorIndex + 2 : 0;
 }
 
-export function prepareAssistantStreamingPayload(
-  messageText: string,
-  maxPartLength: number,
-): StreamingMessagePayload | null {
-  if (!messageText) {
-    return null;
-  }
-
-  const formatMode = useAssistantEntitiesFormat() ? "entities" : "raw";
-
-  if (!useAssistantEntitiesFormat()) {
-    const parts = createPlainRenderedParts(messageText, maxPartLength);
-    logger.debug("[AssistantRender] Built streaming assistant payload in raw mode", {
-      formatMode,
-      textLength: messageText.length,
-      partCount: parts.length,
-    });
-    return parts.length > 0 ? { parts } : null;
-  }
-
+/**
+ * Blocks for text that is still arriving: everything up to the last blank line
+ * is structurally complete and gets parsed, the trailing tail stays literal
+ * until its block is finished.
+ */
+export function buildStreamingBlocks(messageText: string): TelegramRenderedBlock[] {
   const stableBoundary = getStableStreamingBoundary(messageText);
   const blocks: TelegramRenderedBlock[] = [];
 
@@ -126,19 +94,38 @@ export function prepareAssistantStreamingPayload(
 
   const unstableTail = stableBoundary > 0 ? messageText.slice(stableBoundary) : messageText;
   if (unstableTail) {
-    blocks.push(createPlainRenderedBlock(unstableTail));
+    blocks.push(...toRenderedBlocks([{ type: "plain", text: unstableTail }]));
   }
 
-  const parts = chunkTelegramRenderedBlocks(blocks, { maxPartLength });
-  logger.debug("[AssistantRender] Built streaming assistant payload in entities mode", {
+  return blocks;
+}
+
+export function prepareAssistantStreamingPayload(
+  messageText: string,
+): StreamingMessagePayload | null {
+  if (!messageText) {
+    return null;
+  }
+
+  const formatMode = useAssistantEntitiesFormat() ? "blocks" : "raw";
+
+  if (!useAssistantEntitiesFormat()) {
+    const parts = createPlainRenderedParts(messageText);
+    logger.debug("[AssistantRender] Built streaming assistant payload in raw mode", {
+      formatMode,
+      textLength: messageText.length,
+      partCount: parts.length,
+    });
+    return parts.length > 0 ? { parts } : null;
+  }
+
+  const blocks = buildStreamingBlocks(messageText);
+  const parts = chunkTelegramRenderedBlocks(blocks);
+  logger.debug("[AssistantRender] Built streaming assistant payload in blocks mode", {
     formatMode,
     textLength: messageText.length,
-    stableBoundary,
-    tailLength: unstableTail.length,
     blockCount: blocks.length,
     partCount: parts.length,
-    richParts: parts.filter((part) => part.source === "entities").length,
-    plainParts: parts.filter((part) => part.source === "plain").length,
   });
 
   return parts.length > 0 ? { parts } : null;
@@ -146,8 +133,7 @@ export function prepareAssistantStreamingPayload(
 
 export function prepareAssistantFinalStreamingPayload(
   messageText: string,
-  maxPartLength: number,
 ): StreamingMessagePayload | null {
-  const parts = renderAssistantFinalPartsSafe(messageText, maxPartLength);
+  const parts = renderAssistantFinalPartsSafe(messageText);
   return parts.length > 0 ? { parts } : null;
 }

@@ -9,6 +9,7 @@ import { getScheduledTask, removeScheduledTask } from "../../app/stores/schedule
 import { scheduledTaskRuntime } from "../../app/services/scheduled-task-runtime-service.js";
 import { getAgentDisplayName } from "../../app/types/agent.js";
 import { logger } from "../../utils/logger.js";
+import { cancelMenu, notify } from "./feedback.js";
 import {
   buildCancelKeyboard,
   buildTaskDetailsKeyboard,
@@ -225,12 +226,12 @@ export async function handleTaskCallback(ctx: Context): Promise<boolean> {
   }
 
   if (data === TASK_CANCEL_CALLBACK) {
-    await ctx.answerCallbackQuery({ text: t("task.cancel_callback") });
+    // The flow deletes its own messages by id, so only the toast is needed here.
+    await notify(ctx, "common.cancelled");
     await deleteMessageIfPresent(ctx, flowState.scheduleRequestMessageId);
     await deleteMessageIfPresent(ctx, flowState.previewMessageId);
     await deleteMessageIfPresent(ctx, flowState.promptRequestMessageId);
     clearTaskFlow("task_cancelled");
-    await ctx.reply(t("task.cancelled"));
     return true;
   }
 
@@ -281,8 +282,7 @@ export async function handleTaskListCallback(ctx: Context): Promise<boolean> {
   try {
     if (data === TASKLIST_CANCEL_CALLBACK) {
       clearTaskListInteraction("tasklist_cancelled");
-      await ctx.answerCallbackQuery({ text: t("tasklist.cancelled_callback") });
-      await ctx.deleteMessage().catch(() => {});
+      await cancelMenu(ctx);
       return true;
     }
 
@@ -339,7 +339,7 @@ export async function handleTaskListCallback(ctx: Context): Promise<boolean> {
       return true;
     }
 
-    await ctx.answerCallbackQuery({ text: t("callback.processing_error"), show_alert: true });
+    await ctx.answerCallbackQuery({ text: t("callback.processing_error") });
     return true;
   } catch (error) {
     logger.error("[TaskList] Failed to handle task list callback", error);

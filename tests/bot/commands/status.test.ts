@@ -44,6 +44,8 @@ vi.mock("#src/opencode/client.ts", () => ({
 
 vi.mock("#src/app/services/session-service.ts", () => ({
   getCurrentSession: mocked.getCurrentSessionMock,
+  setCurrentSession: vi.fn(),
+  clearSession: vi.fn(),
 }));
 
 vi.mock("#src/app/stores/settings-store.ts", () => {
@@ -54,12 +56,34 @@ vi.mock("#src/app/stores/settings-store.ts", () => {
   // status-command's graph reads the session directory cache too; without it
   // bun throws "Export named ... not found" when the mock replaces the module.
   const extraNames = [
+    "setCurrentProject",
+    "clearProject",
     "getCurrentSession",
     "setCurrentSession",
     "clearSession",
+    "getCurrentAgent",
+    "setCurrentAgent",
+    "clearCurrentAgent",
+    "getCurrentModel",
+    "setCurrentModel",
+    "clearCurrentModel",
+    "getPinnedMessageId",
+    "setPinnedMessageId",
+    "clearPinnedMessageId",
     "getSessionDirectoryCache",
     "setSessionDirectoryCache",
     "clearSessionDirectoryCache",
+    "getScheduledTasks",
+    "setScheduledTasks",
+    "getScheduledTaskSessionIgnores",
+    "setScheduledTaskSessionIgnores",
+    "getVisibleProjects",
+    "setVisibleProjects",
+    "flushSettings",
+    "getPromptQueueEnabled",
+    "setPromptQueueEnabled",
+    "__resetSettingsForTests",
+    "loadSettings",
   ] as const;
   for (const name of extraNames) {
     settingsStoreMock[name] = vi.fn();
@@ -69,10 +93,23 @@ vi.mock("#src/app/stores/settings-store.ts", () => {
 
 vi.mock("#src/app/services/agent-selection-service.ts", () => ({
   fetchCurrentAgent: mocked.fetchCurrentAgentMock,
+  getAvailableAgents: vi.fn(),
+  resolveProjectAgent: vi.fn(),
+  selectAgent: vi.fn(),
+  getStoredAgent: vi.fn(),
 }));
 
 vi.mock("#src/app/services/model-selection-service.ts", () => ({
   fetchCurrentModel: mocked.fetchCurrentModelMock,
+  getModelSelectionLists: vi.fn(),
+  reconcileStoredModelSelection: vi.fn(),
+  __resetModelCatalogCacheForTests: vi.fn(),
+  getFavoriteModels: vi.fn(),
+  getProviders: vi.fn(),
+  getProviderModels: vi.fn(),
+  searchModels: vi.fn(),
+  selectModel: vi.fn(),
+  getStoredModel: vi.fn(),
 }));
 
 vi.mock("#src/app/services/worktree-service.ts", () => ({

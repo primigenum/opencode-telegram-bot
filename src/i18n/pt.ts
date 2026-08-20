@@ -51,8 +51,8 @@ export const pt: I18nDictionary = {
   "inline.button.cancel": "❌ Cancelar",
   "inline.button.close": "❌ Fechar",
   "inline.inactive_callback": "Este menu está inativo",
-  "inline.cancelled_callback": "Cancelado",
 
+  "common.cancelled": "Cancelado",
   "common.unknown": "desconhecido",
   "common.unknown_error": "erro desconhecido",
 
@@ -103,9 +103,11 @@ export const pt: I18nDictionary = {
   "bot.photo_model_no_image":
     "⚠️ O modelo atual não aceita entrada de imagem. Enviando apenas o texto.",
   "bot.photo_download_error": "🔴 Não foi possível baixar a foto",
-  "bot.photo_no_caption": "💡 Dica: adicione uma legenda para descrever o que você quer fazer com esta foto.",
+  "bot.photo_no_caption":
+    "💡 Dica: adicione uma legenda para descrever o que você quer fazer com esta foto.",
   "bot.photo_vision_describing": "🔍 Descrevendo a foto com o modelo de visão local...",
   "bot.photo_vision_fallback_error": "🔴 Serviço de visão local indisponível (127.0.0.1:8082). Inicie-o com ~/models/lfm2.5-vl-3b/start.sh",
+
   "bot.file_downloading": "⏳ Baixando arquivo...",
   "bot.files_downloading": "⏳ Baixando arquivos...",
   "bot.file_too_large": "⚠️ O arquivo é muito grande (máx {maxSizeMb}MB)",
@@ -214,7 +216,6 @@ export const pt: I18nDictionary = {
   "messages.fetch_error":
     "🔴 O OpenCode Server está indisponível ou ocorreu um erro ao carregar as mensagens.",
   "messages.inactive_callback": "Este menu de mensagens está inativo",
-  "messages.cancelled_callback": "Cancelado",
   "messages.page_empty_callback": "Nenhuma mensagem nesta página",
   "messages.button.prev_page": "⬅️ Anterior",
   "messages.button.next_page": "Próximo ➡️",
@@ -305,7 +306,6 @@ export const pt: I18nDictionary = {
   "opencode_stop.error":
     "🔴 Ocorreu um erro ao encerrar o servidor.\n\nVerifique os logs do aplicativo para mais detalhes.",
 
-  "agent.changed_callback": "Agente alterado: {name}",
   "agent.changed_message": "✅ Agente alterado para: {name}",
   "agent.change_error_callback": "Não foi possível alterar o agente",
   "agent.menu.current": "Agente atual: {name}\n\nSelecione o agente:",
@@ -313,7 +313,6 @@ export const pt: I18nDictionary = {
   "agent.menu.empty": "⚠️ Nenhum agente disponível",
   "agent.menu.error": "🔴 Não foi possível obter a lista de agentes",
 
-  "model.changed_callback": "Modelo alterado: {name}",
   "model.changed_message": "✅ Modelo alterado para: {name}",
   "model.change_error_callback": "Não foi possível alterar o modelo",
   "model.menu.empty": "⚠️ Nenhum modelo disponível",
@@ -345,7 +344,6 @@ export const pt: I18nDictionary = {
   "model.provider_models.page_indicator": "Página {current}/{total}",
 
   "variant.model_not_selected_callback": "Erro: nenhum modelo selecionado",
-  "variant.changed_callback": "Variante alterada: {name}",
   "variant.changed_message": "✅ Variante alterada para: {name}",
   "variant.change_error_callback": "Não foi possível alterar a variante",
   "variant.select_model_first": "⚠️ Selecione um modelo primeiro",
@@ -357,7 +355,6 @@ export const pt: I18nDictionary = {
   "context.no_active_session": "⚠️ Nenhuma sessão ativa. Crie uma sessão com /new",
   "context.confirm_text":
     '📊 Compactação de contexto para a sessão "{title}"\n\nIsso reduzirá o uso de contexto removendo mensagens antigas do histórico. A tarefa atual não será interrompida.\n\nContinuar?',
-  "context.callback_session_not_found": "Sessão não encontrada",
   "context.callback_compacting": "Compactando contexto...",
   "context.progress": "⏳ Compactando contexto...",
   "context.error": "❌ A compactação de contexto falhou",
@@ -518,8 +515,6 @@ export const pt: I18nDictionary = {
   "task.button.retry_schedule": "🔁 Reenviar agendamento",
   "task.button.cancel": "❌ Cancelar",
   "task.retry_schedule_callback": "Reenviando agendamento...",
-  "task.cancel_callback": "Cancelando...",
-  "task.cancelled": "❌ Criação da tarefa agendada cancelada.",
   "task.inactive_callback": "Este fluxo de tarefa agendada está inativo",
   "task.inactive": "⚠️ A criação da tarefa agendada não está ativa. Execute /task novamente.",
   "task.blocked.expected_input":
@@ -547,7 +542,6 @@ export const pt: I18nDictionary = {
   "tasklist.button.delete": "🗑 Excluir",
   "tasklist.button.cancel": "❌ Cancelar",
   "tasklist.deleted_callback": "Excluída",
-  "tasklist.cancelled_callback": "Cancelado",
   "tasklist.inactive_callback": "Este menu de tarefas agendadas está inativo",
   "tasklist.load_error": "🔴 Não foi possível carregar as tarefas agendadas.",
 
@@ -560,7 +554,6 @@ export const pt: I18nDictionary = {
   "commands.confirm":
     "Confirme a execução do comando {command}. Para executá-lo com argumentos, envie os argumentos como mensagem.",
   "commands.inactive_callback": "Este menu de comandos está inativo",
-  "commands.cancelled_callback": "Cancelado",
   "commands.execute_callback": "Executando comando...",
   "commands.executing_prefix": "⚡ Executando comando:",
   "commands.arguments_empty":
@@ -589,7 +582,6 @@ export const pt: I18nDictionary = {
   "skills.confirm":
     "Confirme a execução do skill {skill}. Para executá-lo com argumentos, envie os argumentos como mensagem.",
   "skills.inactive_callback": "Este menu de skills está inativo",
-  "skills.cancelled_callback": "Cancelado",
   "skills.execute_callback": "Usando skill...",
   "skills.executing_prefix": "⚡ Usando skill:",
   "skills.arguments_empty":
