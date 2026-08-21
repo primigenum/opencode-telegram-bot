@@ -20,6 +20,11 @@ vi.mock("#src/opencode/client.ts", () => ({
 vi.mock("#src/app/services/session-cache-service.ts", () => ({
   getCachedSessionProjects: cachedSessionProjectsMock,
   __resetSessionDirectoryCacheForTests: vi.fn(),
+  warmupSessionDirectoryCache: vi.fn().mockResolvedValue(undefined),
+  syncSessionDirectoryCache: vi.fn().mockResolvedValue(undefined),
+  getCachedSessionDirectories: vi.fn().mockResolvedValue([]),
+  upsertSessionDirectory: vi.fn().mockResolvedValue(undefined),
+  ingestSessionInfoForCache: vi.fn().mockResolvedValue(undefined),
 }));
 
 // settings-store is not mocked here — tests that need to control

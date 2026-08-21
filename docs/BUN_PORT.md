@@ -546,10 +546,10 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "#vitest";
 | `vi.useFakeTimers()` | ✅ | `bun:test.jest.useFakeTimers()` |
 | `vi.useRealTimers()` | ✅ | idem |
 | `vi.setSystemTime(date)` | ✅ | `bun:test.setSystemTime` |
-| `vi.advanceTimersByTime(ms)` | ✅ | via `setSystemTime` + `bun:test.jest.now()` |
-| `vi.advanceTimersByTimeAsync(ms)` | ✅ | + flush microtasks (3× `setImmediate`) |
-| `vi.runAllTimersAsync()` | ✅ | drains `bun:test.jest.getTimerCount()` |
-| `vi.waitFor(fn, { timeout, interval })` | ✅ | implemented in the shim (polling with `setTimeout`) |
+| `vi.advanceTimersByTime(ms)` | ✅ | `bun:test.jest.advanceTimersByTime` (accumulative since 1.4.0) |
+| `vi.advanceTimersByTimeAsync(ms)` | ✅ | chunked advance + 5× microtask drain (`Promise.resolve`, not `setImmediate`) |
+| `vi.runAllTimersAsync()` | ✅ | drains pending microtasks (bun's `runAllTimers` would loop on re-scheduled timers) |
+| `vi.waitFor(fn, { timeout, interval })` | ✅ | implemented in the shim; advances the fake clock when fake timers are active |
 | `vi.importActual(path)` | ✅ | `await import(path)` (without mock override) |
 | `vi.doMock(path, factory)` | ✅ | alias of `vi.mock` |
 | `vi.doUnmock(path)` | ✅ | reset to real import |

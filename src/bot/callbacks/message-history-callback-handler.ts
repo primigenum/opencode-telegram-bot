@@ -12,6 +12,7 @@ import type { UserMessageItem } from "../../app/services/message-history-service
 import { isForegroundBusy } from "../../app/services/run-control-service.js";
 import { t } from "../../i18n/index.js";
 import { logger } from "../../utils/logger.js";
+import { cancelMenu } from "./feedback.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { renderAssistantFinalPartsSafe } from "../messages/assistant-rendering.js";
 import { replyBusyBlocked } from "../messages/busy-blocked-renderer.js";
@@ -173,7 +174,7 @@ async function sendLatestAssistantResponse(
     return;
   }
 
-  const parts = renderAssistantFinalPartsSafe(responseText, TELEGRAM_MESSAGE_LIMIT);
+  const parts = renderAssistantFinalPartsSafe(responseText);
   for (const part of parts) {
     await sendRenderedBotPart({
       api,
@@ -324,10 +325,10 @@ export async function handleMessagesCallback(
         metadata.page,
         pageSize,
       );
+      await ctx.answerCallbackQuery();
       await ctx.editMessageText(formatMessagesSelectText(normalizedPage), {
         reply_markup: buildMessagesListKeyboard(metadata.messages, normalizedPage, pageSize),
       });
-      await ctx.answerCallbackQuery();
 
       interactionManager.transition({
         expectedInput: "callback",
@@ -347,15 +348,14 @@ export async function handleMessagesCallback(
 
     if (data === MESSAGES_CALLBACK_CANCEL) {
       clearMessagesInteraction("messages_cancelled");
-      await ctx.answerCallbackQuery({ text: t("messages.cancelled_callback") });
-      await ctx.deleteMessage().catch(() => {});
+      await cancelMenu(ctx);
       return true;
     }
 
     const page = parseMessagePageCallback(data);
     if (page !== null) {
       if (metadata.stage !== "list") {
-        await ctx.answerCallbackQuery({ text: t("callback.processing_error"), show_alert: true });
+        await ctx.answerCallbackQuery({ text: t("callback.processing_error") });
         return true;
       }
 
@@ -371,10 +371,10 @@ export async function handleMessagesCallback(
         return true;
       }
 
+      await ctx.answerCallbackQuery();
       await ctx.editMessageText(formatMessagesSelectText(normalizedPage), {
         reply_markup: buildMessagesListKeyboard(metadata.messages, normalizedPage, pageSize),
       });
-      await ctx.answerCallbackQuery();
 
       interactionManager.transition({
         expectedInput: "callback",
@@ -394,7 +394,7 @@ export async function handleMessagesCallback(
 
     const messageIndex = parseMessageSelectCallback(data);
     if (messageIndex === null || metadata.stage !== "list") {
-      await ctx.answerCallbackQuery({ text: t("callback.processing_error"), show_alert: true });
+      await ctx.answerCallbackQuery({ text: t("callback.processing_error") });
       return true;
     }
 
@@ -404,10 +404,10 @@ export async function handleMessagesCallback(
       return true;
     }
 
+    await ctx.answerCallbackQuery();
     await ctx.editMessageText(formatMessageDetailText(selectedMessage), {
       reply_markup: buildMessageDetailKeyboard(),
     });
-    await ctx.answerCallbackQuery();
 
     interactionManager.transition({
       expectedInput: "callback",

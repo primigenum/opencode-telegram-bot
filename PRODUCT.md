@@ -61,8 +61,10 @@ No public inbound ports are required for normal usage.
 
 - Send each completed assistant response after completion signal from SSE
 - Show elapsed time for tool calls running longer than 20 seconds, updated on a timer so it keeps counting while a tool blocks without producing output; covers subagent cards and compact mode, and the total duration stays on the finished tool line. A finished subagent card keeps the time its whole run took. Durations use the same `· 🕒 1h 2m 3s` format as the assistant run footer
+- Render assistant replies with native Telegram formatting: real tables with the column alignment declared in markdown, bullet lists with their nesting, block quotes that keep their nested content, headings, and syntax-highlighted code. Numbered lists and checklists keep literal markers (`1.`, ✅/🔲), because Telegram clients number a native ordered list from zero and do not draw the native checkbox at all
+- Deliver reasoning as a collapsed quote that expands on tap
 - Hide full model reasoning by default; optionally stream it in the thinking message when explicitly enabled
-- Split long responses into multiple Telegram messages
+- Split long responses into multiple Telegram messages, which is now rare: native messages hold 32768 characters instead of 4096
 - Send code updates as files (size-limited)
 
 ### Session status in chat
@@ -177,6 +179,7 @@ Model picker behavior:
 - [x] Attaching a project file from `/ls` to the next prompt as a native OpenCode file part
 - [x] `/messages` command: browse session messages with revert and fork functionality
 - [x] Optional message queue for text sent while the agent is busy, managed from the bottom keyboard
+- [x] Native Telegram rich message formatting for assistant replies (Bot API 10.1)
 
 ## Current Task List
 

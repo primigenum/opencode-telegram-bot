@@ -207,40 +207,19 @@ export function hoisted<T>(factory: () => T): T {
 
 export function useFakeTimers(_options?: unknown): void {
   bunTest.jest.useFakeTimers();
-  fakeTimersActive = true;
 }
 
 export function useRealTimers(): void {
   bunTest.jest.useRealTimers();
-  fakeTimersActive = false;
 }
 
-let fakeTimersActive = false;
-
 export function advanceTimersByTime(ms: number): void {
-  if (fakeTimersActive) {
-    // bun's jest.advanceTimersByTime fires any pending fake timers in
-    // the requested window, but as a side effect it resets the fake
-    // clock to `realTime + ms` (not `currentFakeClock + ms`). That is
-    // broken from the perspective of vitest's contract, which expects
-    // the clock to advance from wherever it currently is.
-    //
-    // Workaround: snapshot the current fake clock, ask bun to fire
-    // the timers, then re-anchor the clock to the snapshot + ms.
-    // Pending timers whose deadline fell inside [snapshot, realTime+ms]
-    // are executed by bun, and `Date.now()` ends up at the expected
-    // value (snapshot + ms).
-    const before = bunTest.jest.now();
-    bunTest.jest.advanceTimersByTime(ms);
-    bunTest.setSystemTime(new Date(before + ms));
-    return;
-  }
-  // Fake timers inactive: the SUT is using the real clock (or a
-  // test-local Date.now shim like the `accelerateTime()` helper in
-  // response-streamer.test.ts). Just nudge the system clock; the test
-  // is responsible for its own clock.
-  const before = Date.now();
-  bunTest.setSystemTime(new Date(before + ms));
+  // bun >= 1.4.0 advances the fake clock accumulatively from wherever it
+  // currently is (verified: setSystemTime(base) + advance(1000) x2 lands on
+  // base+2000, not realNow+2000). The old workaround — snapshot the clock,
+  // advance, then re-anchor with setSystemTime(before+ms) — is gone because
+  // re-anchoring can interfere with pending fake timers' deadlines.
+  bunTest.jest.advanceTimersByTime(ms);
 }
 
 export async function advanceTimersByTimeAsync(ms: number): Promise<void> {
@@ -261,14 +240,15 @@ export async function advanceTimersByTimeAsync(ms: number): Promise<void> {
     const chunk = Math.min(step, remaining);
     advanceTimersByTime(chunk);
     remaining -= chunk;
-    // Drain the SUT's pending microtask chain without queueing a
-    // setImmediate. Each setImmediate registered while `useFakeTimers`
-    // is active consumes a slot in bun's internal fake-timer heap, and
-    // the heap corrupts after ~3700 such calls (bun then throws
-    // "Fake timers are not active" mid-test). A handful of `await
-    // Promise.resolve()` turns is enough to drain the typical await
-    // chains (mocked resolved promises, `enqueueTask` .then, etc.)
-    // without leaking into the fake-timer queue.
+    // Drain the SUT's pending microtask chain. We deliberately don't use
+    // setImmediate here: with fake timers installed, setImmediate lands in
+    // the fake-timer heap and the drain would fire it on the next advance
+    // instead of the real loop. (Bun < 1.4 also corrupted the fake-timer
+    // heap after ~3700 such calls and threw "Fake timers are not active"
+    // mid-test — fixed in 1.4.0, but the fake-heap argument still stands.)
+    // A handful of `await Promise.resolve()` turns is enough to drain the
+    // typical await chains (mocked resolved promises, `enqueueTask` .then,
+    // etc.) without leaking into the fake-timer queue.
     for (let i = 0; i < 5; i++) {
       await Promise.resolve();
     }
@@ -306,6 +286,7 @@ export async function waitFor<T>(
   // works even when vi.useFakeTimers() or manual Date.now overrides are
   // active — without this, Date.now never advances and we loop forever.
   const timerFn = _shimRealSetTimeout;
+  const fakeTimersActive = bunTest.jest.isFakeTimers();
   const start = _shimRealDateNow();
   let lastError: unknown;
   while (_shimRealDateNow() - start < timeout) {
@@ -313,7 +294,15 @@ export async function waitFor<T>(
       return await callback();
     } catch (error) {
       lastError = error;
-      await new Promise<void>((resolve) => timerFn(resolve, interval));
+      if (fakeTimersActive) {
+        // vitest/@testing-library semantics: with fake timers installed,
+        // waitFor advances the fake clock instead of waiting on the real
+        // one, so timers scheduled by the SUT fire while we poll.
+        bunTest.jest.advanceTimersByTime(interval);
+        await Promise.resolve();
+      } else {
+        await new Promise<void>((resolve) => timerFn(resolve, interval));
+      }
     }
   }
   throw lastError ?? new Error("vi.waitFor timed out");

@@ -36,6 +36,10 @@ export async function resetSingletonState(): Promise<void> {
     { pinnedMessageManager },
     { stopEventListening },
     { __resetSessionDirectoryCacheForTests },
+    { __resetMessageMergerForTests },
+    { promptQueue },
+    { __resetPromptQueueDispatchForTests },
+    { promptAttachment },
     loggerModule,
   ] = await Promise.all([
     import("../../src/app/managers/question-manager.js"),
@@ -47,6 +51,10 @@ export async function resetSingletonState(): Promise<void> {
     import("../../src/bot/pinned/pinned-message-manager.js"),
     import("../../src/opencode/events.js"),
     import("../../src/app/services/session-cache-service.js"),
+    import("../../src/bot/handlers/message-merger.js"),
+    import("../../src/app/managers/prompt-queue-manager.js"),
+    import("../../src/bot/handlers/prompt-queue-dispatch.js"),
+    import("../../src/app/managers/prompt-attachment-manager.js"),
     import("../../src/utils/logger.js"),
   ]);
 
@@ -56,6 +64,10 @@ export async function resetSingletonState(): Promise<void> {
   renameManager.clear();
   interactionManager.clear("test_reset");
   summaryAggregator.clear();
+  __resetMessageMergerForTests();
+  promptQueue.__resetForTests();
+  __resetPromptQueueDispatchForTests();
+  promptAttachment.__resetForTests();
 
   // The queue/merger/attachment modules pull in prompt.ts → session-service
   // and friends. When the current test mocks any module in that chain, bun's

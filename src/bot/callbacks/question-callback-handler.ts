@@ -8,6 +8,7 @@ import {
 } from "../menus/question-menu.js";
 import { t } from "../../i18n/index.js";
 import { logger } from "../../utils/logger.js";
+import { alert, cancelPrompt } from "./feedback.js";
 
 function getCallbackMessageId(ctx: Context): number | null {
   const message = ctx.callbackQuery?.message;
@@ -105,6 +106,7 @@ async function handleSelectOption(
   const question = questionManager.getCurrentQuestion();
   if (!question) {
     logger.debug("[QuestionHandler] No current question");
+    await alert(ctx, "question.inactive_callback");
     return;
   }
 
@@ -168,8 +170,7 @@ async function handleCancelPoll(ctx: Context): Promise<void> {
   questionManager.cancel();
   clearQuestionInteraction("question_cancelled");
 
-  await ctx.editMessageText(t("question.cancelled")).catch(() => {});
-  await ctx.answerCallbackQuery();
+  await cancelPrompt(ctx, "question.cancelled");
 
   questionManager.clear();
 }

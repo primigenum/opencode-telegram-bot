@@ -178,7 +178,7 @@ describe("bot/menus/inline-menu", () => {
 
     expect(handled).toBe(true);
     expect(interactionManager.getSnapshot()).toBeNull();
-    expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({ text: t("inline.cancelled_callback") });
+    expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({ text: t("common.cancelled") });
     expect(ctx.deleteMessage).toHaveBeenCalledTimes(1);
   });
 

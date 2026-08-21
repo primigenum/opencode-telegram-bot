@@ -1,9 +1,31 @@
 import { describe, expect, it, vi } from "#vitest";
-import { loadSut } from "#helpers/sut-loader.js";
-const { editRenderedBotPart, editBotText, getTelegramRenderedPartSignature, sendBotText, sendRenderedBotPart } = await loadSut<typeof import("#src/bot/messages/telegram-text.js")>(
-  "#src/bot/messages/telegram-text.ts",
-  import.meta.url,
-);
+import {
+  completeDraftPart,
+  editRenderedBotPart,
+  editBotText,
+  getTelegramRenderedPartSignature,
+  sendBotText,
+  sendDraftBotPart,
+  sendRenderedBotPart,
+} from "../../../src/bot/messages/telegram-text.js";
+import { PLAIN_MAX_PART_CHARS } from "../../../src/bot/render/limits.js";
+import type { TelegramRenderedPart } from "../../../src/bot/render/types.js";
+
+const richPart: TelegramRenderedPart = {
+  blocks: [{ type: "paragraph", text: { type: "bold", text: "Hello" } }],
+  fallbackText: "Hello",
+  source: "blocks",
+};
+
+const plainPart: TelegramRenderedPart = {
+  blocks: [],
+  fallbackText: "plain text",
+  source: "plain",
+};
+
+function plainSignature(text: string): string {
+  return getTelegramRenderedPartSignature({ blocks: [], fallbackText: text, source: "plain" });
+}
 
 describe("bot/messages/telegram-text", () => {
   it("sends raw messages by default", async () => {
@@ -73,219 +95,312 @@ describe("bot/messages/telegram-text", () => {
     expect(editMessageText).toHaveBeenCalledWith(100, 200, "updated", undefined);
   });
 
-  it("sends rendered parts with entities and no parse mode", async () => {
-    const sendMessage = vi.fn().mockResolvedValue({ message_id: 123 });
+  describe("sendRenderedBotPart", () => {
+    it("sends native blocks and strips parse mode", async () => {
+      const sendMessage = vi.fn();
+      const sendRichMessage = vi.fn().mockResolvedValue({ message_id: 123 });
 
-    await expect(
-      sendRenderedBotPart({
-        api: { sendMessage },
-        chatId: 100,
-        part: {
-          text: "Hello",
-          entities: [{ type: "bold", offset: 0, length: 5 }],
-          fallbackText: "Hello",
-          source: "entities",
-        },
-        options: { reply_markup: { keyboard: [] }, parse_mode: "MarkdownV2" },
-      }),
-    ).resolves.toEqual({
-      messageId: 123,
-      deliveredSignature: getTelegramRenderedPartSignature({
-        text: "Hello",
-        entities: [{ type: "bold", offset: 0, length: 5 }],
-      }),
+      await expect(
+        sendRenderedBotPart({
+          api: { sendMessage, sendRichMessage },
+          chatId: 100,
+          part: richPart,
+          options: { reply_markup: { keyboard: [] }, parse_mode: "MarkdownV2" },
+        }),
+      ).resolves.toEqual({
+        messageId: 123,
+        deliveredSignature: getTelegramRenderedPartSignature(richPart),
+      });
+
+      expect(sendMessage).not.toHaveBeenCalled();
+      expect(sendRichMessage).toHaveBeenCalledWith(
+        100,
+        { blocks: richPart.blocks },
+        { reply_markup: { keyboard: [] } },
+      );
     });
 
-    expect(sendMessage).toHaveBeenCalledTimes(1);
-    expect(sendMessage).toHaveBeenCalledWith(100, "Hello", {
-      reply_markup: { keyboard: [] },
-      entities: [{ type: "bold", offset: 0, length: 5 }],
+    it("sends plain parts as text without touching the rich API", async () => {
+      const sendMessage = vi.fn().mockResolvedValue({ message_id: 321 });
+      const sendRichMessage = vi.fn();
+
+      await expect(
+        sendRenderedBotPart({
+          api: { sendMessage, sendRichMessage },
+          chatId: 100,
+          part: plainPart,
+          options: { reply_markup: { keyboard: [] } },
+        }),
+      ).resolves.toEqual({
+        messageId: 321,
+        deliveredSignature: plainSignature("plain text"),
+      });
+
+      expect(sendRichMessage).not.toHaveBeenCalled();
+      expect(sendMessage).toHaveBeenCalledWith(100, "plain text", {
+        reply_markup: { keyboard: [] },
+      });
+    });
+
+    it("passes the entities of a plain part through to sendMessage", async () => {
+      const sendMessage = vi.fn().mockResolvedValue({ message_id: 321 });
+      const sendRichMessage = vi.fn();
+      const entities = [{ type: "expandable_blockquote" as const, offset: 3, length: 4 }];
+
+      const result = await sendRenderedBotPart({
+        api: { sendMessage, sendRichMessage },
+        chatId: 100,
+        part: { ...plainPart, entities },
+      });
+
+      expect(sendMessage).toHaveBeenCalledWith(100, "plain text", { entities });
+      expect(result.deliveredSignature).not.toBe(plainSignature("plain text"));
+    });
+
+    it("retries as plain text after a rich send failure", async () => {
+      const sendMessage = vi.fn().mockResolvedValue({ message_id: 222 });
+      const sendRichMessage = vi.fn().mockRejectedValue(new Error("Bad Request: RICH_BLOCK_INVALID"));
+
+      await expect(
+        sendRenderedBotPart({
+          api: { sendMessage, sendRichMessage },
+          chatId: 100,
+          part: { ...richPart, fallbackText: "Hello raw" },
+          options: { reply_markup: { keyboard: [] } },
+        }),
+      ).resolves.toEqual({
+        messageId: 222,
+        deliveredSignature: plainSignature("Hello raw"),
+        degradedToPlain: true,
+      });
+
+      expect(sendMessage).toHaveBeenCalledTimes(1);
+      expect(sendMessage).toHaveBeenCalledWith(100, "Hello raw", {
+        reply_markup: { keyboard: [] },
+      });
+    });
+
+    it("splits an oversized plain fallback across several messages", async () => {
+      const fallbackText = "x".repeat(PLAIN_MAX_PART_CHARS * 2 + 10);
+      const sendMessage = vi
+        .fn()
+        .mockResolvedValueOnce({ message_id: 11 })
+        .mockResolvedValueOnce({ message_id: 12 })
+        .mockResolvedValueOnce({ message_id: 13 });
+      const sendRichMessage = vi.fn().mockRejectedValue(new Error("Bad Request: too long"));
+
+      const result = await sendRenderedBotPart({
+        api: { sendMessage, sendRichMessage },
+        chatId: 100,
+        part: { ...richPart, fallbackText },
+      });
+
+      expect(sendMessage).toHaveBeenCalledTimes(3);
+      for (const call of sendMessage.mock.calls) {
+        expect(String(call[1]).length).toBeLessThanOrEqual(PLAIN_MAX_PART_CHARS);
+      }
+      expect(result).toEqual({
+        messageId: 11,
+        deliveredSignature: plainSignature(fallbackText),
+        degradedToPlain: true,
+      });
+    });
+
+    it("rethrows instead of degrading when the caller opts out", async () => {
+      const sendMessage = vi.fn();
+      const sendRichMessage = vi.fn().mockRejectedValue(new Error("Bad Request: RICH_BLOCK_INVALID"));
+
+      await expect(
+        sendRenderedBotPart({
+          api: { sendMessage, sendRichMessage },
+          chatId: 100,
+          part: richPart,
+          allowPlainFallback: false,
+        }),
+      ).rejects.toThrow("RICH_BLOCK_INVALID");
+
+      expect(sendMessage).not.toHaveBeenCalled();
     });
   });
 
-  it("sends plain rendered parts without entities", async () => {
-    const sendMessage = vi.fn().mockResolvedValue({ message_id: 321 });
+  describe("editRenderedBotPart", () => {
+    it("passes the entities of a plain part through to editMessageText", async () => {
+      const editMessageText = vi.fn().mockResolvedValue(undefined);
+      const entities = [{ type: "blockquote" as const, offset: 3, length: 4 }];
 
-    await expect(
-      sendRenderedBotPart({
-        api: { sendMessage },
-        chatId: 100,
-        part: {
-          text: "plain text",
-          fallbackText: "plain text",
-          source: "plain",
-        },
-        options: { reply_markup: { keyboard: [] } },
-      }),
-    ).resolves.toEqual({
-      messageId: 321,
-      deliveredSignature: getTelegramRenderedPartSignature({ text: "plain text" }),
-    });
-
-    expect(sendMessage).toHaveBeenCalledTimes(1);
-    expect(sendMessage).toHaveBeenCalledWith(100, "plain text", {
-      reply_markup: { keyboard: [] },
-    });
-  });
-
-  it("retries rendered entity parts in raw mode when Telegram rejects entities", async () => {
-    const sendMessage = vi
-      .fn()
-      .mockRejectedValueOnce(new Error("Bad Request: can't parse entities: unsupported start tag"))
-      .mockResolvedValueOnce({ message_id: 222 });
-
-    await expect(
-      sendRenderedBotPart({
-        api: { sendMessage },
-        chatId: 100,
-        part: {
-          text: "Hello",
-          entities: [{ type: "bold", offset: 0, length: 5 }],
-          fallbackText: "Hello raw",
-          source: "entities",
-        },
-        options: { reply_markup: { keyboard: [] }, parse_mode: "MarkdownV2" },
-      }),
-    ).resolves.toEqual({
-      messageId: 222,
-      deliveredSignature: getTelegramRenderedPartSignature({ text: "Hello raw" }),
-    });
-
-    expect(sendMessage).toHaveBeenCalledTimes(2);
-    expect(sendMessage).toHaveBeenNthCalledWith(1, 100, "Hello", {
-      reply_markup: { keyboard: [] },
-      entities: [{ type: "bold", offset: 0, length: 5 }],
-    });
-    expect(sendMessage).toHaveBeenNthCalledWith(2, 100, "Hello raw", {
-      reply_markup: { keyboard: [] },
-    });
-  });
-
-  it("retries rendered entity parts in raw mode when Telegram rejects an entity URL", async () => {
-    const sendMessage = vi
-      .fn()
-      .mockRejectedValueOnce(
-        new Error("Bad Request: entity URL 'http://localhost:3000' is invalid: Wrong HTTP URL"),
-      )
-      .mockResolvedValueOnce({ message_id: 333 });
-
-    await expect(
-      sendRenderedBotPart({
-        api: { sendMessage },
-        chatId: 100,
-        part: {
-          text: "Open dev server",
-          entities: [{ type: "text_link", offset: 5, length: 10, url: "http://localhost:3000" }],
-          fallbackText: "Open dev server (http://localhost:3000)",
-          source: "entities",
-        },
-        options: { reply_markup: { keyboard: [] }, parse_mode: "MarkdownV2" },
-      }),
-    ).resolves.toEqual({
-      messageId: 333,
-      deliveredSignature: getTelegramRenderedPartSignature({
-        text: "Open dev server (http://localhost:3000)",
-      }),
-    });
-
-    expect(sendMessage).toHaveBeenCalledTimes(2);
-    expect(sendMessage).toHaveBeenNthCalledWith(1, 100, "Open dev server", {
-      reply_markup: { keyboard: [] },
-      entities: [{ type: "text_link", offset: 5, length: 10, url: "http://localhost:3000" }],
-    });
-    expect(sendMessage).toHaveBeenNthCalledWith(2, 100, "Open dev server (http://localhost:3000)", {
-      reply_markup: { keyboard: [] },
-    });
-  });
-
-  it("retries rendered entity parts in raw mode after any formatted send error", async () => {
-    const sendMessage = vi
-      .fn()
-      .mockRejectedValueOnce(new Error("Bad Request: unexpected entity payload error"))
-      .mockResolvedValueOnce({ message_id: 444 });
-
-    await expect(
-      sendRenderedBotPart({
-        api: { sendMessage },
-        chatId: 100,
-        part: {
-          text: "Hello",
-          entities: [{ type: "bold", offset: 0, length: 5 }],
-          fallbackText: "Hello raw",
-          source: "entities",
-        },
-        options: { reply_markup: { keyboard: [] }, parse_mode: "MarkdownV2" },
-      }),
-    ).resolves.toEqual({
-      messageId: 444,
-      deliveredSignature: getTelegramRenderedPartSignature({ text: "Hello raw" }),
-    });
-
-    expect(sendMessage).toHaveBeenCalledTimes(2);
-    expect(sendMessage).toHaveBeenNthCalledWith(2, 100, "Hello raw", {
-      reply_markup: { keyboard: [] },
-    });
-  });
-
-  it("edits rendered parts with entities and raw fallback", async () => {
-    const editMessageText = vi
-      .fn()
-      .mockRejectedValueOnce(new Error("Bad Request: can't parse entities: unsupported start tag"))
-      .mockResolvedValueOnce(undefined);
-
-    await expect(
-      editRenderedBotPart({
+      await editRenderedBotPart({
         api: { editMessageText },
         chatId: 100,
         messageId: 500,
-        part: {
-          text: "Hello",
-          entities: [{ type: "italic", offset: 0, length: 5 }],
-          fallbackText: "Hello raw",
-          source: "entities",
-        },
-        options: { reply_markup: { inline_keyboard: [] }, parse_mode: "MarkdownV2" },
-      }),
-    ).resolves.toEqual({
-      deliveredSignature: getTelegramRenderedPartSignature({ text: "Hello raw" }),
+        part: { ...plainPart, entities },
+      });
+
+      expect(editMessageText).toHaveBeenCalledWith(100, 500, "plain text", { entities });
     });
 
-    expect(editMessageText).toHaveBeenCalledTimes(2);
-    expect(editMessageText).toHaveBeenNthCalledWith(1, 100, 500, "Hello", {
-      reply_markup: { inline_keyboard: [] },
-      entities: [{ type: "italic", offset: 0, length: 5 }],
+    it("edits with native blocks", async () => {
+      const editMessageText = vi.fn().mockResolvedValue(undefined);
+
+      await expect(
+        editRenderedBotPart({
+          api: { editMessageText },
+          chatId: 100,
+          messageId: 500,
+          part: richPart,
+          options: { reply_markup: { inline_keyboard: [] }, parse_mode: "MarkdownV2" },
+        }),
+      ).resolves.toEqual({
+        deliveredSignature: getTelegramRenderedPartSignature(richPart),
+      });
+
+      expect(editMessageText).toHaveBeenCalledWith(
+        100,
+        500,
+        { blocks: richPart.blocks },
+        { reply_markup: { inline_keyboard: [] } },
+      );
     });
-    expect(editMessageText).toHaveBeenNthCalledWith(2, 100, 500, "Hello raw", {
-      reply_markup: { inline_keyboard: [] },
+
+    it("retries a failed rich edit as plain text when it fits one message", async () => {
+      const editMessageText = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("Bad Request: RICH_BLOCK_INVALID"))
+        .mockResolvedValueOnce(undefined);
+
+      await expect(
+        editRenderedBotPart({
+          api: { editMessageText },
+          chatId: 100,
+          messageId: 500,
+          part: { ...richPart, fallbackText: "Hello raw" },
+        }),
+      ).resolves.toEqual({
+        deliveredSignature: plainSignature("Hello raw"),
+        degradedToPlain: true,
+      });
+
+      expect(editMessageText).toHaveBeenNthCalledWith(2, 100, 500, "Hello raw", undefined);
+    });
+
+    it("rethrows when the plain text would not fit a single edit", async () => {
+      const editMessageText = vi.fn().mockRejectedValue(new Error("Bad Request: RICH_BLOCK_INVALID"));
+
+      await expect(
+        editRenderedBotPart({
+          api: { editMessageText },
+          chatId: 100,
+          messageId: 500,
+          part: { ...richPart, fallbackText: "y".repeat(5000) },
+        }),
+      ).rejects.toThrow("RICH_BLOCK_INVALID");
+
+      expect(editMessageText).toHaveBeenCalledTimes(1);
+    });
+
+    it("rethrows instead of degrading when the caller opts out", async () => {
+      const editMessageText = vi.fn().mockRejectedValue(new Error("Bad Request: RICH_BLOCK_INVALID"));
+
+      await expect(
+        editRenderedBotPart({
+          api: { editMessageText },
+          chatId: 100,
+          messageId: 500,
+          part: richPart,
+          allowPlainFallback: false,
+        }),
+      ).rejects.toThrow("RICH_BLOCK_INVALID");
+
+      expect(editMessageText).toHaveBeenCalledTimes(1);
     });
   });
 
-  it("retries rendered entity edits in raw mode after any formatted edit error", async () => {
-    const editMessageText = vi
-      .fn()
-      .mockRejectedValueOnce(new Error("Bad Request: unexpected entity edit error"))
-      .mockResolvedValueOnce(undefined);
+  describe("draft transports", () => {
+    it("streams native blocks as a rich draft", async () => {
+      const sendMessageDraft = vi.fn();
+      const sendRichMessageDraft = vi.fn().mockResolvedValue(true);
 
-    await expect(
-      editRenderedBotPart({
-        api: { editMessageText },
-        chatId: 100,
-        messageId: 500,
-        part: {
-          text: "Hello",
-          entities: [{ type: "italic", offset: 0, length: 5 }],
-          fallbackText: "Hello raw",
-          source: "entities",
-        },
-        options: { reply_markup: { inline_keyboard: [] }, parse_mode: "MarkdownV2" },
-      }),
-    ).resolves.toEqual({
-      deliveredSignature: getTelegramRenderedPartSignature({ text: "Hello raw" }),
+      await expect(
+        sendDraftBotPart({
+          api: { sendMessageDraft, sendRichMessageDraft },
+          chatId: 100,
+          draftId: 7,
+          part: richPart,
+        }),
+      ).resolves.toEqual({ deliveredSignature: getTelegramRenderedPartSignature(richPart) });
+
+      expect(sendMessageDraft).not.toHaveBeenCalled();
+      expect(sendRichMessageDraft).toHaveBeenCalledWith(100, 7, { blocks: richPart.blocks });
     });
 
-    expect(editMessageText).toHaveBeenCalledTimes(2);
-    expect(editMessageText).toHaveBeenNthCalledWith(2, 100, 500, "Hello raw", {
-      reply_markup: { inline_keyboard: [] },
+    it("streams plain parts as a text draft", async () => {
+      const sendMessageDraft = vi.fn().mockResolvedValue(true);
+      const sendRichMessageDraft = vi.fn();
+
+      await expect(
+        sendDraftBotPart({
+          api: { sendMessageDraft, sendRichMessageDraft },
+          chatId: 100,
+          draftId: 7,
+          part: plainPart,
+        }),
+      ).resolves.toEqual({ deliveredSignature: plainSignature("plain text") });
+
+      expect(sendRichMessageDraft).not.toHaveBeenCalled();
+      expect(sendMessageDraft).toHaveBeenCalledWith(100, 7, "plain text");
+    });
+
+    it("propagates draft failures instead of degrading", async () => {
+      const sendMessageDraft = vi.fn();
+      const sendRichMessageDraft = vi.fn().mockRejectedValue(new Error("Bad Request: draft failed"));
+
+      await expect(
+        sendDraftBotPart({
+          api: { sendMessageDraft, sendRichMessageDraft },
+          chatId: 100,
+          draftId: 7,
+          part: richPart,
+        }),
+      ).rejects.toThrow("draft failed");
+
+      expect(sendMessageDraft).not.toHaveBeenCalled();
+    });
+
+    it("persists a draft as a native message", async () => {
+      const sendMessage = vi.fn();
+      const sendRichMessage = vi.fn().mockResolvedValue({ message_id: 900 });
+
+      await expect(
+        completeDraftPart({
+          api: { sendMessage, sendRichMessage },
+          chatId: 100,
+          part: richPart,
+          options: { disable_notification: true },
+        }),
+      ).resolves.toEqual({
+        messageId: 900,
+        deliveredSignature: getTelegramRenderedPartSignature(richPart),
+      });
+
+      expect(sendRichMessage).toHaveBeenCalledWith(
+        100,
+        { blocks: richPart.blocks },
+        { disable_notification: true },
+      );
+    });
+
+    it("propagates completion failures so the caller can resend", async () => {
+      const sendMessage = vi.fn();
+      const sendRichMessage = vi.fn().mockRejectedValue(new Error("Bad Request: complete failed"));
+
+      await expect(
+        completeDraftPart({
+          api: { sendMessage, sendRichMessage },
+          chatId: 100,
+          part: richPart,
+        }),
+      ).rejects.toThrow("complete failed");
+
+      expect(sendMessage).not.toHaveBeenCalled();
     });
   });
 });

@@ -90,6 +90,21 @@ vi.mock("#src/app/stores/settings-store.ts", () => {
     "setScheduledTasks",
     "getScheduledTaskSessionIgnores",
     "setScheduledTaskSessionIgnores",
+    "getVisibleProjects",
+    "setVisibleProjects",
+    "flushSettings",
+    "getCompactOutputMode",
+    "setCompactOutputMode",
+    "getShowThinkingContent",
+    "setShowThinkingContent",
+    "getShowAssistantRunFooter",
+    "setShowAssistantRunFooter",
+    "getResponseStreamingMode",
+    "setResponseStreamingMode",
+    "getSendDiffFileAttachments",
+    "setSendDiffFileAttachments",
+    "getPromptQueueEnabled",
+    "setPromptQueueEnabled",
     "__resetSettingsForTests",
     "loadSettings",
   ];
@@ -102,6 +117,8 @@ vi.mock("#src/app/stores/settings-store.ts", () => {
 
 vi.mock("#src/app/services/session-service.ts", () => ({
   getCurrentSession: mocked.getCurrentSessionMock,
+  setCurrentSession: vi.fn(),
+  clearSession: vi.fn(),
 }));
 
 vi.mock("#src/utils/logger.ts", () => ({

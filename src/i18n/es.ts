@@ -52,8 +52,8 @@ export const es: I18nDictionary = {
   "inline.button.cancel": "❌ Cancelar",
   "inline.button.close": "❌ Cerrar",
   "inline.inactive_callback": "Este menú está inactivo",
-  "inline.cancelled_callback": "Cancelado",
 
+  "common.cancelled": "Cancelado",
   "common.unknown": "desconocido",
   "common.unknown_error": "error desconocido",
 
@@ -214,7 +214,6 @@ export const es: I18nDictionary = {
   "messages.fetch_error":
     "🔴 OpenCode Server no está disponible o se produjo un error al cargar los mensajes.",
   "messages.inactive_callback": "Este menú de mensajes ya no está activo",
-  "messages.cancelled_callback": "Cancelado",
   "messages.page_empty_callback": "No hay mensajes en esta página",
   "messages.button.prev_page": "⬅️ Anterior",
   "messages.button.next_page": "Siguiente ➡️",
@@ -305,7 +304,6 @@ export const es: I18nDictionary = {
   "opencode_stop.error":
     "🔴 Ocurrió un error al detener el servidor.\n\nRevisa los logs de la aplicación para más detalles.",
 
-  "agent.changed_callback": "Agente cambiado: {name}",
   "agent.changed_message": "✅ Agente cambiado a: {name}",
   "agent.change_error_callback": "No se pudo cambiar el agente",
   "agent.menu.current": "Agente actual: {name}\n\nSelecciona el agente:",
@@ -313,7 +311,6 @@ export const es: I18nDictionary = {
   "agent.menu.empty": "⚠️ No hay agentes disponibles",
   "agent.menu.error": "🔴 No se pudo obtener la lista de agentes",
 
-  "model.changed_callback": "Modelo cambiado: {name}",
   "model.changed_message": "✅ Modelo cambiado a: {name}",
   "model.change_error_callback": "No se pudo cambiar el modelo",
   "model.menu.empty": "⚠️ No hay modelos disponibles",
@@ -345,7 +342,6 @@ export const es: I18nDictionary = {
   "model.provider_models.page_indicator": "Página {current}/{total}",
 
   "variant.model_not_selected_callback": "Error: no hay un modelo seleccionado",
-  "variant.changed_callback": "Variante cambiada: {name}",
   "variant.changed_message": "✅ Variante cambiada a: {name}",
   "variant.change_error_callback": "No se pudo cambiar la variante",
   "variant.select_model_first": "⚠️ Selecciona un modelo primero",
@@ -357,7 +353,6 @@ export const es: I18nDictionary = {
   "context.no_active_session": "⚠️ No hay una sesión activa. Crea una sesión con /new",
   "context.confirm_text":
     '📊 Compactación de contexto para la sesión "{title}"\n\nEsto reducirá el uso de contexto eliminando mensajes antiguos del historial. La tarea actual no se interrumpirá.\n\n¿Continuar?',
-  "context.callback_session_not_found": "Sesión no encontrada",
   "context.callback_compacting": "Compactando contexto...",
   "context.progress": "⏳ Compactando contexto...",
   "context.error": "❌ La compactación de contexto falló",
@@ -518,8 +513,6 @@ export const es: I18nDictionary = {
   "task.button.retry_schedule": "🔁 Volver a introducir horario",
   "task.button.cancel": "❌ Cancelar",
   "task.retry_schedule_callback": "Volviendo a introducir el horario...",
-  "task.cancel_callback": "Cancelando...",
-  "task.cancelled": "❌ Creación de la tarea programada cancelada.",
   "task.inactive_callback": "Este flujo de tarea programada ya no está activo",
   "task.inactive": "⚠️ La creación de la tarea programada no está activa. Ejecuta /task otra vez.",
   "task.blocked.expected_input":
@@ -547,7 +540,6 @@ export const es: I18nDictionary = {
   "tasklist.button.delete": "🗑 Eliminar",
   "tasklist.button.cancel": "❌ Cancelar",
   "tasklist.deleted_callback": "Eliminada",
-  "tasklist.cancelled_callback": "Cancelado",
   "tasklist.inactive_callback": "Este menú de tareas programadas está inactivo",
   "tasklist.load_error": "🔴 No se pudieron cargar las tareas programadas.",
 
@@ -560,7 +552,6 @@ export const es: I18nDictionary = {
   "commands.confirm":
     "Confirma la ejecución del comando {command}. Para ejecutarlo con argumentos, envía los argumentos como mensaje.",
   "commands.inactive_callback": "Este menú de comandos está inactivo",
-  "commands.cancelled_callback": "Cancelado",
   "commands.execute_callback": "Ejecutando comando...",
   "commands.executing_prefix": "⚡ Ejecutando comando:",
   "commands.arguments_empty":
@@ -590,7 +581,6 @@ export const es: I18nDictionary = {
   "skills.confirm":
     "Confirma la ejecución del skill {skill}. Para ejecutarlo con argumentos, envía los argumentos como mensaje.",
   "skills.inactive_callback": "Este menú de skills está inactivo",
-  "skills.cancelled_callback": "Cancelado",
   "skills.execute_callback": "Usando skill...",
   "skills.executing_prefix": "⚡ Usando skill:",
   "skills.arguments_empty":

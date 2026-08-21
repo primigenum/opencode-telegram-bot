@@ -11,6 +11,10 @@ mockDep(
   "#src/app/services/scheduled-task-session-ignore-service.ts",
   () => ({
     isScheduledTaskSessionIgnored: mocked.isScheduledTaskSessionIgnoredMock,
+    registerScheduledTaskSessionIgnore: vi.fn(),
+    removeScheduledTaskSessionIgnore: vi.fn(),
+    cleanupScheduledTaskSessionIgnores: vi.fn(),
+    __resetScheduledTaskSessionIgnoreForTests: vi.fn(),
   }),
   import.meta.url,
 );

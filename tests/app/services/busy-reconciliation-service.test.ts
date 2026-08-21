@@ -21,6 +21,10 @@ vi.mock("#src/opencode/client.ts", () => ({
 vi.mock("#src/app/services/attach-service.ts", () => ({
   markAttachedSessionBusy: mocked.markAttachedSessionBusyMock,
   markAttachedSessionIdle: mocked.markAttachedSessionIdleMock,
+  configureAttachPresentation: vi.fn(),
+  attachToSession: vi.fn().mockResolvedValue(undefined),
+  restoreAttachedCurrentSession: vi.fn().mockResolvedValue(undefined),
+  detachAttachedSession: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("#src/app/managers/assistant-run-state-manager.ts", () => ({

@@ -54,12 +54,15 @@ const MULTIPLE_QUESTION: Question = {
 function createApi(sendMessageIds: number[]): Context["api"] {
   let index = 0;
 
+  const nextMessage = async () => {
+    const messageId = sendMessageIds[index] ?? sendMessageIds[sendMessageIds.length - 1] ?? 1;
+    index += 1;
+    return { message_id: messageId };
+  };
+
   return {
-    sendMessage: vi.fn().mockImplementation(async () => {
-      const messageId = sendMessageIds[index] ?? sendMessageIds[sendMessageIds.length - 1] ?? 1;
-      index += 1;
-      return { message_id: messageId };
-    }),
+    sendMessage: vi.fn().mockImplementation(nextMessage),
+    sendRichMessage: vi.fn().mockImplementation(nextMessage),
     editMessageText: vi.fn().mockResolvedValue(true),
     deleteMessage: vi.fn().mockResolvedValue(true),
   } as unknown as Context["api"];
@@ -105,16 +108,18 @@ describe("bot question menu/callbacks", () => {
     questionManager.startQuestions([QUESTION_ONE], "req-1");
     await showCurrentQuestion(api, 123);
 
-    expect(api.sendMessage).toHaveBeenNthCalledWith(
+    expect(api.sendRichMessage).toHaveBeenNthCalledWith(
       1,
       123,
-      expect.stringContaining("❓ 1/1 Q1\n\nPick one\n\nYes — accept\n\nNo — decline"),
       {
-        entities: [
-          { type: "bold", offset: 0, length: 8 },
-          { type: "bold", offset: 20, length: 3 },
-          { type: "bold", offset: 34, length: 2 },
+        blocks: [
+          { type: "paragraph", text: { type: "bold", text: "❓ 1/1 Q1" } },
+          { type: "paragraph", text: "Pick one" },
+          { type: "paragraph", text: [{ type: "bold", text: "Yes" }, " — accept"] },
+          { type: "paragraph", text: [{ type: "bold", text: "No" }, " — decline"] },
         ],
+      },
+      {
         reply_markup: expect.objectContaining({
           inline_keyboard: expect.arrayContaining([
             [{ text: "Yes", callback_data: "question:select:0:0" }],
@@ -123,7 +128,8 @@ describe("bot question menu/callbacks", () => {
         }),
       },
     );
-    expect(api.sendMessage).toHaveBeenCalledTimes(1);
+    expect(api.sendRichMessage).toHaveBeenCalledTimes(1);
+    expect(api.sendMessage).not.toHaveBeenCalled();
     expect(questionManager.getMessageIds()).toEqual([100]);
     expect(questionManager.getActiveMessageId()).toBe(100);
 
@@ -135,13 +141,14 @@ describe("bot question menu/callbacks", () => {
     expect(state?.metadata.questionIndex).toBe(0);
   });
 
-  it("falls back to raw question text when formatted send fails", async () => {
-    const sendMessage = vi
+  it("falls back to raw question text when the native send fails", async () => {
+    const sendMessage = vi.fn().mockResolvedValueOnce({ message_id: 801 });
+    const sendRichMessage = vi
       .fn()
-      .mockRejectedValueOnce(new Error("Bad Request: can't parse entities"))
-      .mockResolvedValueOnce({ message_id: 801 });
+      .mockRejectedValueOnce(new Error("Bad Request: RICH_MESSAGE_BLOCK_UNSUPPORTED"));
     const api = {
       sendMessage,
+      sendRichMessage,
       editMessageText: vi.fn().mockResolvedValue(true),
       deleteMessage: vi.fn().mockResolvedValue(true),
     } as unknown as Context["api"];
@@ -149,23 +156,35 @@ describe("bot question menu/callbacks", () => {
     questionManager.startQuestions([QUESTION_ONE], "req-fallback");
     await showCurrentQuestion(api, 123);
 
-    expect(sendMessage).toHaveBeenCalledTimes(2);
+    expect(sendRichMessage).toHaveBeenCalledTimes(1);
+    expect(sendMessage).toHaveBeenCalledTimes(1);
     expect(sendMessage).toHaveBeenNthCalledWith(
       1,
       123,
       expect.stringContaining("❓ 1/1 Q1\n\nPick one\n\nYes — accept\n\nNo — decline"),
-      expect.objectContaining({
-        entities: expect.any(Array),
-        reply_markup: expect.anything(),
-      }),
-    );
-    expect(sendMessage).toHaveBeenNthCalledWith(
-      2,
-      123,
-      expect.stringContaining("❓ 1/1 Q1\n\nPick one\n\nYes — accept\n\nNo — decline"),
-      expect.not.objectContaining({ entities: expect.anything() }),
+      expect.objectContaining({ reply_markup: expect.anything() }),
     );
     expect(questionManager.getActiveMessageId()).toBe(801);
+  });
+
+  it("renders an option without a description as a bold label only", async () => {
+    const api = createApi([902]);
+    const question: Question = {
+      header: "Bare",
+      question: "Choose",
+      options: [{ label: "Only label", description: "" }],
+    };
+
+    questionManager.startQuestions([question], "req-bare");
+    await showCurrentQuestion(api, 123);
+
+    const calls = (api.sendRichMessage as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+    const message = calls[0][1] as { blocks: unknown[] };
+
+    expect(message.blocks.at(-1)).toEqual({
+      type: "paragraph",
+      text: { type: "bold", text: "Only label" },
+    });
   });
 
   it("truncates long question text to Telegram message limit", async () => {
@@ -179,15 +198,25 @@ describe("bot question menu/callbacks", () => {
     questionManager.startQuestions([longQuestion], "req-long");
     await showCurrentQuestion(api, 123);
 
-    const calls = (api.sendMessage as unknown as { mock: { calls: unknown[][] } }).mock.calls;
-    const sentText = calls[0][1] as string;
-    const options = calls[0][2] as { entities?: Array<{ offset: number; length: number }> };
+    const calls = (api.sendRichMessage as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+    const message = calls[0][1] as { blocks: Array<{ text: unknown }> };
 
-    expect(sentText.length).toBeLessThanOrEqual(4096);
-    expect(sentText.endsWith("…")).toBe(true);
-    expect(
-      options.entities?.every((entity) => entity.offset + entity.length <= sentText.length),
-    ).toBe(true);
+    const flatten = (text: unknown): string => {
+      if (typeof text === "string") {
+        return text;
+      }
+      if (Array.isArray(text)) {
+        return text.map(flatten).join("");
+      }
+      if (text && typeof text === "object" && "text" in text) {
+        return flatten((text as { text: unknown }).text);
+      }
+      return "";
+    };
+
+    const rendered = message.blocks.map((block) => flatten(block.text));
+    expect(rendered.join("\n\n").length).toBeLessThanOrEqual(4096);
+    expect(rendered.at(-1)?.endsWith("…")).toBe(true);
   });
 
   it("switches to mixed mode on custom callback and accepts custom text", async () => {
@@ -245,6 +274,25 @@ describe("bot question menu/callbacks", () => {
     expect(questionManager.getSelectedOptions(0)).toEqual(new Set<number>());
   });
 
+  it("answers the callback when the current question is already gone", async () => {
+    const api = createApi([250]);
+
+    questionManager.startQuestions([QUESTION_ONE], "req-stale");
+    await showCurrentQuestion(api, 123);
+    // Index past the last question: the message is still active, but there is
+    // nothing to answer anymore.
+    questionManager.nextQuestion();
+
+    const ctx = createCallbackContext("question:select:0:0", 250, api);
+    const handled = await handleQuestionCallback(ctx);
+
+    expect(handled).toBe(true);
+    expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({
+      text: t("question.inactive_callback"),
+      show_alert: true,
+    });
+  });
+
   it("cancels poll and clears question interaction", async () => {
     const api = createApi([300]);
 
@@ -255,6 +303,7 @@ describe("bot question menu/callbacks", () => {
     const handled = await handleQuestionCallback(cancelCtx);
 
     expect(handled).toBe(true);
+    expect(cancelCtx.answerCallbackQuery).toHaveBeenCalledWith({ text: t("common.cancelled") });
     expect(cancelCtx.editMessageText).toHaveBeenCalledWith(t("question.cancelled"));
     expect(api.deleteMessage).not.toHaveBeenCalled();
     expect(questionManager.isActive()).toBe(false);
@@ -292,15 +341,15 @@ describe("bot question menu/callbacks", () => {
     expect(api.editMessageText).toHaveBeenCalledWith(
       123,
       500,
-      expect.stringContaining(
-        `❓ 1/1 Q multi\n\nPick multiple${t("question.multi_hint")}\n\nOne — 1\n\nTwo — 2`,
-      ),
       {
-        entities: expect.arrayContaining([
-          { type: "bold", offset: 0, length: 13 },
-          expect.objectContaining({ type: "bold", length: 3 }),
-          expect.objectContaining({ type: "bold", length: 3 }),
-        ]),
+        blocks: [
+          { type: "paragraph", text: { type: "bold", text: "❓ 1/1 Q multi" } },
+          { type: "paragraph", text: `Pick multiple${t("question.multi_hint")}` },
+          { type: "paragraph", text: [{ type: "bold", text: "One" }, " — 1"] },
+          { type: "paragraph", text: [{ type: "bold", text: "Two" }, " — 2"] },
+        ],
+      },
+      {
         reply_markup: expect.objectContaining({
           inline_keyboard: expect.arrayContaining([
             [{ text: "✅ One", callback_data: "question:select:0:0" }],

@@ -323,6 +323,18 @@ describe("interactionGuardMiddleware", () => {
     expect(ctx.reply).toHaveBeenCalledWith(t("bot.session_busy"));
   });
 
+  it("does not suggest the queue for a reply keyboard button pressed while busy", async () => {
+    foregroundSessionState.markBusy("session-1", "D:\\Projects\\Repo");
+
+    const ctx = createTextContext("🧠 openrouter\nopenai/gpt-4o");
+    const next: NextFunction = vi.fn().mockResolvedValue(undefined);
+
+    await interactionGuardMiddleware(ctx, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(ctx.reply).toHaveBeenCalledWith(t("bot.session_busy"));
+  });
+
   it("passes through after on-demand reconciliation clears stale busy state", async () => {
     foregroundSessionState.markBusy("session-1", "D:\\Projects\\Repo");
     mocked.reconcileForegroundBusyStateMock.mockImplementationOnce(async () => {

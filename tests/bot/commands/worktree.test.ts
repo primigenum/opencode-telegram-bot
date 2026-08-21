@@ -49,10 +49,17 @@ vi.mock("#src/bot/messages/busy-blocked-renderer.ts", () => ({
 vi.mock("#src/app/services/session-cache-service.ts", () => ({
   upsertSessionDirectory: mocked.upsertSessionDirectoryMock,
   __resetSessionDirectoryCacheForTests: vi.fn(),
+  warmupSessionDirectoryCache: vi.fn().mockResolvedValue(undefined),
+  syncSessionDirectoryCache: vi.fn().mockResolvedValue(undefined),
+  getCachedSessionDirectories: vi.fn().mockResolvedValue([]),
+  getCachedSessionProjects: vi.fn().mockResolvedValue([]),
+  ingestSessionInfoForCache: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("#src/app/services/project-service.ts", () => ({
   getProjectByWorktree: mocked.getProjectByWorktreeMock,
+  getProjects: vi.fn().mockResolvedValue([]),
+  getProjectById: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("#src/app/services/project-switch-service.ts", () => ({
@@ -208,6 +215,7 @@ describe("bot/commands/worktree", () => {
     expect(handled).toBe(true);
     expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({
       text: t("worktree.already_selected_callback"),
+      show_alert: true,
     });
     expect(mocked.switchToProjectMock).not.toHaveBeenCalled();
   });

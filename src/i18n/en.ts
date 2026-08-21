@@ -49,8 +49,8 @@ export const en = {
   "inline.button.cancel": "❌ Cancel",
   "inline.button.close": "❌ Close",
   "inline.inactive_callback": "This menu is inactive",
-  "inline.cancelled_callback": "Cancelled",
 
+  "common.cancelled": "Cancelled",
   "common.unknown": "unknown",
   "common.unknown_error": "unknown error",
 
@@ -207,7 +207,6 @@ export const en = {
   "messages.fetch_error":
     "🔴 OpenCode Server is unavailable or an error occurred while loading messages.",
   "messages.inactive_callback": "This messages menu is inactive",
-  "messages.cancelled_callback": "Cancelled",
   "messages.page_empty_callback": "No messages on this page",
   "messages.button.prev_page": "⬅️ Prev",
   "messages.button.next_page": "Next ➡️",
@@ -291,7 +290,6 @@ export const en = {
   "opencode_stop.error":
     "🔴 An error occurred while stopping server.\n\nCheck application logs for details.",
 
-  "agent.changed_callback": "Agent changed: {name}",
   "agent.changed_message": "✅ Agent changed to: {name}",
   "agent.change_error_callback": "Failed to change agent",
   "agent.menu.current": "Current agent: {name}\n\nSelect agent:",
@@ -299,7 +297,6 @@ export const en = {
   "agent.menu.empty": "⚠️ No available agents",
   "agent.menu.error": "🔴 Failed to get agents list",
 
-  "model.changed_callback": "Model changed: {name}",
   "model.changed_message": "✅ Model changed to: {name}",
   "model.change_error_callback": "Failed to change model",
   "model.menu.empty": "⚠️ No available models",
@@ -331,7 +328,6 @@ export const en = {
   "model.provider_models.page_indicator": "Page {current}/{total}",
 
   "variant.model_not_selected_callback": "Error: model is not selected",
-  "variant.changed_callback": "Variant changed: {name}",
   "variant.changed_message": "✅ Variant changed to: {name}",
   "variant.change_error_callback": "Failed to change variant",
   "variant.select_model_first": "⚠️ Select a model first",
@@ -343,7 +339,6 @@ export const en = {
   "context.no_active_session": "⚠️ No active session. Create a session with /new",
   "context.confirm_text":
     '📊 Context compaction for session "{title}"\n\nThis will reduce context usage by removing old messages from history. Current task will not be interrupted.\n\nContinue?',
-  "context.callback_session_not_found": "Session not found",
   "context.callback_compacting": "Compacting context...",
   "context.progress": "⏳ Compacting context...",
   "context.error": "❌ Context compaction failed",
@@ -500,8 +495,6 @@ export const en = {
   "task.button.retry_schedule": "🔁 Re-enter schedule",
   "task.button.cancel": "❌ Cancel",
   "task.retry_schedule_callback": "Re-entering schedule...",
-  "task.cancel_callback": "Cancelling...",
-  "task.cancelled": "❌ Scheduled task creation cancelled.",
   "task.inactive_callback": "This scheduled task flow is inactive",
   "task.inactive": "⚠️ Scheduled task creation is not active. Run /task again.",
   "task.blocked.expected_input":
@@ -528,7 +521,6 @@ export const en = {
   "tasklist.button.delete": "🗑 Delete",
   "tasklist.button.cancel": "❌ Cancel",
   "tasklist.deleted_callback": "Deleted",
-  "tasklist.cancelled_callback": "Cancelled",
   "tasklist.inactive_callback": "This scheduled task menu is inactive",
   "tasklist.load_error": "🔴 Failed to load scheduled tasks.",
 
@@ -541,7 +533,6 @@ export const en = {
   "commands.confirm":
     "Confirm execution of command {command}. To run it with arguments, send the arguments as a message.",
   "commands.inactive_callback": "This command menu is inactive",
-  "commands.cancelled_callback": "Cancelled",
   "commands.execute_callback": "Executing command...",
   "commands.executing_prefix": "⚡ Executing command:",
   "commands.arguments_empty": "⚠️ Arguments cannot be empty. Send text or tap Execute.",
@@ -569,7 +560,6 @@ export const en = {
   "skills.confirm":
     "Confirm execution of skill {skill}. To run it with arguments, send the arguments as a message.",
   "skills.inactive_callback": "This skill menu is inactive",
-  "skills.cancelled_callback": "Cancelled",
   "skills.execute_callback": "Using skill...",
   "skills.executing_prefix": "⚡ Using skill:",
   "skills.arguments_empty": "⚠️ Arguments cannot be empty. Send text or tap Execute.",

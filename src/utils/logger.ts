@@ -375,6 +375,10 @@ export async function __flushLoggerForTests(): Promise<void> {
   await flushLogger();
 }
 
+export async function __flushLoggerForTests(): Promise<void> {
+  await flushLogger();
+}
+
 export function __resetLoggerForTests(): void {
   initializePromise = null;
   cleanupPromise = null;

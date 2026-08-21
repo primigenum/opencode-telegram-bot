@@ -8,6 +8,7 @@ import {
 } from "../../app/services/file-browser-service.js";
 import { isForegroundBusy } from "../../app/services/run-control-service.js";
 import { t } from "../../i18n/index.js";
+import { alert, failure } from "./feedback.js";
 import { getProjectByWorktree } from "../../app/services/project-service.js";
 import { upsertSessionDirectory } from "../../app/services/session-cache-service.js";
 import { logger } from "../../utils/logger.js";
@@ -103,7 +104,7 @@ export async function handleOpenCallback(
     const navPath = decodeOpenPathFromCallback(OPEN_CALLBACK_NAV_PREFIX, data);
     if (navPath !== null) {
       if (!isWithinAllowedRoot(navPath)) {
-        await ctx.answerCallbackQuery({ text: t("open.access_denied") });
+        await alert(ctx, "open.access_denied");
         return true;
       }
       await navigateOpenTo(ctx, navPath);
@@ -113,7 +114,7 @@ export async function handleOpenCallback(
     const pageInfo = decodeOpenPaginationCallback(data);
     if (pageInfo !== null) {
       if (!isWithinAllowedRoot(pageInfo.path)) {
-        await ctx.answerCallbackQuery({ text: t("open.access_denied") });
+        await alert(ctx, "open.access_denied");
         return true;
       }
       await navigateOpenTo(ctx, pageInfo.path, pageInfo.page);
@@ -123,7 +124,7 @@ export async function handleOpenCallback(
     const selectPath = decodeOpenPathFromCallback(OPEN_CALLBACK_SELECT_PREFIX, data);
     if (selectPath !== null) {
       if (!isWithinAllowedRoot(selectPath)) {
-        await ctx.answerCallbackQuery({ text: t("open.access_denied") });
+        await alert(ctx, "open.access_denied");
         return true;
       }
       await selectDirectory(ctx, selectPath, deps);
@@ -181,8 +182,7 @@ async function selectDirectory(
     logger.info(`[Bot] Project added and selected: ${displayPath}`);
   } catch (error) {
     logger.error("[Bot] Error selecting directory:", error);
-    await ctx.answerCallbackQuery({ text: t("callback.processing_error") });
-    await ctx.reply(t("open.select_error"));
+    await failure(ctx, "open.select_error");
   }
 }
 
@@ -206,7 +206,7 @@ export async function handleLsCallback(ctx: Context): Promise<boolean> {
     const navPath = decodeLsPathFromCallback(LS_CALLBACK_NAV_PREFIX, data);
     if (navPath !== null) {
       if (!isWithinProjectRoot(navPath)) {
-        await ctx.answerCallbackQuery({ text: t("ls.access_denied") });
+        await alert(ctx, "ls.access_denied");
         return true;
       }
       await navigateLsTo(ctx, navPath);
@@ -216,7 +216,7 @@ export async function handleLsCallback(ctx: Context): Promise<boolean> {
     const pageInfo = decodeLsPaginationCallback(data);
     if (pageInfo !== null) {
       if (!isWithinProjectRoot(pageInfo.path)) {
-        await ctx.answerCallbackQuery({ text: t("ls.access_denied") });
+        await alert(ctx, "ls.access_denied");
         return true;
       }
       await navigateLsTo(ctx, pageInfo.path, pageInfo.page);
@@ -226,7 +226,7 @@ export async function handleLsCallback(ctx: Context): Promise<boolean> {
     const fileInfo = decodeLsFileCallback(data);
     if (fileInfo !== null) {
       if (!isWithinProjectRoot(fileInfo.path)) {
-        await ctx.answerCallbackQuery({ text: t("ls.access_denied") });
+        await alert(ctx, "ls.access_denied");
         return true;
       }
       await showLsFileDetails(ctx, fileInfo.path, fileInfo.page);
@@ -236,7 +236,7 @@ export async function handleLsCallback(ctx: Context): Promise<boolean> {
     const attachPath = decodeLsAttachCallback(data);
     if (attachPath !== null) {
       if (!isWithinProjectRoot(attachPath)) {
-        await ctx.answerCallbackQuery({ text: t("ls.access_denied") });
+        await alert(ctx, "ls.access_denied");
         return true;
       }
       await attachFileAndClose(ctx, attachPath);
@@ -246,7 +246,7 @@ export async function handleLsCallback(ctx: Context): Promise<boolean> {
     const downloadPath = decodeLsPathFromCallback(LS_CALLBACK_DOWNLOAD_PREFIX, data);
     if (downloadPath !== null) {
       if (!isWithinProjectRoot(downloadPath)) {
-        await ctx.answerCallbackQuery({ text: t("ls.access_denied") });
+        await alert(ctx, "ls.access_denied");
         return true;
       }
       await downloadFileAndClose(ctx, downloadPath);
@@ -256,7 +256,7 @@ export async function handleLsCallback(ctx: Context): Promise<boolean> {
     const backInfo = decodeLsBackCallback(data);
     if (backInfo !== null) {
       if (!isWithinProjectRoot(backInfo.path)) {
-        await ctx.answerCallbackQuery({ text: t("ls.access_denied") });
+        await alert(ctx, "ls.access_denied");
         return true;
       }
       await navigateLsTo(ctx, backInfo.path, backInfo.page);

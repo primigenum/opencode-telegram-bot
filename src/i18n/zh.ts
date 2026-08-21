@@ -45,8 +45,8 @@ export const zh: I18nDictionary = {
   "inline.button.cancel": "❌ 取消",
   "inline.button.close": "❌ 关闭",
   "inline.inactive_callback": "此菜单已失效",
-  "inline.cancelled_callback": "已取消",
 
+  "common.cancelled": "已取消",
   "common.unknown": "未知",
   "common.unknown_error": "未知错误",
 
@@ -190,7 +190,6 @@ export const zh: I18nDictionary = {
   "messages.select_page": "选择一条消息（第 {page} 页）：",
   "messages.fetch_error": "🔴 OpenCode Server 不可用，或加载消息时发生错误。",
   "messages.inactive_callback": "此消息菜单已失效",
-  "messages.cancelled_callback": "已取消",
   "messages.page_empty_callback": "此页面没有消息",
   "messages.button.prev_page": "⬅️ 上一页",
   "messages.button.next_page": "下一页 ➡️",
@@ -261,7 +260,6 @@ export const zh: I18nDictionary = {
   "opencode_stop.success": "✅ OpenCode 服务器已成功停止",
   "opencode_stop.error": "🔴 停止服务器时发生错误。\n\n请查看应用日志了解详情。",
 
-  "agent.changed_callback": "Agent 已更改：{name}",
   "agent.changed_message": "✅ Agent 已切换为：{name}",
   "agent.change_error_callback": "切换 Agent 失败",
   "agent.menu.current": "当前 Agent：{name}\n\n请选择 Agent：",
@@ -269,7 +267,6 @@ export const zh: I18nDictionary = {
   "agent.menu.empty": "⚠️ 没有可用的代理",
   "agent.menu.error": "🔴 获取代理列表失败",
 
-  "model.changed_callback": "模型已更改：{name}",
   "model.changed_message": "✅ 模型已切换为：{name}",
   "model.change_error_callback": "切换模型失败",
   "model.menu.empty": "⚠️ 没有可用模型",
@@ -300,7 +297,6 @@ export const zh: I18nDictionary = {
   "model.provider_models.page_indicator": "第 {current}/{total} 页",
 
   "variant.model_not_selected_callback": "错误：未选择模型",
-  "variant.changed_callback": "变体已更改：{name}",
   "variant.changed_message": "✅ 变体已切换为：{name}",
   "variant.change_error_callback": "切换变体失败",
   "variant.select_model_first": "⚠️ 请先选择一个模型",
@@ -312,7 +308,6 @@ export const zh: I18nDictionary = {
   "context.no_active_session": "⚠️ 没有活动会话。使用 /new 创建会话",
   "context.confirm_text":
     '📊 会话 "{title}" 的上下文压缩\n\n这会通过移除历史中的旧消息来减少上下文占用。当前任务不会被中断。\n\n继续？',
-  "context.callback_session_not_found": "未找到会话",
   "context.callback_compacting": "正在压缩上下文...",
   "context.progress": "⏳ 正在压缩上下文...",
   "context.error": "❌ 上下文压缩失败",
@@ -459,8 +454,6 @@ export const zh: I18nDictionary = {
   "task.button.retry_schedule": "🔁 重新输入时间安排",
   "task.button.cancel": "❌ 取消",
   "task.retry_schedule_callback": "正在重新输入时间安排...",
-  "task.cancel_callback": "正在取消...",
-  "task.cancelled": "❌ 定时任务创建已取消。",
   "task.inactive_callback": "这个定时任务流程已失效",
   "task.inactive": "⚠️ 定时任务创建流程未激活。请重新运行 /task。",
   "task.blocked.expected_input":
@@ -483,7 +476,6 @@ export const zh: I18nDictionary = {
   "tasklist.button.delete": "🗑 删除",
   "tasklist.button.cancel": "❌ 取消",
   "tasklist.deleted_callback": "已删除",
-  "tasklist.cancelled_callback": "已取消",
   "tasklist.inactive_callback": "此定时任务菜单已失效",
   "tasklist.load_error": "🔴 无法加载定时任务。",
 
@@ -495,7 +487,6 @@ export const zh: I18nDictionary = {
   "commands.button.cancel": "❌ 取消",
   "commands.confirm": "请确认执行命令 {command}。若需带参数执行，请发送一条包含参数的消息。",
   "commands.inactive_callback": "该命令菜单已失效",
-  "commands.cancelled_callback": "已取消",
   "commands.execute_callback": "正在执行命令...",
   "commands.executing_prefix": "⚡ 执行命令:",
   "commands.arguments_empty": "⚠️ 参数不能为空。请发送文本或点击执行。",
@@ -522,7 +513,6 @@ export const zh: I18nDictionary = {
   "skills.button.cancel": "❌ 取消",
   "skills.confirm": "请确认执行技能 {skill}。若需带参数执行，请发送一条包含参数的消息。",
   "skills.inactive_callback": "该技能菜单已失效",
-  "skills.cancelled_callback": "已取消",
   "skills.execute_callback": "正在使用技能...",
   "skills.executing_prefix": "⚡ 使用技能:",
   "skills.arguments_empty": "⚠️ 参数不能为空。请发送文本或点击执行。",

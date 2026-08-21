@@ -1,88 +1,101 @@
 import { describe, expect, it } from "#vitest";
 
-import {
-  makeThinkingPayloadExpandable,
-  prepareThinkingStreamingPayload,
-} from "../../../src/bot/messages/thinking-rendering.js";
+import { prepareThinkingPayload } from "../../../src/bot/messages/thinking-rendering.js";
+import { PLAIN_MAX_PART_CHARS } from "../../../src/bot/render/limits.js";
 import { t } from "../../../src/i18n/index.js";
 
 describe("bot/messages/thinking-rendering", () => {
-  it("renders thinking title on the first line and content as a quote", () => {
+  it("quotes the reasoning under a header line", () => {
     const header = `${t("bot.thinking")} — Analysis`;
-    const text = "Line one\nLine two";
 
-    const payload = prepareThinkingStreamingPayload(
-      [{ id: "r1", title: "Analysis", text }],
-      3800,
-    );
+    const payload = prepareThinkingPayload([
+      { id: "r1", title: "Analysis", text: "Line one\nLine two" },
+    ]);
 
-    expect(payload?.parts).toEqual([
-      {
-        text: `${header}\n${text}`,
-        entities: [{ type: "expandable_blockquote", offset: header.length + 1, length: text.length }],
-        fallbackText: `${header}\n> Line one\n> Line two`,
-        source: "entities",
-      },
+    expect(payload?.parts).toHaveLength(1);
+    expect(payload?.parts[0].source).toBe("plain");
+    expect(payload?.parts[0].blocks).toEqual([]);
+    expect(payload?.parts[0].fallbackText).toBe(`${header}\nLine one\nLine two`);
+    expect(payload?.parts[0].entities).toEqual([
+      { type: "blockquote", offset: header.length + 1, length: "Line one\nLine two".length },
     ]);
   });
 
-  it("renders all reasoning sections in order", () => {
-    const payload = prepareThinkingStreamingPayload(
-      [
-        { id: "r1", title: "First", text: "A" },
-        { id: "r2", title: "Second", text: "B" },
-      ],
-      3800,
-    );
+  it("falls back to the bare header when a section has no title", () => {
+    const payload = prepareThinkingPayload([{ id: "r1", text: "A" }]);
 
-    expect(payload?.parts.map((part) => part.text)).toEqual([
+    expect(payload?.parts[0].fallbackText).toBe(`${t("bot.thinking")}\nA`);
+  });
+
+  it("keeps the quote open while the model is still thinking", () => {
+    const payload = prepareThinkingPayload([{ id: "r1", text: "Line one" }]);
+
+    expect(payload?.parts[0].entities?.[0].type).toBe("blockquote");
+  });
+
+  it("collapses the quote for final delivery", () => {
+    const payload = prepareThinkingPayload([{ id: "r1", text: "Line one" }], { final: true });
+
+    expect(payload?.parts[0].entities?.[0].type).toBe("expandable_blockquote");
+  });
+
+  it("emits one part per reasoning section, in order", () => {
+    const payload = prepareThinkingPayload([
+      { id: "r1", title: "First", text: "A" },
+      { id: "r2", title: "Second", text: "B" },
+    ]);
+
+    expect(payload?.parts.map((part) => part.fallbackText)).toEqual([
       `${t("bot.thinking")} — First\nA`,
       `${t("bot.thinking")} — Second\nB`,
     ]);
   });
 
-  it("can render thinking content as a regular quote while streaming", () => {
-    const header = `${t("bot.thinking")} — Analysis`;
-    const payload = prepareThinkingStreamingPayload(
-      [{ id: "r1", title: "Analysis", text: "Line one" }],
-      3800,
-      { expandable: false },
-    );
+  it("leaves markdown inside the reasoning untouched", () => {
+    const text = "- one\n- two";
+    const payload = prepareThinkingPayload([{ id: "r1", text }]);
 
-    expect(payload?.parts[0].entities).toEqual([
-      { type: "blockquote", offset: header.length + 1, length: "Line one".length },
-    ]);
+    expect(payload?.parts[0].fallbackText).toBe(`${t("bot.thinking")}\n${text}`);
   });
 
-  it("converts streamed quote payloads to expandable quotes for final delivery", () => {
-    const header = t("bot.thinking");
-    const payload = prepareThinkingStreamingPayload([{ id: "r1", text: "Line one" }], 3800, {
-      expandable: false,
-    });
+  it("normalizes line endings and trims the trailing whitespace", () => {
+    const payload = prepareThinkingPayload([{ id: "r1", text: "one\r\ntwo\n\n" }]);
 
-    expect(payload).not.toBeNull();
-
-    const finalPayload = makeThinkingPayloadExpandable(payload!);
-
-    expect(finalPayload.parts[0].entities).toEqual([
-      { type: "expandable_blockquote", offset: header.length + 1, length: "Line one".length },
-    ]);
+    expect(payload?.parts[0].fallbackText).toBe(`${t("bot.thinking")}\none\ntwo`);
   });
 
-  it("splits long thinking content into multiple quoted parts", () => {
+  it("splits reasoning that does not fit one text message, repeating the header", () => {
     const header = t("bot.thinking");
-    const payload = prepareThinkingStreamingPayload(
-      [{ id: "r1", text: "abcdefghij" }],
-      header.length + 1 + 4,
+    const text = Array.from({ length: 400 }, (_, index) => `line ${index} ${"y".repeat(40)}`).join(
+      "\n",
     );
 
-    expect(payload?.parts.map((part) => part.text)).toEqual([
-      `${header}\nabcd`,
-      `${header}\nefgh`,
-      `${header}\nij`,
-    ]);
-    expect(payload?.parts[0].entities).toEqual([
-      { type: "expandable_blockquote", offset: header.length + 1, length: 4 },
-    ]);
+    const payload = prepareThinkingPayload([{ id: "r1", text }], { final: true });
+    const parts = payload?.parts ?? [];
+
+    expect(parts.length).toBeGreaterThan(1);
+    for (const part of parts) {
+      expect(part.fallbackText.startsWith(`${header}\n`)).toBe(true);
+      expect(part.fallbackText.length).toBeLessThanOrEqual(PLAIN_MAX_PART_CHARS);
+      expect(part.entities?.[0]).toEqual({
+        type: "expandable_blockquote",
+        offset: header.length + 1,
+        length: part.fallbackText.length - header.length - 1,
+      });
+    }
+
+    const joined = parts.map((part) => part.fallbackText.slice(header.length + 1)).join("");
+    expect(joined).toBe(text);
+  });
+
+  it("keeps an empty section as a header without a quote", () => {
+    const payload = prepareThinkingPayload([{ id: "r1", title: "Empty", text: "" }]);
+
+    expect(payload?.parts[0].fallbackText).toBe(`${t("bot.thinking")} — Empty`);
+    expect(payload?.parts[0].entities).toBeUndefined();
+  });
+
+  it("returns no payload without sections", () => {
+    expect(prepareThinkingPayload([])).toBeNull();
   });
 });

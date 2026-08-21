@@ -20,6 +20,11 @@ vi.mock("#src/opencode/client.ts", () => ({
 vi.mock("#src/app/services/session-cache-service.ts", () => ({
   __resetSessionDirectoryCacheForTests: vi.fn(),
   warmupSessionDirectoryCache: mocked.warmupSessionDirectoryCacheMock,
+  syncSessionDirectoryCache: vi.fn().mockResolvedValue(undefined),
+  getCachedSessionDirectories: vi.fn().mockResolvedValue([]),
+  getCachedSessionProjects: vi.fn().mockResolvedValue([]),
+  upsertSessionDirectory: vi.fn().mockResolvedValue(undefined),
+  ingestSessionInfoForCache: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("#src/app/services/model-selection-service.ts", () => ({

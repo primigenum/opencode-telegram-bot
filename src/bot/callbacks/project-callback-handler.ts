@@ -5,6 +5,7 @@ import { isForegroundBusy } from "../../app/services/run-control-service.js";
 import { switchToProject } from "../../app/services/project-switch-service.js";
 import { t } from "../../i18n/index.js";
 import { logger } from "../../utils/logger.js";
+import { alert, failure } from "./feedback.js";
 import { appendInlineMenuCancelButton, ensureActiveInlineMenu } from "../menus/inline-menu.js";
 import { buildProjectsMenuView, parseProjectPageCallback } from "../menus/project-selection-menu.js";
 import { replyBusyBlocked } from "../messages/busy-blocked-renderer.js";
@@ -44,8 +45,7 @@ export async function handleProjectSelect(
     try {
       const projects = await getProjects();
       if (projects.length === 0) {
-        await ctx.answerCallbackQuery();
-        await ctx.reply(t("projects.empty"));
+        await alert(ctx, "projects.empty");
         return true;
       }
 
@@ -95,8 +95,7 @@ export async function handleProjectSelect(
   } catch (error) {
     clearAllInteractionState("project_select_error");
     logger.error("[Bot] Error selecting project:", error);
-    await ctx.answerCallbackQuery();
-    await ctx.reply(t("projects.select_error"));
+    await failure(ctx, "projects.select_error");
   }
 
   return true;

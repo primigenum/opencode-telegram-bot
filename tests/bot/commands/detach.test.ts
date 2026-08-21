@@ -47,6 +47,11 @@ vi.mock("#src/app/stores/settings-store.ts", () => {
     "setScheduledTasks",
     "getScheduledTaskSessionIgnores",
     "setScheduledTaskSessionIgnores",
+    "getVisibleProjects",
+    "setVisibleProjects",
+    "flushSettings",
+    "getPromptQueueEnabled",
+    "setPromptQueueEnabled",
     "__resetSettingsForTests",
     "loadSettings",
   ];
@@ -60,6 +65,11 @@ vi.mock("#src/app/stores/settings-store.ts", () => {
 
 vi.mock("#src/app/services/attach-service.ts", () => ({
   detachAttachedSession: mocked.detachAttachedSessionMock,
+  configureAttachPresentation: vi.fn(),
+  attachToSession: vi.fn().mockResolvedValue(undefined),
+  restoreAttachedCurrentSession: vi.fn().mockResolvedValue(undefined),
+  markAttachedSessionBusy: vi.fn().mockResolvedValue(undefined),
+  markAttachedSessionIdle: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("#src/app/managers/interaction-manager.ts", () => ({
@@ -105,6 +115,11 @@ vi.mock("#src/app/managers/assistant-run-state-manager.ts", () => ({
 
 vi.mock("#src/bot/handlers/prompt.ts", () => ({
   clearPromptResponseMode: mocked.clearPromptResponseModeMock,
+  getPromptBotInstance: vi.fn(),
+  getPromptChatId: vi.fn(),
+  setPromptResponseMode: vi.fn(),
+  consumePromptResponseMode: vi.fn(),
+  processUserPrompt: vi.fn().mockResolvedValue(undefined),
 }));
 
 const sut = await loadSut<typeof import("#src/bot/commands/detach-command.js")>(

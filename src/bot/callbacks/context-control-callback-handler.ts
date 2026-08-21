@@ -4,6 +4,7 @@ import { opencodeClient } from "../../opencode/client.js";
 import { getCurrentSession } from "../../app/services/session-service.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
+import { alert, failure } from "./feedback.js";
 import { clearActiveInlineMenu, ensureActiveInlineMenu } from "../menus/inline-menu.js";
 
 /**
@@ -30,8 +31,7 @@ export async function handleCompactConfirm(ctx: Context): Promise<boolean> {
 
     if (!session) {
       clearActiveInlineMenu("context_session_missing");
-      await ctx.answerCallbackQuery({ text: t("context.callback_session_not_found") });
-      await ctx.reply(t("context.no_active_session"));
+      await alert(ctx, "context.no_active_session");
       await ctx.deleteMessage().catch(() => {});
       return true;
     }
@@ -80,9 +80,8 @@ export async function handleCompactConfirm(ctx: Context): Promise<boolean> {
   } catch (err) {
     clearActiveInlineMenu("context_compact_error");
     logger.error("[ContextHandler] Compact exception:", err);
-    await ctx.answerCallbackQuery({ text: t("callback.processing_error") }).catch(() => {});
-    await ctx.reply(t("context.error"));
+    await failure(ctx, "context.error");
     await ctx.deleteMessage().catch(() => {});
-    return false;
+    return true;
   }
 }

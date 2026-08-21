@@ -158,6 +158,11 @@ vi.mock("#src/app/stores/settings-store.ts", () => {
     "setScheduledTasks",
     "getScheduledTaskSessionIgnores",
     "setScheduledTaskSessionIgnores",
+    "getVisibleProjects",
+    "setVisibleProjects",
+    "flushSettings",
+    "getPromptQueueEnabled",
+    "setPromptQueueEnabled",
     "__resetSettingsForTests",
     "loadSettings",
   ] as const;

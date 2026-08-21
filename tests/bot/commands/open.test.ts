@@ -77,6 +77,7 @@ vi.mock("#src/app/managers/interaction-manager.ts", () => ({
     getSnapshot: vi.fn(() => null),
     clear: vi.fn(),
   },
+  clearAllInteractionState: vi.fn(),
 }));
 
 vi.mock("#src/app/services/run-control-service.ts", () => ({
@@ -91,10 +92,16 @@ vi.mock("#src/app/services/session-cache-service.ts", () => ({
   upsertSessionDirectory: mocked.upsertSessionDirectoryMock,
   __resetSessionDirectoryCacheForTests: vi.fn(),
   syncSessionDirectoryCache: vi.fn().mockResolvedValue(undefined),
+  warmupSessionDirectoryCache: vi.fn().mockResolvedValue(undefined),
+  getCachedSessionDirectories: vi.fn().mockResolvedValue([]),
+  getCachedSessionProjects: vi.fn().mockResolvedValue([]),
+  ingestSessionInfoForCache: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("#src/app/services/project-service.ts", () => ({
   getProjectByWorktree: mocked.getProjectByWorktreeMock,
+  getProjects: vi.fn().mockResolvedValue([]),
+  getProjectById: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("#src/app/services/project-switch-service.ts", () => ({
@@ -289,6 +296,7 @@ describe("open command", () => {
       expect(result).toBe(true);
       expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({
         text: t("open.access_denied"),
+        show_alert: true,
       });
       expect(mocked.scanDirectoryMock).not.toHaveBeenCalled();
     });
@@ -370,9 +378,9 @@ describe("open command", () => {
 
       expect(result).toBe(true);
       expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({
-        text: t("callback.processing_error"),
+        text: t("open.select_error"),
       });
-      expect(ctx.reply).toHaveBeenCalledWith(t("open.select_error"));
+      expect(ctx.reply).not.toHaveBeenCalled();
     });
 
     it("should show error when navigation scan fails", async () => {

@@ -221,7 +221,7 @@ describe("bot/commands/tasklist", () => {
     expect(handled).toBe(true);
     expect(interactionManager.getSnapshot()).toBeNull();
     expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({
-      text: t("tasklist.cancelled_callback"),
+      text: t("common.cancelled"),
     });
     expect(ctx.deleteMessage).toHaveBeenCalledTimes(1);
   });

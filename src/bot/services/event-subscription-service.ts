@@ -70,8 +70,8 @@ import {
   renderAssistantFinalPartsSafe,
 } from "../messages/assistant-rendering.js";
 import {
-  makeThinkingPayloadExpandable,
-  prepareThinkingStreamingPayload,
+  prepareThinkingPayload,
+  type ThinkingSection,
 } from "../messages/thinking-rendering.js";
 import { deliverExternalUserInputNotification } from "../messages/external-user-input-notification.js";
 import { dispatchNextQueuedPrompt } from "../handlers/prompt-queue-dispatch.js";
@@ -92,7 +92,6 @@ import { stopEventListening, subscribeToEvents } from "../../opencode/events.js"
 
 const TELEGRAM_DOCUMENT_CAPTION_MAX_LENGTH = 1024;
 const RESPONSE_STREAM_THROTTLE_MS = config.bot.responseStreamThrottleMs;
-const RESPONSE_STREAM_TEXT_LIMIT = 3800;
 const SESSION_RETRY_PREFIX = "🔁";
 const SUBAGENT_STREAM_PREFIX = "🧩";
 const TOOL_ELAPSED_TICK_INTERVAL_MS = 5000;
@@ -131,7 +130,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
   private botInstance: Bot<Context> | null = null;
   private chatIdInstance: number | null = null;
   private nextDraftId = 1;
-  private readonly thinkingStreamingPayloads = new Map<string, StreamingMessagePayload>();
+  private readonly thinkingSections = new Map<string, ThinkingSection[]>();
   private readonly sessionCompletionTasks = new Map<string, Promise<void>>();
   private readonly compactProgressFinalizationTasks = new Map<string, Promise<void>>();
   private readonly assistantEditResponseStreamer: ResponseStreamer;
@@ -491,7 +490,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     this.toolMessageBatcher.clearAll(reason);
     this.compactProgressStreamer.clearAll(reason);
     this.compactProgressFinalizationTasks.clear();
-    this.thinkingStreamingPayloads.clear();
+    this.thinkingSections.clear();
     this.sessionCompletionTasks.clear();
     this.clearToolElapsedState(null, reason);
     assistantRunState.clearAll(reason);
@@ -524,7 +523,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       this.clearAllResponseStreams("summary_aggregator_clear");
       this.compactProgressStreamer.clearAll("summary_aggregator_clear");
       this.compactProgressFinalizationTasks.clear();
-      this.thinkingStreamingPayloads.clear();
+      this.thinkingSections.clear();
       this.clearToolElapsedState(null, "summary_aggregator_clear");
     });
 
@@ -1012,16 +1011,14 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       }
 
       if (getShowThinkingContent()) {
-        const payload = prepareThinkingStreamingPayload(update.sections, RESPONSE_STREAM_TEXT_LIMIT, {
-          expandable: false,
-        });
+        const payload = prepareThinkingPayload(update.sections);
         if (payload) {
           payload.sendOptions = { disable_notification: true };
           payload.editOptions = undefined;
 
-          this.thinkingStreamingPayloads.set(
+          this.thinkingSections.set(
             this.getThinkingPayloadKey(update.sessionId, update.messageId),
-            payload,
+            update.sections,
           );
           this.thinkingResponseStreamer.enqueue(
             update.sessionId,
@@ -1468,6 +1465,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
           chatId: this.chatIdInstance,
           part,
           options,
+          allowPlainFallback: false,
         });
       },
       editPart: async (messageId, part, options) => {
@@ -1482,6 +1480,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
             messageId,
             part,
             options,
+            allowPlainFallback: false,
           });
         } catch (error) {
           const errorMessage =
@@ -1538,11 +1537,11 @@ class EventSubscriptionService implements BotEventSubscriptionService {
   }
 
   private prepareStreamingPayload(messageText: string): StreamingMessagePayload | null {
-    return prepareAssistantStreamingPayload(messageText, RESPONSE_STREAM_TEXT_LIMIT);
+    return prepareAssistantStreamingPayload(messageText);
   }
 
   private prepareFinalStreamingPayload(messageText: string): StreamingMessagePayload | null {
-    return prepareAssistantFinalStreamingPayload(messageText, RESPONSE_STREAM_TEXT_LIMIT);
+    return prepareAssistantFinalStreamingPayload(messageText);
   }
 
   private getThinkingStreamId(messageId: string): string {
@@ -1555,19 +1554,26 @@ class EventSubscriptionService implements BotEventSubscriptionService {
 
   private clearThinkingStream(sessionId: string, messageId: string, reason: string): void {
     this.thinkingResponseStreamer.clearMessage(sessionId, this.getThinkingStreamId(messageId), reason);
-    this.thinkingStreamingPayloads.delete(this.getThinkingPayloadKey(sessionId, messageId));
+    this.thinkingSections.delete(this.getThinkingPayloadKey(sessionId, messageId));
   }
 
   private async completeThinkingStream(sessionId: string, messageId: string): Promise<void> {
     const key = this.getThinkingPayloadKey(sessionId, messageId);
-    const payload = this.thinkingStreamingPayloads.get(key);
-    const finalPayload = payload ? makeThinkingPayloadExpandable(payload) : undefined;
+    const sections = this.thinkingSections.get(key);
+    // Re-render from the sections: the streamed payload keeps its trailing
+    // block literal because it was still being written.
+    const finalPayload = sections
+      ? (prepareThinkingPayload(sections, { final: true }) ?? undefined)
+      : undefined;
+    if (finalPayload) {
+      finalPayload.sendOptions = { disable_notification: true };
+    }
     const result = await this.thinkingResponseStreamer.complete(
       sessionId,
       this.getThinkingStreamId(messageId),
       finalPayload,
     );
-    this.thinkingStreamingPayloads.delete(key);
+    this.thinkingSections.delete(key);
 
     if (result.streamed || !finalPayload) {
       return;

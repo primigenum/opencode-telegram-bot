@@ -41,6 +41,7 @@ mockDep(
   () => ({
     clearSession: mocked.clearSessionMock,
     getCurrentSession: vi.fn(),
+    setCurrentSession: vi.fn(),
   }),
   import.meta.url,
 );
@@ -65,6 +66,7 @@ mockDep(
   "#src/app/services/agent-selection-service.ts",
   () => ({
     getStoredAgent: mocked.getStoredAgentMock,
+    resolveProjectAgent: vi.fn(),
   }),
   import.meta.url,
 );

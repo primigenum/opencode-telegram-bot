@@ -15,6 +15,7 @@ export function isNotFoundError(error: unknown): boolean {
   return isRecord(error) && error.name === "NotFoundError";
 }
 
+
 export function isExpectedOpencodeUnavailableError(error: unknown): boolean {
   if (!error) {
     return false;

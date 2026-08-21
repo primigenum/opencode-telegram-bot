@@ -341,9 +341,8 @@ describe("bot/commands/task", () => {
 
     expect(handled).toBe(true);
     expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({
-      text: t("task.cancel_callback"),
+      text: t("common.cancelled"),
     });
-    expect(ctx.reply).toHaveBeenCalledWith(t("task.cancelled"));
     expect(taskCreationManager.isActive()).toBe(false);
     expect(interactionManager.getSnapshot()).toBeNull();
   });

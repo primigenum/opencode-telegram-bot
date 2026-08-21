@@ -206,6 +206,27 @@ describe("bot/commands/rename", () => {
     expect(interactionManager.getSnapshot()).toBeNull();
   });
 
+  it("does not forward the title as a prompt when session info is missing", async () => {
+    // Waiting for a name, but the session behind it is gone.
+    renameManager.startWaiting("", "D:/repo", "Old title");
+    renameManager.setMessageId(555);
+    interactionManager.start({
+      kind: "rename",
+      expectedInput: "text",
+      metadata: { sessionId: "session-1", messageId: 555 },
+    });
+
+    const ctx = createRenameTextContext("New title");
+    const handled = await handleRenameTextAnswer(ctx);
+
+    // `true` keeps the text from falling through to the prompt pipeline.
+    expect(handled).toBe(true);
+    expect(ctx.reply).toHaveBeenCalledWith(t("rename.inactive"));
+    expect(mocked.updateSessionMock).not.toHaveBeenCalled();
+    expect(renameManager.isWaitingForName()).toBe(false);
+    expect(interactionManager.getSnapshot()).toBeNull();
+  });
+
   it("clears stale rename manager state when interaction is missing", async () => {
     renameManager.startWaiting("session-1", "D:/repo", "Old title");
     renameManager.setMessageId(555);

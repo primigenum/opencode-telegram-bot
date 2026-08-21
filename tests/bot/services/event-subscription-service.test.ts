@@ -2,17 +2,22 @@ import os from "node:os";
 import path from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
 import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
+import { mockDep } from "#helpers/mock-dep.js";
 import type { Bot, Context } from "grammy";
 import type { Event } from "@opencode-ai/sdk/v2";
 import { setRuntimeMode } from "../../../src/runtime/mode.js";
 import { resetSingletonState } from "../../helpers/reset-singleton-state.js";
 
-const mocked = vi.hoisted(() => ({
+// The fork mocks events.js via mockDep (absolute path) — bun's mock.module
+// matches on the resolved path, so `vi.mock("../../../src/...")` with a
+// relative specifier never intercepts and the real stopEventListening runs,
+// leaking an unhandled AbortError between tests.
+const mocked = {
   subscribeToEvents: vi.fn(),
   stopEventListening: vi.fn(),
-}));
+};
 
-vi.mock("../../../src/opencode/events.js", () => ({
+mockDep("#src/opencode/events.ts", () => ({
   subscribeToEvents: mocked.subscribeToEvents,
   stopEventListening: mocked.stopEventListening,
 }));

@@ -82,8 +82,8 @@ describe("bot/commands/projects handleProjectSelect", () => {
 
     expect(handled).toBe(true);
     expect(mocked.clearAllInteractionStateMock).toHaveBeenCalledWith("project_select_error");
-    expect(ctx.answerCallbackQuery).toHaveBeenCalledWith();
-    expect(ctx.reply).toHaveBeenCalledWith(t("projects.select_error"));
+    expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({ text: t("projects.select_error") });
+    expect(ctx.reply).not.toHaveBeenCalled();
   });
 
   it("blocks project selection callback while foreground session is busy", async () => {

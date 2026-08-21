@@ -14,6 +14,7 @@ registerMock(
     getAvailableAgents: mocked.getAvailableAgentsMock,
     selectAgent: vi.fn(),
     getStoredAgent: vi.fn(),
+    resolveProjectAgent: vi.fn(),
   }),
 );
 

@@ -7,8 +7,8 @@ import {
   LEGACY_CONTEXT_CANCEL_CALLBACK,
   type InlineMenuKind,
 } from "../menus/inline-menu.js";
-import { t } from "../../i18n/index.js";
 import { logger } from "../../utils/logger.js";
+import { cancelMenu } from "./feedback.js";
 
 export async function handleInlineMenuCancel(ctx: Context): Promise<boolean> {
   const data = ctx.callbackQuery?.data;
@@ -38,8 +38,7 @@ export async function handleInlineMenuCancel(ctx: Context): Promise<boolean> {
 
   clearActiveInlineMenu(`inline_menu_cancel:${menuKind}`);
 
-  await ctx.answerCallbackQuery({ text: t("inline.cancelled_callback") }).catch(() => {});
-  await ctx.deleteMessage().catch(() => {});
+  await cancelMenu(ctx);
 
   logger.debug(`[InlineMenu] Menu cancelled: kind=${menuKind}`);
 

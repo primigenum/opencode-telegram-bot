@@ -95,7 +95,10 @@ describe("bot/callbacks/file-browser-callback-handler - attach branch", () => {
     expect(await handleLsCallback(ctx)).toBe(true);
     expect(promptAttachment.get()).toBeNull();
     expect(ctx.reply).not.toHaveBeenCalled();
-    expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({ text: expect.any(String) });
+    expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({
+      text: expect.any(String),
+      show_alert: true,
+    });
   });
 
   it("ignores a stale callback whose menu is no longer active", async () => {

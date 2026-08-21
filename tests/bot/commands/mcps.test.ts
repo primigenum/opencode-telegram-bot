@@ -303,7 +303,7 @@ describe("bot/commands/mcps", () => {
     const handled = await handleMcpsCallback(ctx);
 
     expect(handled).toBe(true);
-    expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({ text: t("inline.cancelled_callback") });
+    expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({ text: t("common.cancelled") });
     expect(ctx.deleteMessage).toHaveBeenCalledTimes(1);
     expect(interactionManager.getSnapshot()).toBeNull();
   });

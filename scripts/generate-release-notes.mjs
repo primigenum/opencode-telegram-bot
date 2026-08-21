@@ -134,14 +134,6 @@ function sortByCommitTime(items) {
   });
 }
 
-function buildTitle(version, kind) {
-  if (kind === "rc") {
-    return `## Release Candidate v${version}`;
-  }
-
-  return `## Release v${version}`;
-}
-
 async function fetchPrAuthor(repository, prNumber) {
   const url = `https://api.github.com/repos/${repository}/pulls/${prNumber}`;
 
@@ -193,14 +185,13 @@ async function resolveAuthors(repository, ownerLogin, prNumbers) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const version = args.version;
-  const kind = args.kind;
   const repository = args.repo;
   const outputPath = args.output;
   const token = args.token;
 
-  if (!version || !kind || !repository || !outputPath) {
+  if (!version || !repository || !outputPath) {
     process.stderr.write(
-      "Usage: node scripts/generate-release-notes.mjs --version <version> --kind <stable|rc> --repo <owner/repo> --output <path>\n",
+      "Usage: node scripts/generate-release-notes.mjs --version <version> --repo <owner/repo> --output <path>\n",
     );
     process.exit(2);
   }
@@ -260,7 +251,7 @@ async function main() {
     });
   });
 
-  const lines = [buildTitle(version, kind), ""];
+  const lines = [];
 
   let hasRenderedSections = false;
 
@@ -271,7 +262,7 @@ async function main() {
     }
 
     hasRenderedSections = true;
-    lines.push(`### ${section}`);
+    lines.push(`## ${section}`);
 
     for (const item of sortByCommitTime(items)) {
       const attribution = item.authorLogin

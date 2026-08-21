@@ -45,6 +45,8 @@ vi.mock("#src/app/stores/settings-store.ts", () => settingsStoreMock);
 
 vi.mock("#src/app/services/session-service.ts", () => ({
   setCurrentSession: mocked.setCurrentSessionMock,
+    clearSession: vi.fn(),
+    getCurrentSession: vi.fn(),
 }));
 
 vi.mock("#src/app/managers/summary-aggregation-manager.ts", () => ({
@@ -56,6 +58,10 @@ vi.mock("#src/app/managers/summary-aggregation-manager.ts", () => ({
 const interactionState: { current: object | null } = { current: null };
 vi.mock("#src/app/managers/interaction-manager.ts", () => ({
   interactionManager: {
+
+  setCurrentSession: vi.fn(),
+  getCurrentSession: vi.fn(),
+  clearSession: vi.fn(),
     start: vi.fn((snapshot: object) => { interactionState.current = snapshot; }),
     getSnapshot: vi.fn(() => interactionState.current),
     clear: vi.fn(() => { interactionState.current = null; }),
@@ -77,6 +83,7 @@ vi.mock("#src/bot/keyboards/keyboard-manager.ts", () => ({
 
 vi.mock("#src/app/services/agent-selection-service.ts", () => ({
   resolveProjectAgent: mocked.resolveProjectAgentMock,
+    getStoredAgent: vi.fn(),
 }));
 
 vi.mock("#src/bot/pinned/pinned-message-manager.ts", () => ({
@@ -413,8 +420,8 @@ describe("bot/commands/sessions", () => {
 
     expect(handled).toBe(true);
     expect(mocked.clearInteractionMock).toHaveBeenCalledWith("session_select_error");
-    expect(ctx.answerCallbackQuery).toHaveBeenCalled();
-    expect(ctx.reply).toHaveBeenCalledWith(t("sessions.select_error"));
+    expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({ text: t("sessions.select_error") });
+    expect(ctx.reply).not.toHaveBeenCalled();
   });
 
   it("resolves the project agent before sending the keyboard for an existing session", async () => {
