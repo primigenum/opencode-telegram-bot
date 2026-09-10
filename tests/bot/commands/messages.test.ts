@@ -56,6 +56,19 @@ vi.mock("#src/app/stores/settings-store.ts", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
 }));
 
+vi.mock("#src/app/services/model-selection-service.ts", () => ({
+  getStoredModel: mocked.getStoredModelMock,
+  selectModel: vi.fn(),
+  reconcileStoredModelSelection: vi.fn(),
+  getFavoriteModels: vi.fn(() => []),
+  getModelSelectionLists: vi.fn(),
+  __resetModelCatalogCacheForTests: vi.fn(),
+  getProviders: vi.fn(async () => []),
+  getProviderModels: vi.fn(async () => []),
+  searchModels: vi.fn(async () => []),
+  fetchCurrentModel: vi.fn(),
+}));
+
 vi.mock("#src/app/services/session-service.ts", () => ({
   getCurrentSession: vi.fn(() => mocked.currentSession),
   setCurrentSession: mocked.setCurrentSessionMock,
