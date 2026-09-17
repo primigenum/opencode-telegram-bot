@@ -284,16 +284,14 @@ Voice notes flow: Telegram OGG/OPUS → download → `ffmpeg` to 16 kHz mono WAV
 - **Accuracy** (measured 2026-09-17 on an edge-tts mixed es/en test set, key terms scored): 49% without biasing → 86% with hotwords (Qwen3-ASR-1.7B). Whisper large-v3-turbo (legacy `whisper-server.service` on :21000, unused by the bot) was rejected: it translates code-switched speech and hallucinates.
 - **Deploy**: the systemd service runs from `/home/ovreuc/opencode-telegram-bot-deploy` (separate checkout pinned to a commit — NOT this dev tree). Update with `git fetch origin && git checkout <sha>` + `systemctl --user restart opencode-telegram-bot.service`.
 
-## CJK guard (fork addition)
+## CJK guard + auto-correction (fork addition)
 
-The model occasionally answers in Chinese/Japanese/Korean despite language instructions. Every outgoing Telegram message passes a CJK filter (`src/bot/render/cjk-guard.ts`):
+The model occasionally answers in Chinese/Japanese/Korean despite language instructions. Two layers protect the user:
 
-- Render/construction layers sanitize model content (assistant markdown, reasoning, questions) so rich formatting survives sanitization.
-- The `telegram-text.ts` send/edit/draft helpers rebuild any part that still carries CJK from its sanitized plain projection — hard guarantee: no CJK reaches Telegram through these paths (assistant, reasoning, questions, summaries, transcriptions).
-- All-CJK messages are replaced with `cjk_guard.blocked_notice` (localized, all 10 locales); clean messages are returned untouched by reference.
-- Detection is logged at WARN with the `[CjkGuard]` tag.
+1. **Filter (hard guarantee)**: every outgoing Telegram message passes `src/bot/render/cjk-guard.ts`. CJK characters are stripped at the render/construction layers (assistant markdown, reasoning, questions) and the `telegram-text.ts` send/edit/draft helpers rebuild any part that still carries CJK from its sanitized plain projection. Clean messages are untouched (returned by reference).
+2. **Auto-correction**: when a completed assistant message is mostly CJK, `cjk-correction-service` (hooked in the `event-subscription-service` completion callback) prompts the same session to rewrite the exact content in Spanish — max 2 attempts per streak, reset by any clean message; the correction prompt is registered as suppressed input so it triggers no notification. The broken message shows `cjk_guard.correcting_notice` and the rewritten reply arrives as a normal message. Attempts exhausted or request failure → `cjk_guard.blocked_notice`. TTS is skipped for replaced messages.
 
-Added 2026-09-17 after the third language-leak incident (PR #19). It covers Telegram delivery only — the TUI still shows raw model output.
+Detection is logged at WARN with the `[CjkGuard]` tag. Added 2026-09-17 after the third language-leak incident (PR #19). Covers Telegram delivery only — the TUI still shows raw model output.
 
 ## OpenCode SDK quick reference
 
