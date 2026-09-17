@@ -291,7 +291,7 @@ The model occasionally answers in Chinese/Japanese/Korean despite language instr
 1. **Filter (hard guarantee)**: every outgoing Telegram message passes `src/bot/render/cjk-guard.ts`. CJK characters are stripped at the render/construction layers (assistant markdown, reasoning, questions) and the `telegram-text.ts` send/edit/draft helpers rebuild any part that still carries CJK from its sanitized plain projection. Clean messages are untouched (returned by reference).
 2. **Auto-correction**: when a completed assistant message is mostly CJK, `cjk-correction-service` (hooked in the `event-subscription-service` completion callback) prompts the same session to rewrite the exact content in Spanish — max 2 attempts per streak, reset by any clean message; the correction prompt is registered as suppressed input so it triggers no notification. The broken message shows `cjk_guard.correcting_notice` and the rewritten reply arrives as a normal message. Attempts exhausted or request failure → `cjk_guard.blocked_notice`. TTS is skipped for replaced messages.
 
-Detection is logged at WARN with the `[CjkGuard]` tag. Added 2026-09-17 after the third language-leak incident (PR #19). Covers Telegram delivery only — the TUI still shows raw model output.
+Detection is logged at WARN with the `[CjkGuard]` tag. Added 2026-09-17 after the third language-leak incident (PRs #19/#20). The bot-side layer covers Telegram delivery (live deltas + fallback); completed messages are fixed for every client by the opencode plugin.
 
 ## OpenCode SDK quick reference
 
