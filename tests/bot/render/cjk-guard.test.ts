@@ -22,21 +22,28 @@ describe("bot/render/cjk-guard", () => {
     expect(result.text).not.toMatch(ANY_CJK);
   });
 
-  it("strips kana, hangul and fullwidth forms", () => {
+  it("strips kana, hangul and fullwidth forms from mixed text", () => {
+    const result = sanitizeCjkText("texto en español con カタカナ y 안녕 suelto");
+
+    expect(result.removed).toBe(6);
+    expect(result.blocked).toBe(false);
+    expect(result.text).not.toMatch(ANY_CJK);
+    expect(result.text).toBe("texto en español con  y  suelto");
+  });
+
+  it("blocks messages that are mostly CJK even when latin fragments remain", () => {
     const result = sanitizeCjkText("ok カタカナ 안녕 ＡＢＣ done");
 
     expect(result.removed).toBe(9);
-    expect(result.blocked).toBe(false);
-    expect(result.text).not.toMatch(ANY_CJK);
-    expect(result.text).toContain("ok");
-    expect(result.text).toContain("done");
+    expect(result.blocked).toBe(true);
+    expect(result.text).toBe(en["cjk_guard.correcting_notice"]);
   });
 
   it("replaces a fully CJK message with the localized notice", () => {
     const result = sanitizeCjkText("你好，世界！");
 
     expect(result.blocked).toBe(true);
-    expect(result.text).toBe(en["cjk_guard.blocked_notice"]);
+    expect(result.text).toBe(en["cjk_guard.correcting_notice"]);
   });
 
   it("returns parts without CJK unchanged", () => {
