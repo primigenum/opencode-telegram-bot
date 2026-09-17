@@ -14,12 +14,19 @@ import type { TelegramRenderedPart } from "./types.js";
 const CJK_PATTERN =
   /[\u1100-\u11FF\u2E80-\u2EFF\u3000-\u303F\u3040-\u309F\u30A0-\u30FF\u3130-\u318F\u31F0-\u31FF\u3400-\u4DBF\u4E00-\u9FFF\uA960-\uA97F\uAC00-\uD7AF\uD7B0-\uD7FF\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFFEF\u{20000}-\u{2FA1F}\u{30000}-\u{3134F}]/gu;
 
+/**
+ * Messages with at least this share of CJK characters are replaced entirely:
+ * stripping them would leave a context-free mosaic of fragments (the model's
+ * prose is CJK and only table rows/identifiers survive the removal).
+ */
+const CJK_BLOCK_RATIO = 1 / 3;
+
 export interface CjkSanitizeResult {
-  /** Sanitized text (or the localized notice when everything was CJK). */
+  /** Sanitized text (or the localized notice when the message was mostly CJK). */
   text: string;
   /** Number of CJK characters removed. */
   removed: number;
-  /** True when the message was almost entirely CJK and got replaced. */
+  /** True when the message was mostly CJK and got replaced by the notice. */
   blocked: boolean;
 }
 
@@ -38,14 +45,17 @@ export function sanitizeCjkText(text: string): CjkSanitizeResult {
     return { text, removed: 0, blocked: false };
   }
 
-  const blocked = cleaned.trim().length === 0;
+  const blocked =
+    cleaned.trim().length === 0 || removed / text.length >= CJK_BLOCK_RATIO;
   logger.warn("[CjkGuard] Removed CJK characters from outgoing message", {
     removed,
     blocked,
     originalLength: text.length,
   });
 
-  return { text: blocked ? t("cjk_guard.blocked_notice") : cleaned, removed, blocked };
+  // While the correction flow asks the model for a Spanish rewrite, the
+  // replacement shown in place of the blocked content is the notice below.
+  return { text: blocked ? t("cjk_guard.correcting_notice") : cleaned, removed, blocked };
 }
 
 /**
