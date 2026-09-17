@@ -684,4 +684,5 @@ export const fr: I18nDictionary = {
   "local_command.empty_output": "The command produced no output.",
   "local_command.failed": "Command failed with exit code {exitCode}: {stderr}",
   "local_command.timeout": "The command timed out.",
+  "cjk_guard.blocked_notice": "⚠️ Message bloqué : le modèle a répondu dans un autre alphabet (CJK). Veuillez renvoyer votre demande.",
 };
