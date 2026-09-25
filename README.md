@@ -262,7 +262,7 @@ The first time you start the bot, the configuration wizard runs and writes `.env
 | `STT_REQUEST_FORMAT`                       | STT request format: `multipart` (standard OpenAI/Groq Whisper) or `json` (base64 `input_audio` body, e.g. OpenRouter) |    No    | `multipart`              |
 | `STT_NOTE_PROMPT`                          | Optional note prepended to the LLM prompt as `[Note: ...]` for voice transcriptions; empty / `false` / `0` disable it |    No    | —                        |
 | `STT_DOMAIN_FILE`                          | Optional JSON glossary to improve transcription: `hotwords` bias the ASR prompt (product/technical terms) and `corrections` fix recurring misheard tokens |    No    | —                        |
-| `DOC_EXTRACTOR_URL`                        | Document text extraction API URL (enables PDF/DOCX/PPTX extraction)                                                    |    No    | —                        |
+| `DOC_EXTRACTOR_URL`                        | Optional external document text extraction API. PDFs are extracted locally with poppler when installed; set this for other formats or hosts without poppler |    No    | —                        |
 | `DOC_EXTRACTOR_API_KEY`                    | API key for the document extractor (optional for self-hosted extractors)                                                |    No    | —                        |
 | `LOCAL_VISION_API_URL`                     | OpenAI-compatible local vision model base URL. Used as fallback when the active model doesn't support image input: the bot describes your photo locally and sends the description as text | No | `http://127.0.0.1:8082/v1` |
 | `LOCAL_VISION_MODEL`                       | Local vision model ID sent to the vision API                                                                           |    No    | `lfm2.5-vl-3b`           |
@@ -449,19 +449,25 @@ Supported provider examples (Whisper-compatible):
 
 If STT variables are not set, voice/audio transcription is disabled and the bot will ask you to configure STT.
 
-### Document Text Extraction (Optional)
+### Document Text Extraction
 
-If `DOC_EXTRACTOR_URL` is set, the bot will extract text from PDF, DOCX, PPTX, and other document files using an external API when the current model does not natively support document input.
+When the current model does not natively support document input, the bot reads documents as follows:
 
-The API contract is:
+- **PDFs — local extraction (no service required).** Text is extracted on your machine with poppler-utils:
+  - Digital PDFs: `pdftotext` (capped at 100,000 characters per document).
+  - Scanned PDFs with no text layer: the first 5 pages are rendered with `pdftoppm` and sent to the model as images (only when the model supports image input).
+  - Install poppler-utils (`pdftotext`, `pdftoppm`, `pdfinfo`) to enable this. Nothing leaves the machine for extraction.
+- **Other formats (DOCX, PPTX, XLSX, ...).** Extracted through the optional external API below.
+
+If neither path is available, the bot replies with a notice and forwards only the caption text.
+
+The external API contract is:
 
 - **Endpoint:** `POST {DOC_EXTRACTOR_URL}`
 - **Content-Type:** `multipart/form-data`
 - **Field:** `file` — the document binary
 - **Authorization:** `Bearer {DOC_EXTRACTOR_API_KEY}` (only sent when a key is configured)
 - **Response:** JSON `{ "text": "extracted content..." }`
-
-If the extractor is not configured and the model doesn't support documents, the bot replies with a notice and forwards only the caption text.
 
 ### Local Vision for Photos (Optional)
 

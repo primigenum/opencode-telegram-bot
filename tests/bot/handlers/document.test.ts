@@ -2,11 +2,18 @@ import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Context } from "grammy";
 import { loadSut } from "#helpers/sut-loader.js";
 import type { DocumentHandlerDeps } from "#src/bot/handlers/document-handler.js";
-import { isDocExtractorConfigured } from "#src/app/services/document-extractor-service.js";
-const { handleDocumentMessage } = await loadSut<typeof import("#src/bot/handlers/document-handler.js")>(
-  "#src/bot/handlers/document-handler.ts",
-  import.meta.url,
-);
+import {
+  isDocExtractorConfigured,
+  extractDocument,
+} from "#src/app/services/document-extractor-service.js";
+import {
+  extractPdfText,
+  isLocalPdfExtractorAvailable,
+  renderPdfPagesAsJpeg,
+} from "#src/app/services/local-pdf-extractor-service.js";
+const { handleDocumentMessage } = await loadSut<
+  typeof import("#src/bot/handlers/document-handler.js")
+>("#src/bot/handlers/document-handler.ts", import.meta.url);
 const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
   "#src/i18n/index.ts",
   import.meta.url,
@@ -22,6 +29,13 @@ vi.mock("#src/bot/handlers/message-merger.ts", () => ({
 vi.mock("#src/app/services/document-extractor-service.ts", () => ({
   isDocExtractorConfigured: vi.fn(),
   extractDocument: vi.fn(),
+}));
+
+vi.mock("#src/app/services/local-pdf-extractor-service.ts", () => ({
+  isLocalPdfExtractorAvailable: vi.fn(),
+  extractPdfText: vi.fn(),
+  renderPdfPagesAsJpeg: vi.fn(),
+  MAX_EXTRACTED_TEXT_CHARS: 100_000,
 }));
 import { MAX_QUEUED_MEDIA_BYTES, promptQueue } from "#src/app/managers/prompt-queue-manager.js";
 import { foregroundSessionState } from "#src/app/managers/foreground-session-state-manager.js";
@@ -94,7 +108,14 @@ function createDocumentDeps(overrides: Partial<DocumentHandlerDeps> = {}): {
     ...overrides,
   };
 
-  return { deps, processPromptMock, downloadMock, saveVideoMock, getCapabilitiesMock, getStoredModelMock };
+  return {
+    deps,
+    processPromptMock,
+    downloadMock,
+    saveVideoMock,
+    getCapabilitiesMock,
+    getStoredModelMock,
+  };
 }
 
 describe("bot/handlers/document", () => {
@@ -513,7 +534,8 @@ describe("bot/handlers/document", () => {
         }),
       });
 
-      const { extractDocument: extractDoc } = await import("../../../src/app/services/document-extractor-service.js");
+      const { extractDocument: extractDoc } =
+        await import("../../../src/app/services/document-extractor-service.js");
       vi.mocked(extractDoc).mockResolvedValue({ text: "Extracted PDF content" });
 
       await handleDocumentMessage(ctx, deps);
@@ -548,7 +570,8 @@ describe("bot/handlers/document", () => {
         }),
       });
 
-      const { extractDocument: extractDoc } = await import("../../../src/app/services/document-extractor-service.js");
+      const { extractDocument: extractDoc } =
+        await import("../../../src/app/services/document-extractor-service.js");
       vi.mocked(extractDoc).mockResolvedValue({ text: "DOCX content" });
 
       await handleDocumentMessage(ctx, deps);
@@ -582,7 +605,8 @@ describe("bot/handlers/document", () => {
         }),
       });
 
-      const { extractDocument: extractDoc } = await import("../../../src/app/services/document-extractor-service.js");
+      const { extractDocument: extractDoc } =
+        await import("../../../src/app/services/document-extractor-service.js");
       vi.mocked(extractDoc).mockRejectedValue(new Error("API unreachable"));
 
       await handleDocumentMessage(ctx, deps);
@@ -608,7 +632,8 @@ describe("bot/handlers/document", () => {
         }),
       });
 
-      const { extractDocument: extractDoc } = await import("../../../src/app/services/document-extractor-service.js");
+      const { extractDocument: extractDoc } =
+        await import("../../../src/app/services/document-extractor-service.js");
       vi.mocked(extractDoc).mockRejectedValue(new Error("API unreachable"));
 
       await handleDocumentMessage(ctx, deps);
@@ -640,6 +665,135 @@ describe("bot/handlers/document", () => {
 
       expect(replyMock).toHaveBeenCalledWith(t("bot.model_no_pdf"));
       expect(processPromptMock).toHaveBeenCalledWith(ctx, "Summarize", deps);
+    });
+  });
+
+  describe("local PDF extraction via poppler", () => {
+    const pdfDocument = {
+      file_id: "pdf-file-id",
+      file_unique_id: "pdf-unique-id",
+      file_name: "document.pdf",
+      mime_type: "application/pdf",
+      file_size: 5000,
+    };
+    const noPdfCapabilities = () => ({
+      getModelCapabilities: vi.fn().mockResolvedValue({ input: { pdf: false, image: true } }),
+    });
+
+    beforeEach(() => {
+      vi.mocked(isLocalPdfExtractorAvailable).mockReturnValue(true);
+    });
+
+    it("extracts PDF text locally and sends it as prompt", async () => {
+      const { ctx, replyMock } = createDocumentContext({ document: pdfDocument, caption: "Léelo" });
+      const { deps, processPromptMock, downloadMock } = createDocumentDeps(noPdfCapabilities());
+      vi.mocked(extractPdfText).mockResolvedValue({
+        text: "Local extraction result",
+        truncated: false,
+      });
+
+      await handleDocumentMessage(ctx, deps);
+
+      expect(replyMock).toHaveBeenCalledWith(t("bot.file_downloading"));
+      expect(downloadMock).toHaveBeenCalledWith(ctx.api, "pdf-file-id");
+      expect(extractPdfText).toHaveBeenCalledWith(expect.any(Buffer));
+      expect(processPromptMock).toHaveBeenCalledWith(
+        ctx,
+        expect.stringContaining("--- Content of document.pdf ---\nLocal extraction result"),
+        deps,
+      );
+      expect(processPromptMock).toHaveBeenCalledWith(ctx, expect.stringContaining("Léelo"), deps);
+    });
+
+    it("adds a truncation note when the extracted text was truncated", async () => {
+      const { ctx } = createDocumentContext({ document: pdfDocument });
+      const { deps, processPromptMock } = createDocumentDeps(noPdfCapabilities());
+      vi.mocked(extractPdfText).mockResolvedValue({ text: "short text", truncated: true });
+
+      await handleDocumentMessage(ctx, deps);
+
+      expect(processPromptMock).toHaveBeenCalledWith(
+        ctx,
+        expect.stringContaining("[... truncated after 100000 characters ...]"),
+        deps,
+      );
+    });
+
+    it("prefers the local extractor over a configured remote one", async () => {
+      vi.mocked(isDocExtractorConfigured).mockReturnValue(true);
+      const { ctx } = createDocumentContext({ document: pdfDocument });
+      const { deps, processPromptMock } = createDocumentDeps(noPdfCapabilities());
+      vi.mocked(extractPdfText).mockResolvedValue({ text: "Local text", truncated: false });
+
+      await handleDocumentMessage(ctx, deps);
+
+      expect(extractPdfText).toHaveBeenCalled();
+      expect(extractDocument).not.toHaveBeenCalled();
+      expect(processPromptMock).toHaveBeenCalledWith(
+        ctx,
+        expect.stringContaining("Local text"),
+        deps,
+      );
+    });
+
+    it("renders page images for a scanned PDF and attaches them as image file parts", async () => {
+      const { ctx } = createDocumentContext({ document: pdfDocument, caption: "¿Qué dice?" });
+      const { deps, processPromptMock } = createDocumentDeps(noPdfCapabilities());
+      vi.mocked(extractPdfText).mockResolvedValue({ text: " \f\n", truncated: false });
+      vi.mocked(renderPdfPagesAsJpeg).mockResolvedValue({
+        pages: [Buffer.from([0xff, 0xd8, 0xff]), Buffer.from([0xff, 0xd8, 0xfe])],
+        totalPages: 7,
+      });
+
+      await handleDocumentMessage(ctx, deps);
+
+      expect(renderPdfPagesAsJpeg).toHaveBeenCalledWith(expect.any(Buffer));
+      expect(processPromptMock).toHaveBeenCalledWith(
+        ctx,
+        expect.stringContaining("first 2 of 7 pages"),
+        deps,
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: "file",
+            mime: "image/jpeg",
+            url: expect.stringMatching(/^data:image\/jpeg;base64,/),
+          }),
+        ]),
+      );
+      expect(processPromptMock).toHaveBeenCalledWith(
+        ctx,
+        expect.stringContaining("¿Qué dice?"),
+        deps,
+        expect.anything(),
+      );
+    });
+
+    it("shows extraction error for a scanned PDF when the model has no image input", async () => {
+      const { ctx, replyMock } = createDocumentContext({ document: pdfDocument, caption: "Léelo" });
+      const { deps, processPromptMock } = createDocumentDeps({
+        getModelCapabilities: vi.fn().mockResolvedValue({ input: { pdf: false, image: false } }),
+      });
+      vi.mocked(extractPdfText).mockResolvedValue({ text: " \f", truncated: false });
+
+      await handleDocumentMessage(ctx, deps);
+
+      expect(replyMock).toHaveBeenCalledWith(t("bot.document_extraction_error"));
+      expect(renderPdfPagesAsJpeg).not.toHaveBeenCalled();
+      expect(processPromptMock).toHaveBeenCalledWith(ctx, "Léelo", deps);
+    });
+
+    it("shows extraction error and falls back to caption when local extraction fails", async () => {
+      const { ctx, replyMock } = createDocumentContext({
+        document: pdfDocument,
+        caption: "Resume",
+      });
+      const { deps, processPromptMock } = createDocumentDeps(noPdfCapabilities());
+      vi.mocked(extractPdfText).mockRejectedValue(new Error("pdftotext crashed"));
+
+      await handleDocumentMessage(ctx, deps);
+
+      expect(replyMock).toHaveBeenCalledWith(t("bot.document_extraction_error"));
+      expect(processPromptMock).toHaveBeenCalledWith(ctx, "Resume", deps);
     });
   });
 

@@ -13,8 +13,20 @@ import {
   saveVideoForAgent,
   videoExtensionFor,
 } from "../../app/services/video-save-service.js";
-import { isDocExtractorConfigured, extractDocument } from "../../app/services/document-extractor-service.js";
-import { getModelCapabilities, supportsInput } from "../../app/services/model-capabilities-service.js";
+import {
+  isDocExtractorConfigured,
+  extractDocument,
+} from "../../app/services/document-extractor-service.js";
+import {
+  extractPdfText,
+  isLocalPdfExtractorAvailable,
+  renderPdfPagesAsJpeg,
+  MAX_EXTRACTED_TEXT_CHARS,
+} from "../../app/services/local-pdf-extractor-service.js";
+import {
+  getModelCapabilities,
+  supportsInput,
+} from "../../app/services/model-capabilities-service.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
@@ -200,6 +212,70 @@ export async function handleDocumentMessage(
       const capabilities = await getCapabilities(storedModel.providerID, storedModel.modelID);
 
       if (!supportsInput(capabilities, "pdf")) {
+        if (mimeType === "application/pdf" && isLocalPdfExtractorAvailable()) {
+          await ctx.reply(t("bot.file_downloading"));
+          if (await rejectQueuedMediaBeforePreparation(ctx, doc.file_size)) {
+            return;
+          }
+          const downloadedFile = await downloadFile(ctx.api, doc.file_id);
+
+          try {
+            const extracted = await extractPdfText(downloadedFile.buffer);
+
+            if (extracted.text.trim().length > 0) {
+              const truncationNote = extracted.truncated
+                ? `\n\n[... truncated after ${MAX_EXTRACTED_TEXT_CHARS} characters ...]`
+                : "";
+              const promptWithFile = `--- Content of ${filename} ---\n${extracted.text}${truncationNote}\n--- End of file ---\n\n${caption}`;
+
+              logger.info(
+                `[Document] Extracted PDF text locally: ${filename} (${extracted.text.length} chars${extracted.truncated ? ", truncated" : ""})`,
+              );
+
+              await submitPrompt(promptWithFile, [], doc.file_size);
+              return;
+            }
+
+            if (!supportsInput(capabilities, "image")) {
+              logger.warn(
+                `[Document] Scanned PDF ${filename}, but model ${storedModel.providerID}/${storedModel.modelID} doesn't support image input`,
+              );
+              await ctx.reply(t("bot.document_extraction_error"));
+              if (caption.trim().length > 0) {
+                await submitPrompt(caption);
+              }
+              return;
+            }
+
+            const rendered = await renderPdfPagesAsJpeg(downloadedFile.buffer);
+            const pageParts: FilePartInput[] = rendered.pages.map((pageBytes, index) => ({
+              type: "file",
+              mime: "image/jpeg",
+              filename: `${filename.replace(/\.pdf$/i, "")}-page-${index + 1}.jpg`,
+              url: toDataUri(pageBytes, "image/jpeg"),
+            }));
+            const scope =
+              rendered.totalPages !== null && rendered.totalPages > rendered.pages.length
+                ? `first ${rendered.pages.length} of ${rendered.totalPages} pages`
+                : `${rendered.pages.length} page(s)`;
+            const note = `--- Scanned PDF ${filename} without a text layer: ${scope} attached as images ---`;
+
+            logger.info(
+              `[Document] Scanned PDF ${filename}: rendered ${rendered.pages.length} page image(s) locally (total pages: ${rendered.totalPages ?? "unknown"})`,
+            );
+
+            await submitPrompt(caption ? `${caption}\n\n${note}` : note, pageParts, doc.file_size);
+          } catch (localErr) {
+            const errMsg = localErr instanceof Error ? localErr.message : String(localErr);
+            logger.error(`[Document] Local PDF extraction failed: ${errMsg}`);
+            await ctx.reply(t("bot.document_extraction_error"));
+            if (caption.trim().length > 0) {
+              await submitPrompt(caption);
+            }
+          }
+          return;
+        }
+
         if (isDocExtractorConfigured()) {
           logger.warn(
             `[Document] Model doesn't support PDF input, delegating document to DOC_EXTRACTOR_URL`,

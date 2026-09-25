@@ -284,6 +284,16 @@ Voice notes flow: Telegram OGG/OPUS → download → `ffmpeg` to 16 kHz mono WAV
 - **Accuracy** (measured 2026-09-17 on an edge-tts mixed es/en test set, key terms scored): 49% without biasing → 86% with hotwords (Qwen3-ASR-1.7B). Whisper large-v3-turbo (legacy `whisper-server.service` on :21000, unused by the bot) was rejected: it translates code-switched speech and hallucinates.
 - **Deploy**: the systemd service runs from `/home/ovreuc/opencode-telegram-bot-deploy` (separate checkout pinned to a commit — NOT this dev tree). Update with `git fetch origin && git checkout <sha>` + `systemctl --user restart opencode-telegram-bot.service`.
 
+## Local PDF extraction (fork addition)
+
+When the active model doesn't support PDF input (`input.pdf === false`, e.g. `opencode-go/deepseek-v4.1-flash`), the bot extracts PDFs **locally** with poppler-utils instead of requiring `DOC_EXTRACTOR_URL`:
+
+- Digital PDFs → `pdftotext` (piped through stdin, text capped at 100k chars).
+- Scanned PDFs (no text layer) → first 5 pages rendered with `pdftoppm` to JPEG and sent as image parts when the model supports image input; otherwise the user gets `bot.document_extraction_error`.
+- `DOC_EXTRACTOR_URL` stays as fallback for hosts without poppler and for non-PDF office formats; local extraction wins when available.
+
+Service: `src/app/services/local-pdf-extractor-service.ts` (availability = `pdftotext` on PATH). No new dependencies — poppler-utils is a system package, already present on the deploy host. Added 2026-09-25.
+
 ## CJK guard + auto-correction (fork addition)
 
 The model occasionally answers in Chinese/Japanese/Korean despite language instructions. **The primary fix lives in opencode itself** (global plugin `~/.config/opencode/plugins/cjk-guard.ts`, hook `experimental.text.complete`): it replaces mostly-CJK completed text with a Spanish notice before persisting and prompts the model to rewrite in Spanish at `session.idle` — so the TUI and every other client get the clean version too. The bot-side implementation below is the **delivery layer**: it filters live streaming deltas (which no opencode hook can intercept) and remains as a fallback if the plugin is absent — it stays dormant when the plugin already replaced the text.
