@@ -418,6 +418,13 @@ export const es: I18nDictionary = {
   "keyboard.variant": "💭 {name}",
   "keyboard.variant_default": "💡 Predeterminado",
   "keyboard.queued_prompt": "❌ {index}. {text}",
+  "queue.menu.title": "📥 Mensaje en cola #{index}:\n«{text}»",
+  "queue.menu.stop": "⏹ Parar el actual",
+  "queue.menu.send": "📨 Enviar ahora",
+  "queue.menu.delete": "🗑 Borrar",
+  "queue.action.stopped": "⏹ Tarea actual detenida. La cola seguirá enviándose.",
+  "queue.action.sending": "📨 Enviando ahora: «{text}»",
+  "queue.action.no_active_run": "No hay ninguna tarea en curso.",
   "queue.added":
     "📥 Añadido a la cola ({count}/{max}). Se enviará cuando termine la tarea actual.",
   "queue.media_limit": "⚠️ Los archivos multimedia en cola están limitados a {maxSizeMb} MiB. Espera a que se envíe un elemento.",

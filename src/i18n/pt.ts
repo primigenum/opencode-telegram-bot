@@ -421,6 +421,13 @@ export const pt: I18nDictionary = {
   "keyboard.variant": "💭 {name}",
   "keyboard.variant_default": "💡 Padrão",
   "keyboard.queued_prompt": "❌ {index}. {text}",
+  "queue.menu.title": "📥 Mensagem na fila #{index}:\n«{text}»",
+  "queue.menu.stop": "⏹ Parar a atual",
+  "queue.menu.send": "📨 Enviar agora",
+  "queue.menu.delete": "🗑 Excluir",
+  "queue.action.stopped": "⏹ Tarefa atual parada. A fila continua.",
+  "queue.action.sending": "📨 Enviando agora: «{text}»",
+  "queue.action.no_active_run": "Nenhuma tarefa em execução.",
   "queue.added":
     "📥 Adicionado à fila ({count}/{max}). Será enviado quando a tarefa atual terminar.",
   "queue.media_limit": "⚠️ A mídia na fila está limitada a {maxSizeMb} MiB. Aguarde o envio de um item.",

@@ -61,6 +61,32 @@ describe("app/managers/prompt-queue-manager", () => {
     expect(promptQueue.size()).toBe(1);
   });
 
+  it("moves an item to the front so it dispatches next", () => {
+    promptQueue.add(prompt("first"));
+    const second = promptQueue.add(prompt("second"));
+    promptQueue.add(prompt("third"));
+
+    const moved = promptQueue.moveToFront(second!.id);
+
+    expect(moved?.text).toBe("second");
+    expect(promptQueue.list().map((item) => item.text)).toEqual(["second", "first", "third"]);
+  });
+
+  it("keeps the order when the moved item is already first", () => {
+    const first = promptQueue.add(prompt("first"));
+    promptQueue.add(prompt("second"));
+
+    expect(promptQueue.moveToFront(first!.id)?.text).toBe("first");
+    expect(promptQueue.list().map((item) => item.text)).toEqual(["first", "second"]);
+  });
+
+  it("returns null when moving an unknown id", () => {
+    promptQueue.add(prompt("first"));
+
+    expect(promptQueue.moveToFront("queued-999")).toBeNull();
+    expect(promptQueue.list().map((item) => item.text)).toEqual(["first"]);
+  });
+
   it("releases raw media bytes when an item is removed", () => {
     const queued = promptQueue.add({
       ...prompt("photo"),

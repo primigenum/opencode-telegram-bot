@@ -21,9 +21,9 @@ import {
   QUEUED_PROMPT_BUTTON_TEXT_PATTERN,
   VARIANT_BUTTON_TEXT_PATTERN,
 } from "../message-patterns.js";
-import { promptQueue } from "../../app/managers/prompt-queue-manager.js";
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
 import { findQueuedPromptByButtonLabel } from "../keyboards/queued-prompt-button.js";
+import { showQueuedPromptMenu } from "../menus/queued-prompt-menu.js";
 import { handleDocumentMessage } from "../handlers/document-handler.js";
 import { handleVideoMessage } from "../handlers/video-handler.js";
 import { createMediaGroupAttachmentMiddleware } from "../handlers/media-group-handler.js";
@@ -67,9 +67,13 @@ export function registerMessageRouter(bot: Bot<Context>, deps: MessageRouterDeps
     const queuedPrompt = label ? findQueuedPromptByButtonLabel(label) : null;
 
     if (queuedPrompt) {
-      promptQueue.removeById(queuedPrompt.id);
-      const keyboard = keyboardManager.getKeyboard();
-      await ctx.reply(t("queue.removed"), keyboard ? { reply_markup: keyboard } : {});
+      // The menu offers stop-current / send-now / delete; deleting is now an
+      // explicit action, so a stray tap can no longer drop a queued message.
+      const shown = await showQueuedPromptMenu(ctx, queuedPrompt);
+      if (!shown) {
+        const keyboard = keyboardManager.getKeyboard();
+        await ctx.reply(t("queue.not_found"), keyboard ? { reply_markup: keyboard } : {});
+      }
       return;
     }
 
