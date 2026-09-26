@@ -1,7 +1,7 @@
 import { Context } from "grammy";
 import {
   applyAgentConfiguredSettings,
-  selectAgent,
+  selectAgentForCurrentProject,
 } from "../../app/services/agent-selection-service.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
 import { formatVariantForButton } from "../../app/services/variant-selection-service.js";
@@ -44,7 +44,7 @@ export async function handleAgentSelect(ctx: Context): Promise<boolean> {
 
     const agentName = callbackQuery.data.replace("agent:", "");
 
-    selectAgent(agentName);
+    selectAgentForCurrentProject(agentName);
     const settingsApplied = await applyAgentConfiguredSettings(agentName);
 
     keyboardManager.updateAgent(agentName);

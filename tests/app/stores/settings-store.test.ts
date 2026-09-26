@@ -21,7 +21,7 @@ const configMock = vi.hoisted(() => ({
   tts: { apiUrl: "", apiKey: "" },
 }));
 vi.mock("#src/config.ts", () => ({ config: configMock }));
-const { __resetSettingsForTests, flushSettings, getCompactOutputMode, getDeleteCompactProgressOnFinish, getPromptQueueEnabled, getResponseStreamingMode, getScheduledTasks, getSendDiffFileAttachments, getShowAssistantRunFooter, getShowThinkingContent, getTtsMode, loadSettings, setCompactOutputMode, setPromptQueueEnabled, setResponseStreamingMode, setScheduledTasks, setSendDiffFileAttachments, setShowAssistantRunFooter, setShowThinkingContent } = await loadSut<typeof import("#src/app/stores/settings-store.js")>(
+const { __resetSettingsForTests, flushSettings, getCompactOutputMode, getDeleteCompactProgressOnFinish, getPromptQueueEnabled, getProjectAgent, getResponseStreamingMode, getScheduledTasks, getSendDiffFileAttachments, getShowAssistantRunFooter, getShowThinkingContent, getTtsMode, loadSettings, setCompactOutputMode, setProjectAgent, setPromptQueueEnabled, setResponseStreamingMode, setScheduledTasks, setSendDiffFileAttachments, setShowAssistantRunFooter, setShowThinkingContent } = await loadSut<typeof import("#src/app/stores/settings-store.js")>(
   "#src/app/stores/settings-store.ts",
   import.meta.url,
 );
@@ -456,5 +456,25 @@ describe("app/stores/settings-store", () => {
       const settings = JSON.parse(await readFile(path.join(tempHome, "settings.json"), "utf-8"));
       expect(settings.responseStreamingMode).toBe("draft");
     });
+  });
+
+  it("stores project agents per worktree", async () => {
+    await loadSettings();
+
+    setProjectAgent("/workspace/project-a", "boss");
+
+    expect(getProjectAgent("/workspace/project-a")).toBe("boss");
+    expect(getProjectAgent("/workspace/project-b")).toBeUndefined();
+  });
+
+  it("persists project agents across reloads", async () => {
+    await loadSettings();
+    setProjectAgent("/workspace/project-a", "boss");
+    await flushSettings();
+
+    __resetSettingsForTests();
+    await loadSettings();
+
+    expect(getProjectAgent("/workspace/project-a")).toBe("boss");
   });
 });
