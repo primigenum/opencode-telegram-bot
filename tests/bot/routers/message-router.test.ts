@@ -56,7 +56,7 @@ describe("bot/routers/message-router", () => {
       return {
         chat: { id: 42 },
         message: { text },
-        reply: vi.fn().mockResolvedValue(undefined),
+        reply: vi.fn().mockResolvedValue({ message_id: 99 }),
       };
     }
 
@@ -65,7 +65,7 @@ describe("bot/routers/message-router", () => {
       interactionManager.clear("message_router_test_reset");
     });
 
-    it("removes the pressed prompt from the middle of the queue", async () => {
+    it("opens the queue menu instead of removing the pressed prompt", async () => {
       promptQueue.add(createIncomingPrompt("first"));
       promptQueue.add(createIncomingPrompt("second"));
       promptQueue.add(createIncomingPrompt("third"));
@@ -75,8 +75,25 @@ describe("bot/routers/message-router", () => {
 
       await handler(ctx, next);
 
-      expect(promptQueue.list().map((item) => item.text)).toEqual(["first", "third"]);
-      expect(ctx.reply).toHaveBeenCalledWith(t("queue.removed"), expect.anything());
+      // Nothing is removed: stop/send/delete are explicit menu actions now.
+      expect(promptQueue.list().map((item) => item.text)).toEqual(["first", "second", "third"]);
+      expect(interactionManager.getSnapshot()?.kind).toBe("inline");
+
+      const replyOptions = defined(ctx.reply.mock.calls[0]?.[1]) as {
+        reply_markup: { inline_keyboard: Array<Array<{ callback_data?: string }>> };
+      };
+      const callbackData = replyOptions.reply_markup.inline_keyboard
+        .flat()
+        .map((button) => button.callback_data);
+      expect(callbackData).toEqual([
+        "queue:stop:queued-2",
+        "queue:send:queued-2",
+        "queue:delete:queued-2",
+        "inline:cancel:queue",
+      ]);
+      expect(defined(ctx.reply.mock.calls[0]?.[0])).toBe(
+        t("queue.menu.title", { index: "2", text: "second" }),
+      );
       expect(next).not.toHaveBeenCalled();
     });
 

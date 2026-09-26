@@ -16,6 +16,11 @@ type SessionState = "idle" | "busy" | "not-found";
 
 interface AbortCurrentOperationOptions {
   notifyUser?: boolean;
+  /**
+   * Keep queued prompts instead of dropping them. Used by the queued-message
+   * menu: stop only the running task and let the queue keep draining.
+   */
+  keepQueue?: boolean;
 }
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -75,10 +80,13 @@ export async function abortCurrentOperation(
   options: AbortCurrentOperationOptions = {},
 ): Promise<void> {
   const notifyUser = options.notifyUser ?? true;
+  const keepQueue = options.keepQueue ?? false;
 
   try {
     abortLocalStreaming();
-    promptQueue.clear("abort_command");
+    if (!keepQueue) {
+      promptQueue.clear("abort_command");
+    }
     // abortLocalStreaming drops the waiting mode, so the attachment has to go with it -
     // otherwise it would ride along on the next, unrelated prompt with no confirmation left.
     promptAttachment.clear("abort_command");

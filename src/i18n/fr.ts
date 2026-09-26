@@ -422,6 +422,13 @@ export const fr: I18nDictionary = {
   "keyboard.variant": "💭 {name}",
   "keyboard.variant_default": "💡 Par défaut",
   "keyboard.queued_prompt": "❌ {index}. {text}",
+  "queue.menu.title": "📥 Message en file d'attente #{index} :\n«{text}»",
+  "queue.menu.stop": "⏹ Arrêter la tâche",
+  "queue.menu.send": "📨 Envoyer maintenant",
+  "queue.menu.delete": "🗑 Supprimer",
+  "queue.action.stopped": "⏹ Tâche actuelle arrêtée. La file d'attente continue.",
+  "queue.action.sending": "📨 Envoi maintenant : «{text}»",
+  "queue.action.no_active_run": "Aucune tâche en cours.",
   "queue.added":
     "📥 Ajouté à la file d'attente ({count}/{max}). Le message sera envoyé à la fin de la tâche en cours.",
   "queue.media_limit": "⚠️ Les médias en file sont limités à {maxSizeMb} MiB. Attendez l'envoi d'un élément.",

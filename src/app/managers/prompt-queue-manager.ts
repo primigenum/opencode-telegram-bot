@@ -79,6 +79,28 @@ class PromptQueueManager {
     return removed;
   }
 
+  /**
+   * Move an item to the front so it is the next one dispatched.
+   * @returns the moved item, or null when the id is not queued
+   */
+  moveToFront(id: string): QueuedPrompt | null {
+    const index = this.items.findIndex((item) => item.id === id);
+    if (index < 0) {
+      return null;
+    }
+
+    const [moved] = this.items.splice(index, 1);
+    if (!moved) {
+      return null;
+    }
+
+    this.items.unshift(moved);
+    logger.debug(
+      `[PromptQueue] Prompt moved to front: id=${moved.id}, from=${index + 1}, size=${this.items.length}`,
+    );
+    return moved;
+  }
+
   takeNext(): QueuedPrompt | null {
     const item = this.items.shift() ?? null;
     if (item) {

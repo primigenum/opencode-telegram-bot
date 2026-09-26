@@ -17,6 +17,7 @@ const INLINE_MENU_KINDS = [
   "open",
   "ls",
   "worktree",
+  "queue",
   "settings",
 ] as const;
 

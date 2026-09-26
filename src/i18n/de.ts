@@ -421,6 +421,13 @@ export const de: I18nDictionary = {
   "keyboard.variant": "💭 {name}",
   "keyboard.variant_default": "💡 Standard",
   "keyboard.queued_prompt": "❌ {index}. {text}",
+  "queue.menu.title": "📥 Nachricht in der Warteschlange #{index}:\n«{text}»",
+  "queue.menu.stop": "⏹ Aktuelle stoppen",
+  "queue.menu.send": "📨 Jetzt senden",
+  "queue.menu.delete": "🗑 Löschen",
+  "queue.action.stopped": "⏹ Aktuelle Aufgabe gestoppt. Die Warteschlange läuft weiter.",
+  "queue.action.sending": "📨 Wird jetzt gesendet: «{text}»",
+  "queue.action.no_active_run": "Derzeit läuft keine Aufgabe.",
   "queue.added":
     "📥 Zur Warteschlange hinzugefügt ({count}/{max}). Die Nachricht wird gesendet, sobald die aktuelle Aufgabe abgeschlossen ist.",
   "queue.media_limit": "⚠️ Medien in der Warteschlange sind auf {maxSizeMb} MiB begrenzt. Warte, bis ein Eintrag gesendet wurde.",

@@ -218,6 +218,30 @@ describe("bot/commands/abort", () => {
     expect(promptQueue.size()).toBe(0);
   });
 
+  it("keeps queued prompts when the abort keeps the queue", async () => {
+    mocked.currentSession = {
+      id: "session-1",
+      title: "Session",
+      directory: "D:\\Projects\\Repo",
+    };
+    mocked.abortMock.mockResolvedValue({ data: true, error: null });
+    mocked.statusMock.mockResolvedValue({
+      data: { "session-1": { type: "idle" } },
+      error: null,
+    });
+    promptQueue.add(createIncomingPrompt("queued while running"));
+
+    const ctx = {
+      chat: { id: 777 },
+      reply: vi.fn().mockResolvedValue({ message_id: 88 }),
+      api: { editMessageText: vi.fn().mockResolvedValue(undefined) },
+    } as unknown as Context;
+
+    await abortCurrentOperation(ctx, { notifyUser: false, keepQueue: true });
+
+    expect(promptQueue.size()).toBe(1);
+  });
+
   it("drops the pending attachment so it does not ride along on a later prompt", async () => {
     mocked.currentSession = {
       id: "session-1",
