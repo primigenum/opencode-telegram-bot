@@ -154,6 +154,9 @@ Agent picker behavior:
 - Picking an agent applies that agent's configured model and/or variant when the agent names
   them; a field the agent does not name is left as it is. This is not a model pick and does
   not open the variant menu
+- A per-project default agent lives in `settings.json` under `projectAgents` (keyed by project
+  worktree): new sessions and prompts in that project use it, and picking an agent while the
+  project is active stores the choice for the project only
 
 ### Main features already implemented
 

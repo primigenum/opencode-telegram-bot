@@ -3,7 +3,7 @@ import { loadSut } from "#helpers/sut-loader.js";
 
 const mocked = {
   getAvailableAgentsMock: vi.fn(),
-  selectAgentMock: vi.fn(),
+  selectAgentForCurrentProjectMock: vi.fn(),
   applyAgentConfiguredSettingsMock: vi.fn(),
   getStoredModelMock: vi.fn(),
   ensureActiveInlineMenuMock: vi.fn(),
@@ -26,7 +26,7 @@ const mocked = {
 vi.mock("#src/app/services/agent-selection-service.ts", () => ({
   fetchCurrentAgent: vi.fn(),
   getAvailableAgents: mocked.getAvailableAgentsMock,
-  selectAgent: mocked.selectAgentMock,
+  selectAgentForCurrentProject: mocked.selectAgentForCurrentProjectMock,
   applyAgentConfiguredSettings: mocked.applyAgentConfiguredSettingsMock,
   getStoredAgent: vi.fn(),
   resolveProjectAgent: vi.fn(),
@@ -122,7 +122,7 @@ function mockContext(overrides: Record<string, unknown> = {}) {
 describe("bot agent selection", () => {
   beforeEach(() => {
     mocked.getAvailableAgentsMock.mockReset();
-    mocked.selectAgentMock.mockReset();
+    mocked.selectAgentForCurrentProjectMock.mockReset();
     mocked.applyAgentConfiguredSettingsMock.mockReset();
     mocked.getStoredModelMock.mockReset();
     mocked.ensureActiveInlineMenuMock.mockReset();
@@ -180,7 +180,7 @@ describe("bot agent selection", () => {
     const result = await handleAgentSelect(ctx);
 
     expect(result).toBe(true);
-    expect(mocked.selectAgentMock).toHaveBeenCalledWith("plan");
+    expect(mocked.selectAgentForCurrentProjectMock).toHaveBeenCalledWith("plan");
     expect(mocked.applyAgentConfiguredSettingsMock).toHaveBeenCalledWith("plan");
     expect(mocked.createMainKeyboardMock).toHaveBeenCalledWith(
       "plan",

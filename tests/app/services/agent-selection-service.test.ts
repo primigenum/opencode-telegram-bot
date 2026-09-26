@@ -21,11 +21,13 @@ interface TestState {
       }
     | undefined;
   currentAgent: string | undefined;
+  projectAgents: Record<string, string> | undefined;
 }
 const state: TestState = (globalThis as Record<string, TestState>)[TEST_STATE_KEY] ??= {
   currentProject: undefined,
   currentSession: undefined,
   currentAgent: undefined,
+  projectAgents: undefined,
 };
 
 const mocked = {
@@ -36,6 +38,10 @@ const mocked = {
   getCurrentAgentMock: vi.fn(() => state.currentAgent),
   setCurrentAgentMock: vi.fn((agentName: string) => {
     state.currentAgent = agentName;
+  }),
+  getProjectAgentMock: vi.fn((worktree: string) => state.projectAgents?.[worktree]),
+  setProjectAgentMock: vi.fn((worktree: string, agentName: string) => {
+    state.projectAgents = { ...state.projectAgents, [worktree]: agentName };
   }),
   selectModelMock: vi.fn(),
   getStoredModelMock: vi.fn(() => ({
@@ -84,6 +90,8 @@ vi.mock("#src/app/stores/settings-store.ts", () => {
     "getCurrentAgent",
     "setCurrentAgent",
     "clearCurrentAgent",
+    "getProjectAgent",
+    "setProjectAgent",
     "getCurrentModel",
     "setCurrentModel",
     "clearCurrentModel",
@@ -119,6 +127,8 @@ vi.mock("#src/app/stores/settings-store.ts", () => {
   stub.getCurrentProject = mocked.getCurrentProjectMock;
   stub.getCurrentAgent = mocked.getCurrentAgentMock;
   stub.setCurrentAgent = mocked.setCurrentAgentMock;
+  stub.getProjectAgent = mocked.getProjectAgentMock;
+  stub.setProjectAgent = mocked.setProjectAgentMock;
   return stub;
 });
 
@@ -189,6 +199,8 @@ describe("agent/manager", () => {
     mocked.getCurrentSessionMock.mockClear();
     mocked.getCurrentAgentMock.mockClear();
     mocked.setCurrentAgentMock.mockClear();
+    mocked.getProjectAgentMock.mockClear();
+    mocked.setProjectAgentMock.mockClear();
     mocked.selectModelMock.mockReset();
     mocked.getStoredModelMock.mockClear();
     mocked.setCurrentVariantMock.mockReset();
@@ -199,6 +211,7 @@ describe("agent/manager", () => {
     state.currentProject = undefined;
     state.currentSession = undefined;
     state.currentAgent = undefined;
+    state.projectAgents = undefined;
   });
 
   it("filters out hidden agents and subagents", async () => {
@@ -280,6 +293,86 @@ describe("agent/manager", () => {
     const result = await sut.fetchCurrentAgent();
 
     expect(result).toBe("build");
+    expect(mocked.setCurrentAgentMock).toHaveBeenCalledWith("build");
+  });
+
+  it("prefers the project agent over the stored agent", async () => {
+    mocked.setCurrentProject({
+      id: "project-1",
+      worktree: "/workspace/project-1",
+      name: "project-1",
+    });
+    mocked.setCurrentAgent("bypass");
+    state.projectAgents = { "/workspace/project-1": "boss" };
+    mocked.appAgentsMock.mockResolvedValue(
+      createAgentResponse([
+        { name: "boss", mode: "primary" },
+        { name: "build", mode: "primary" },
+      ]),
+    );
+
+    const result = await sut.resolveProjectAgent("bypass");
+
+    expect(result).toBe("boss");
+  });
+
+  it("falls back to build when the project agent is unavailable", async () => {
+    mocked.setCurrentProject({
+      id: "project-1",
+      worktree: "/workspace/project-1",
+      name: "project-1",
+    });
+    state.projectAgents = { "/workspace/project-1": "boss" };
+    mocked.appAgentsMock.mockResolvedValue(
+      createAgentResponse([
+        { name: "build", mode: "primary" },
+        { name: "plan", mode: "primary" },
+      ]),
+    );
+
+    const result = await sut.resolveProjectAgent();
+
+    expect(result).toBe("build");
+    expect(mocked.setCurrentAgentMock).toHaveBeenCalledWith("build");
+  });
+
+  it("reports the project agent when there is an active project without a session", async () => {
+    mocked.setCurrentProject({
+      id: "project-1",
+      worktree: "/workspace/project-1",
+      name: "project-1",
+    });
+    mocked.setCurrentAgent("bypass");
+    state.projectAgents = { "/workspace/project-1": "boss" };
+    mocked.appAgentsMock.mockResolvedValue(
+      createAgentResponse([
+        { name: "boss", mode: "primary" },
+        { name: "build", mode: "primary" },
+      ]),
+    );
+
+    const result = await sut.fetchCurrentAgent();
+
+    expect(result).toBe("boss");
+  });
+
+  it("stores the picked agent for the current project only", () => {
+    mocked.setCurrentProject({
+      id: "project-1",
+      worktree: "/workspace/project-1",
+      name: "project-1",
+    });
+
+    sut.selectAgentForCurrentProject("boss");
+
+    expect(mocked.setProjectAgentMock).toHaveBeenCalledWith("/workspace/project-1", "boss");
+    expect(mocked.setCurrentAgentMock).not.toHaveBeenCalled();
+  });
+
+  it("stores the picked agent globally when there is no active project", () => {
+    sut.selectAgentForCurrentProject("build");
+
+    expect(mocked.setProjectAgentMock).not.toHaveBeenCalled();
     expect(mocked.setCurrentAgentMock).toHaveBeenCalledWith("build");
   });
 });

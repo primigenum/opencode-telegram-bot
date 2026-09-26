@@ -1,5 +1,11 @@
 import { opencodeClient } from "../../opencode/client.js";
-import { getCurrentAgent, getCurrentProject, setCurrentAgent } from "../stores/settings-store.js";
+import {
+  getCurrentAgent,
+  getCurrentProject,
+  getProjectAgent,
+  setCurrentAgent,
+  setProjectAgent,
+} from "../stores/settings-store.js";
 import { getCurrentSession } from "./session-service.js";
 import { getStoredModel, selectModel } from "./model-selection-service.js";
 import { setCurrentVariant } from "./variant-selection-service.js";
@@ -51,7 +57,8 @@ function pickFallbackAgent(agents: AgentInfo[]): string {
 }
 
 export async function resolveProjectAgent(preferredAgent?: string): Promise<string> {
-  const requestedAgent = preferredAgent ?? getCurrentAgent() ?? DEFAULT_AGENT;
+  const requestedAgent =
+    getProjectStoredAgent() ?? preferredAgent ?? getCurrentAgent() ?? DEFAULT_AGENT;
   const project = getCurrentProject();
 
   if (!project) {
@@ -81,7 +88,7 @@ export async function resolveProjectAgent(preferredAgent?: string): Promise<stri
  * @returns Current agent name
  */
 export async function fetchCurrentAgent(): Promise<string> {
-  const storedAgent = getCurrentAgent();
+  const storedAgent = getProjectStoredAgent() ?? getCurrentAgent();
   const session = getCurrentSession();
   const project = getCurrentProject();
 
@@ -144,6 +151,23 @@ export function selectAgent(agentName: string): void {
   setCurrentAgent(agentName);
 }
 
+/**
+ * Persist the picked agent: project-scoped when there is an active project,
+ * global otherwise. A project choice only overrides the global default for
+ * that project.
+ * @param agentName Name of the agent to select
+ */
+export function selectAgentForCurrentProject(agentName: string): void {
+  const project = getCurrentProject();
+  if (project) {
+    logger.info(`[AgentManager] Selected agent: ${agentName} (project ${project.worktree})`);
+    setProjectAgent(project.worktree, agentName);
+    return;
+  }
+
+  selectAgent(agentName);
+}
+
 function configuredField(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
@@ -201,9 +225,24 @@ export async function applyAgentConfiguredSettings(agentName: string): Promise<b
 }
 
 /**
- * Get stored agent from settings (synchronous)
+ * Agent configured for the active project, if any. Project defaults win over
+ * the globally stored agent for that project.
+ * @returns Project agent name or undefined
+ */
+export function getProjectStoredAgent(): string | undefined {
+  const worktree = getCurrentProject()?.worktree;
+  if (!worktree) {
+    return undefined;
+  }
+
+  return getProjectAgent(worktree);
+}
+
+/**
+ * Get stored agent from settings (synchronous). The active project's configured
+ * agent wins over the global one.
  * @returns Current agent name or default "build"
  */
 export function getStoredAgent(): string {
-  return getCurrentAgent() ?? "build";
+  return getProjectStoredAgent() ?? getCurrentAgent() ?? "build";
 }

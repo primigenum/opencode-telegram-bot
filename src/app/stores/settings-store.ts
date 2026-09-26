@@ -262,6 +262,15 @@ export function clearCurrentAgent(): void {
   void writeSettingsFile(currentSettings);
 }
 
+export function getProjectAgent(worktree: string): string | undefined {
+  return currentSettings.projectAgents?.[worktree];
+}
+
+export function setProjectAgent(worktree: string, agentName: string): void {
+  currentSettings.projectAgents = { ...currentSettings.projectAgents, [worktree]: agentName };
+  void writeSettingsFile(currentSettings);
+}
+
 export function getCurrentModel(): ModelInfo | undefined {
   return currentSettings.currentModel;
 }

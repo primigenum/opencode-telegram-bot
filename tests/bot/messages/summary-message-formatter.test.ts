@@ -27,6 +27,8 @@ vi.mock("#src/app/stores/settings-store.ts", () => {
     "getCurrentAgent",
     "setCurrentAgent",
     "clearCurrentAgent",
+    "getProjectAgent",
+    "setProjectAgent",
     "getCurrentModel",
     "setCurrentModel",
     "clearCurrentModel",

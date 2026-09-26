@@ -14,6 +14,8 @@ export interface Settings {
   currentProject?: ProjectInfo | undefined;
   currentSession?: SessionInfo | undefined;
   currentAgent?: string | undefined;
+  /** Default agent per project worktree; wins over currentAgent for that project */
+  projectAgents?: Record<string, string> | undefined;
   currentModel?: ModelInfo | undefined;
   pinnedMessageId?: number | undefined;
   ttsMode?: "off" | "all" | "auto" | undefined;
