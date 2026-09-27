@@ -58,7 +58,7 @@ Each task captures the **opencode agent** you have selected when creating it:
 | Agent | Behavior in the task |
 |-------|----------------------|
 | `build` (default) | Asks for confirmation before editing files |
-| `bypass` | Auto-approves everything — maximum power, useful for autonomous tasks |
+| `executor` | Auto-approving build agent — maximum power for autonomous tasks |
 | `general` | Balanced, for research tasks |
 
 - The agent is shown in the task details (`🛠️ Build · openai/gpt-5`)
