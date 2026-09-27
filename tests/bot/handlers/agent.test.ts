@@ -1,8 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
+import { createSettingsStoreMock } from "#helpers/settings-store-mock.js";
 import { loadSut } from "#helpers/sut-loader.js";
+
+const menuState = vi.hoisted(() => ({ agents: [] as string[] }));
 
 const mocked = {
   getAvailableAgentsMock: vi.fn(),
+  loggerWarnMock: vi.fn(),
   selectAgentForCurrentProjectMock: vi.fn(),
   applyAgentConfiguredSettingsMock: vi.fn(),
   getStoredModelMock: vi.fn(),
@@ -89,14 +93,27 @@ vi.mock("#src/bot/menus/variant-selection-menu.ts", () => ({
   showVariantSelectionMenuAfterModelChange: mocked.showVariantMenuAfterModelChangeMock,
 }));
 
-const { buildAgentSelectionMenu } = await loadSut<typeof import("#src/bot/menus/agent-selection-menu.js")>(
-  "#src/bot/menus/agent-selection-menu.ts",
-  import.meta.url,
-);
-const { handleAgentSelect } = await loadSut<typeof import("#src/bot/callbacks/agent-selection-callback-handler.js")>(
-  "#src/bot/callbacks/agent-selection-callback-handler.ts",
-  import.meta.url,
-);
+vi.mock("#src/utils/logger.ts", () => ({
+  logger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: mocked.loggerWarnMock,
+    error: vi.fn(),
+  },
+}));
+
+vi.mock("#src/app/stores/settings-store.ts", () => {
+  const mock = createSettingsStoreMock();
+  mock.getMenuAgents = vi.fn(() => menuState.agents);
+  return mock;
+});
+
+const { buildAgentSelectionMenu, showAgentSelectionMenu } = await loadSut<
+  typeof import("#src/bot/menus/agent-selection-menu.js")
+>("#src/bot/menus/agent-selection-menu.ts", import.meta.url);
+const { handleAgentSelect } = await loadSut<
+  typeof import("#src/bot/callbacks/agent-selection-callback-handler.js")
+>("#src/bot/callbacks/agent-selection-callback-handler.ts", import.meta.url);
 const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
   "#src/i18n/index.ts",
   import.meta.url,
@@ -122,6 +139,7 @@ function mockContext(overrides: Record<string, unknown> = {}) {
 describe("bot agent selection", () => {
   beforeEach(() => {
     mocked.getAvailableAgentsMock.mockReset();
+    mocked.loggerWarnMock.mockReset();
     mocked.selectAgentForCurrentProjectMock.mockReset();
     mocked.applyAgentConfiguredSettingsMock.mockReset();
     mocked.getStoredModelMock.mockReset();
@@ -139,6 +157,7 @@ describe("bot agent selection", () => {
     mocked.createMainKeyboardMock.mockReset();
     mocked.switchedMock.mockReset();
     mocked.showVariantMenuAfterModelChangeMock.mockReset();
+    mocked.replyWithInlineMenuMock.mockReset();
 
     mocked.ensureActiveInlineMenuMock.mockResolvedValue(true);
     mocked.applyAgentConfiguredSettingsMock.mockResolvedValue(false);
@@ -154,6 +173,58 @@ describe("bot agent selection", () => {
     mocked.switchedMock.mockResolvedValue(undefined);
     mocked.pinnedRefreshMock.mockResolvedValue(undefined);
     mocked.pinnedRefreshContextLimitMock.mockResolvedValue(undefined);
+    menuState.agents = [];
+  });
+
+  it("shows only the allowlisted agents in allowlist order", async () => {
+    mocked.getAvailableAgentsMock.mockResolvedValueOnce([
+      { name: "build", mode: "primary" },
+      { name: "executor", mode: "all" },
+      { name: "boss", mode: "primary" },
+    ]);
+    menuState.agents = ["boss", "executor"];
+
+    const keyboard = await buildAgentSelectionMenu();
+
+    expect(keyboard.inline_keyboard.map((row) => row[0]?.callback_data)).toEqual([
+      "agent:boss",
+      "agent:executor",
+    ]);
+  });
+
+  it("shows every available agent when no allowlist is configured", async () => {
+    mocked.getAvailableAgentsMock.mockResolvedValueOnce([
+      { name: "build", mode: "primary" },
+      { name: "boss", mode: "primary" },
+    ]);
+
+    const keyboard = await buildAgentSelectionMenu();
+
+    expect(keyboard.inline_keyboard.map((row) => row[0]?.callback_data)).toEqual([
+      "agent:build",
+      "agent:boss",
+    ]);
+  });
+
+  it("ignores allowlisted names that are not available and warns", async () => {
+    mocked.getAvailableAgentsMock.mockResolvedValueOnce([{ name: "boss", mode: "primary" }]);
+    menuState.agents = ["boss", "ghost"];
+
+    const keyboard = await buildAgentSelectionMenu();
+
+    expect(keyboard.inline_keyboard.map((row) => row[0]?.callback_data)).toEqual(["agent:boss"]);
+    expect(mocked.loggerWarnMock).toHaveBeenCalledWith(expect.stringContaining('"ghost"'));
+  });
+
+  it("replies with the empty menu message when the allowlist matches no available agent", async () => {
+    mocked.getAvailableAgentsMock.mockResolvedValueOnce([{ name: "boss", mode: "primary" }]);
+    menuState.agents = ["ghost"];
+
+    const ctx = mockContext();
+    await showAgentSelectionMenu(ctx);
+
+    expect(ctx.reply).toHaveBeenCalledWith(t("agent.menu.empty"));
+    expect(mocked.replyWithInlineMenuMock).not.toHaveBeenCalled();
   });
 
   it("highlights the selected agent without uppercasing its name", async () => {

@@ -1,9 +1,32 @@
 import { Context, InlineKeyboard } from "grammy";
-import { fetchCurrentAgent, getAvailableAgents } from "../../app/services/agent-selection-service.js";
-import { getAgentDisplayName } from "../../app/types/agent.js";
+import {
+  fetchCurrentAgent,
+  getAvailableAgents,
+} from "../../app/services/agent-selection-service.js";
+import { getMenuAgents } from "../../app/stores/settings-store.js";
+import { getAgentDisplayName, type AgentInfo } from "../../app/types/agent.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
 import { replyWithInlineMenu } from "./inline-menu.js";
+
+/**
+ * Restrict and reorder the available agents to the configured allowlist.
+ * Allowlisted names without an available agent are logged and skipped.
+ */
+function applyMenuAllowlist(agents: AgentInfo[], menuAgents: string[]): AgentInfo[] {
+  const selected: AgentInfo[] = [];
+
+  for (const name of menuAgents) {
+    const agent = agents.find((entry) => entry.name === name);
+    if (!agent) {
+      logger.warn(`[AgentHandler] Menu agent "${name}" is not available and will be hidden`);
+      continue;
+    }
+    selected.push(agent);
+  }
+
+  return selected;
+}
 
 /**
  * Build inline keyboard with available agents
@@ -12,12 +35,16 @@ import { replyWithInlineMenu } from "./inline-menu.js";
  */
 export async function buildAgentSelectionMenu(currentAgent?: string): Promise<InlineKeyboard> {
   const keyboard = new InlineKeyboard();
-  const agents = await getAvailableAgents();
+  const availableAgents = await getAvailableAgents();
 
-  if (agents.length === 0) {
+  if (availableAgents.length === 0) {
     logger.warn("[AgentHandler] No available agents found");
     return keyboard;
   }
+
+  const menuAgents = getMenuAgents();
+  const agents =
+    menuAgents.length > 0 ? applyMenuAllowlist(availableAgents, menuAgents) : availableAgents;
 
   // Add button for each agent
   agents.forEach((agent) => {
@@ -41,7 +68,8 @@ export async function showAgentSelectionMenu(ctx: Context): Promise<void> {
     const currentAgent = await fetchCurrentAgent();
     const keyboard = await buildAgentSelectionMenu(currentAgent);
 
-    if (keyboard.inline_keyboard.length === 0) {
+    const hasButtons = keyboard.inline_keyboard.some((row) => row.length > 0);
+    if (!hasButtons) {
       await ctx.reply(t("agent.menu.empty"));
       return;
     }
