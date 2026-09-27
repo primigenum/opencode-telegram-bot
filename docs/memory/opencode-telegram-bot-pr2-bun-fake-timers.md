@@ -140,7 +140,7 @@ The cleanest suspect for the fix location is the `TimerHeap` (where `setImmediat
 
 ## User's standing preferences to remember
 
-- `/agent bypass` is active for this session
+- `/agent executor` is active for this session
 - Spanish responses, English in code/comments
 - Never commit without explicit ask
 - "Ve subiendo los tests, el runner los corre antes, checkea directamente en el ci y ya" — push to CI, check there
