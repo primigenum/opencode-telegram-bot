@@ -262,6 +262,10 @@ export function clearCurrentAgent(): void {
   void writeSettingsFile(currentSettings);
 }
 
+export function getMenuAgents(): string[] {
+  return currentSettings.agentMenu ?? [];
+}
+
 export function getProjectAgent(worktree: string): string | undefined {
   return currentSettings.projectAgents?.[worktree];
 }

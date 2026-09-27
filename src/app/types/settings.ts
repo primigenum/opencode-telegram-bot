@@ -16,6 +16,8 @@ export interface Settings {
   currentAgent?: string | undefined;
   /** Default agent per project worktree; wins over currentAgent for that project */
   projectAgents?: Record<string, string> | undefined;
+  /** Agents shown in the bot agent picker; absent or empty means all available agents */
+  agentMenu?: string[] | undefined;
   currentModel?: ModelInfo | undefined;
   pinnedMessageId?: number | undefined;
   ttsMode?: "off" | "all" | "auto" | undefined;
