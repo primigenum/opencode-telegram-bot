@@ -371,6 +371,15 @@ describe("interaction guard", () => {
     expect(decision.busy).toBe(true);
   });
 
+  it("allows the project swap button while busy so the switch can detach the session", () => {
+    foregroundSessionState.markBusy("session-1", "D:\\Projects\\Repo");
+
+    const decision = resolveInteractionGuardDecision(createContext({ text: "🔄 primigenum" }));
+
+    expect(decision.allow).toBe(true);
+    expect(decision.busy).toBe(true);
+  });
+
   it("allows valid question answers while busy", () => {
     foregroundSessionState.markBusy("session-1", "D:\\Projects\\Repo");
     interactionManager.start({

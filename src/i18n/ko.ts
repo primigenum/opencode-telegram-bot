@@ -187,6 +187,7 @@ export const ko: I18nDictionary = {
   "projects.selected":
     "✅ 프로젝트 선택됨: {project}\n\n📋 세션이 초기화되었습니다. 이 프로젝트에서 /sessions 또는 /new를 사용해 주세요.",
   "projects.select_error": "🔴 프로젝트 선택에 실패했습니다.",
+  "projects.swap_unavailable": "🔄 전환할 다른 프로젝트가 없습니다.",
 
   "sessions.project_not_selected":
     "🏗 프로젝트가 선택되지 않았습니다.\n\n먼저 /projects로 프로젝트를 선택해 주세요.",

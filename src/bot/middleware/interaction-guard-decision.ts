@@ -10,7 +10,10 @@ import type {
 } from "../../app/types/interaction.js";
 import { foregroundSessionState } from "../../app/managers/foreground-session-state-manager.js";
 import { attachManager } from "../../app/managers/attach-manager.js";
-import { QUEUED_PROMPT_BUTTON_TEXT_PATTERN } from "../message-patterns.js";
+import {
+  QUEUED_PROMPT_BUTTON_TEXT_PATTERN,
+  SWAP_PROJECT_BUTTON_TEXT_PATTERN,
+} from "../message-patterns.js";
 import type { LocalCommandRegistry } from "../../app/services/local-command-registry.js";
 
 const BUSY_ALLOWED_COMMANDS = ["/abort", "/detach", "/status", "/help", "/opencode_stop"] as const;
@@ -29,6 +32,13 @@ function allowsBusyInteraction(kind: InteractionKind | undefined): boolean {
 function isQueuedPromptButtonPress(ctx: Context): boolean {
   const text = ctx.message?.text;
   return typeof text === "string" && QUEUED_PROMPT_BUTTON_TEXT_PATTERN.test(text);
+}
+
+// The project swap button must work while a session is running: the switch
+// detaches that session and moves the bot to the other project.
+function isSwapProjectButtonPress(ctx: Context): boolean {
+  const text = ctx.message?.text;
+  return typeof text === "string" && SWAP_PROJECT_BUTTON_TEXT_PATTERN.test(text);
 }
 
 function normalizeIncomingCommand(text: string): string | null {
@@ -192,7 +202,10 @@ export function resolveInteractionGuardDecision(
       );
     }
 
-    if (inputType === "text" && isQueuedPromptButtonPress(ctx)) {
+    if (
+      inputType === "text" &&
+      (isQueuedPromptButtonPress(ctx) || isSwapProjectButtonPress(ctx))
+    ) {
       return createAllowDecision(inputType, state, command, true);
     }
 

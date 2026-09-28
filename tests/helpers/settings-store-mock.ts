@@ -38,6 +38,8 @@ export function createSettingsStoreMock(): SettingsStoreMock {
     getMenuAgents: vi.fn(() => []),
     getProjectAgent: vi.fn(),
     setProjectAgent: vi.fn(),
+    getSwapProject: vi.fn(),
+    setSwapProject: vi.fn(),
     getCurrentModel: vi.fn(),
     setCurrentModel: vi.fn(),
     clearCurrentModel: vi.fn(),

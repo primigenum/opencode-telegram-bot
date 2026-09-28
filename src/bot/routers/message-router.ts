@@ -19,8 +19,10 @@ import {
   CONTEXT_BUTTON_TEXT_PATTERN,
   MODEL_BUTTON_TEXT_PATTERN,
   QUEUED_PROMPT_BUTTON_TEXT_PATTERN,
+  SWAP_PROJECT_BUTTON_TEXT_PATTERN,
   VARIANT_BUTTON_TEXT_PATTERN,
 } from "../message-patterns.js";
+import { handleSwapProjectButton } from "../handlers/swap-project-handler.js";
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
 import { findQueuedPromptByButtonLabel } from "../keyboards/queued-prompt-button.js";
 import { showQueuedPromptMenu } from "../menus/queued-prompt-menu.js";
@@ -142,6 +144,14 @@ export function registerMessageRouter(bot: Bot<Context>, deps: MessageRouterDeps
       logger.error("[Bot] Error showing variant menu:", err);
       await ctx.reply(t("error.load_variants"));
     }
+  });
+
+  bot.hears(SWAP_PROJECT_BUTTON_TEXT_PATTERN, async (ctx) => {
+    logger.debug(`[Bot] Project swap button pressed: ${ctx.message?.text}`);
+
+    await handleSwapProjectButton(ctx, {
+      ensureEventSubscription: deps.ensureEventSubscription,
+    });
   });
 
   bot.on("message:text", async (ctx, next) => {
