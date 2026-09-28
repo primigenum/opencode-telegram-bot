@@ -81,6 +81,21 @@ describe("bot/handlers/swap-project", () => {
     );
   });
 
+  it("falls back to the folder name when the target project has no name", async () => {
+    mocked.getProjectsMock.mockResolvedValue([
+      toolsProject,
+      { id: "primigenum", worktree: "/home/user/primigenum", name: "" },
+    ]);
+
+    const ctx = createContext();
+    await handleSwapProjectButton(ctx);
+
+    expect(ctx.reply).toHaveBeenCalledWith(
+      t("projects.selected", { project: "primigenum" }),
+      expect.anything(),
+    );
+  });
+
   it("falls back to the most recent other project when the stored target is gone", async () => {
     settingsStoreMock.getSwapProject.mockReturnValue("/home/user/deleted");
 

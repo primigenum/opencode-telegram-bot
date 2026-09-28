@@ -3,6 +3,7 @@ import { getProjects } from "../../app/services/project-service.js";
 import { switchToProject } from "../../app/services/project-switch-service.js";
 import { getCurrentProject, getSwapProject } from "../../app/stores/settings-store.js";
 import { isSameWorktree } from "../keyboards/swap-project-button.js";
+import { getProjectFolderName } from "../menus/project-selection-menu.js";
 import { createProjectSwitchPresentation } from "../services/project-switch-presentation.js";
 import { t } from "../../i18n/index.js";
 import { logger } from "../../utils/logger.js";
@@ -40,7 +41,7 @@ export async function handleSwapProjectButton(
       return;
     }
 
-    const projectName = target.name || target.worktree;
+    const projectName = target.name || getProjectFolderName(target.worktree);
     logger.info(`[Bot] Project swap button pressed: switching to ${projectName}`);
 
     const keyboard = await switchToProject(ctx, target, "project_swapped", {
