@@ -32,10 +32,10 @@ describe("bot/routers/message-router", () => {
       setTelegramContext: vi.fn(),
     });
 
-    expect(bot.hears).toHaveBeenCalledTimes(6);
+    expect(bot.hears).toHaveBeenCalledTimes(5);
     // The queued prompt route must win over the other reply keyboard routes.
     expect(defined(bot.hears.mock.calls[0]?.[0])).toBe(QUEUED_PROMPT_BUTTON_TEXT_PATTERN);
-    expect(defined(bot.hears.mock.calls[5]?.[0])).toBe(SWAP_PROJECT_BUTTON_TEXT_PATTERN);
+    expect(defined(bot.hears.mock.calls[4]?.[0])).toBe(SWAP_PROJECT_BUTTON_TEXT_PATTERN);
     expect(bot.on.mock.calls.map(([event]) => event)).toEqual([
       "message:text",
       "message:text",
@@ -60,7 +60,7 @@ describe("bot/routers/message-router", () => {
       setTelegramContext: vi.fn(),
     });
 
-    const handler = defined(bot.hears.mock.calls[5]?.[1]) as (ctx: unknown) => Promise<void>;
+    const handler = defined(bot.hears.mock.calls[4]?.[1]) as (ctx: unknown) => Promise<void>;
     const ctx = { chat: { id: 42 }, message: { text: "🔄 primigenum" } };
 
     await handler(ctx);

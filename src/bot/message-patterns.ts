@@ -2,9 +2,6 @@ export const AGENT_MODE_BUTTON_TEXT_PATTERN = /^(📋|🛠️|💬|🔍|📝|�
 
 export const MODEL_BUTTON_TEXT_PATTERN = /^🧠\s(?!.*\s(?:Mode|Agent)$)[\s\S]+$/;
 
-// Keep support for both legacy "💭" and current "💡" prefix.
-export const VARIANT_BUTTON_TEXT_PATTERN = /^(💡|💭)\s.+$/;
-
 // The context reply-keyboard button always renders as "📊 {used} / {limit} ({percent}%)"
 // (or "📊 0" when empty) in every locale — numbers only. Requiring a digit after
 // the emoji keeps a user's own message that merely starts with "📊" from being
@@ -22,7 +19,6 @@ export const SWAP_PROJECT_BUTTON_TEXT_PATTERN = /^🔄\s\S/;
 const REPLY_KEYBOARD_BUTTON_TEXT_PATTERNS = [
   AGENT_MODE_BUTTON_TEXT_PATTERN,
   MODEL_BUTTON_TEXT_PATTERN,
-  VARIANT_BUTTON_TEXT_PATTERN,
   CONTEXT_BUTTON_TEXT_PATTERN,
   QUEUED_PROMPT_BUTTON_TEXT_PATTERN,
   SWAP_PROJECT_BUTTON_TEXT_PATTERN,

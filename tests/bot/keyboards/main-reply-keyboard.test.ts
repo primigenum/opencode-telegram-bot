@@ -27,8 +27,8 @@ describe("bot/keyboards/main-reply-keyboard", () => {
 
     expect(buttonTextAt(keyboard, 0, 0)).toBe("🛠️ Build Agent");
     expect(buttonTextAt(keyboard, 0, 1)).toBe("📊 0");
-    expect(buttonTextAt(keyboard, 1, 0)).toBe("🧠 openrouter\nopenai/gpt-4o");
-    expect(buttonTextAt(keyboard, 1, 1)).toBe("💡 Default");
+    expect(buttonTextAt(keyboard, 1, 0)).toBe("🧠 openrouter\nopenai/gpt-4o · 💡 Default");
+    expect(keyboard.keyboard[1]).toHaveLength(1);
     expect(keyboard.resize_keyboard).toBe(true);
     expect(keyboard.is_persistent).toBe(true);
   });
@@ -49,10 +49,10 @@ describe("bot/keyboards/main-reply-keyboard", () => {
 
     expect(buttonTextAt(keyboard, 0, 0)).toBe("📋 Plan Agent");
     expect(buttonTextAt(keyboard, 0, 1)).toBe("📊 150K / 1.5M (10%)");
-    expect(buttonTextAt(keyboard, 1, 1)).toBe("⚡ Fast");
+    expect(buttonTextAt(keyboard, 1, 0)).toBe("🧠 provider\nmodel · ⚡ Fast");
   });
 
-  it("keeps the fixed 2x2 grid when no prompt is queued", () => {
+  it("keeps the fixed grid when no prompt is queued", () => {
     const keyboard = createMainKeyboard(
       "build",
       { providerID: "openrouter", modelID: "openai/gpt-4o" },
@@ -77,8 +77,7 @@ describe("bot/keyboards/main-reply-keyboard", () => {
     expect(buttonTextAt(keyboard, 1, 0)).toBe("❌ 2. second");
     expect(buttonTextAt(keyboard, 2, 0)).toBe("🛠️ Build Agent");
     expect(buttonTextAt(keyboard, 2, 1)).toBe("📊 0");
-    expect(buttonTextAt(keyboard, 3, 0)).toBe("🧠 openrouter\nopenai/gpt-4o");
-    expect(buttonTextAt(keyboard, 3, 1)).toBe("💡 Default");
+    expect(buttonTextAt(keyboard, 3, 0)).toBe("🧠 openrouter\nopenai/gpt-4o · 💡 Default");
   });
 
   it("puts the project swap row above the fixed grid when a label is given", () => {
@@ -94,7 +93,7 @@ describe("bot/keyboards/main-reply-keyboard", () => {
     expect(buttonTextAt(keyboard, 0, 0)).toBe("🔄 primigenum");
     expect(buttonTextAt(keyboard, 1, 0)).toBe("🛠️ Build Agent");
     expect(buttonTextAt(keyboard, 1, 1)).toBe("📊 0");
-    expect(buttonTextAt(keyboard, 2, 0)).toBe("🧠 openrouter\nopenai/gpt-4o");
+    expect(buttonTextAt(keyboard, 2, 0)).toBe("🧠 openrouter\nopenai/gpt-4o · 💡 Default");
   });
 
   it("keeps queued prompts on top of the project swap row", () => {
