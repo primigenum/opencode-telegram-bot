@@ -115,9 +115,11 @@ describe("bot/handlers/prompt-queue-dispatch", () => {
     it("never queues reply keyboard button presses", async () => {
       const ctx = makeContext();
 
-      await expect(tryEnqueuePrompt(ctx, "🧠 openrouter\nopenai/gpt-4o")).resolves.toBe(false);
+      await expect(tryEnqueuePrompt(ctx, "🧠 openrouter\nopenai/gpt-4o · 💡 Default")).resolves.toBe(
+        false,
+      );
       await expect(tryEnqueuePrompt(ctx, "🛠️ Build Agent")).resolves.toBe(false);
-      await expect(tryEnqueuePrompt(ctx, "💡 Default")).resolves.toBe(false);
+      await expect(tryEnqueuePrompt(ctx, "🔄 primigenum")).resolves.toBe(false);
       await expect(tryEnqueuePrompt(ctx, "📊 150K / 1.5M (10%)")).resolves.toBe(false);
       await expect(tryEnqueuePrompt(ctx, "❌ 1. queued")).resolves.toBe(false);
 

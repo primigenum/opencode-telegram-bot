@@ -8,7 +8,7 @@ const { createMainKeyboard } = await loadSut<typeof import("#src/bot/keyboards/m
   "#src/bot/keyboards/main-reply-keyboard.ts",
   import.meta.url,
 );
-const { AGENT_MODE_BUTTON_TEXT_PATTERN, CONTEXT_BUTTON_TEXT_PATTERN, isReplyKeyboardButtonText, MODEL_BUTTON_TEXT_PATTERN, QUEUED_PROMPT_BUTTON_TEXT_PATTERN, VARIANT_BUTTON_TEXT_PATTERN } = await loadSut<typeof import("#src/bot/message-patterns.js")>(
+const { AGENT_MODE_BUTTON_TEXT_PATTERN, CONTEXT_BUTTON_TEXT_PATTERN, isReplyKeyboardButtonText, MODEL_BUTTON_TEXT_PATTERN, QUEUED_PROMPT_BUTTON_TEXT_PATTERN } = await loadSut<typeof import("#src/bot/message-patterns.js")>(
   "#src/bot/message-patterns.ts",
   import.meta.url,
 );
@@ -37,21 +37,9 @@ describe("bot/message-patterns", () => {
     expect("🤖 Reviewer Agent").not.toMatch(MODEL_BUTTON_TEXT_PATTERN);
   });
 
-  it("matches current and legacy variant button prefixes", () => {
-    const keyboard = createMainKeyboard("build", {
-      providerID: "openrouter",
-      modelID: "openai/gpt-4o",
-    });
-
-    const variantButtonText = getButtonText(defined(keyboard.keyboard[1]?.[1]));
-    expect(variantButtonText).toMatch(VARIANT_BUTTON_TEXT_PATTERN);
-    expect("💭 Default").toMatch(VARIANT_BUTTON_TEXT_PATTERN);
-  });
-
   it("does not match plain prompt text", () => {
     expect("Create a migration plan").not.toMatch(MODEL_BUTTON_TEXT_PATTERN);
     expect("Create a migration plan").not.toMatch(AGENT_MODE_BUTTON_TEXT_PATTERN);
-    expect("Create a migration plan").not.toMatch(VARIANT_BUTTON_TEXT_PATTERN);
   });
 
   it("matches current and legacy agent button labels with extra descriptors", () => {
@@ -83,7 +71,7 @@ describe("bot/message-patterns", () => {
   it("does not treat other button labels or prompts as queued prompts", () => {
     expect("🧠 openrouter\nopenai/gpt-4o").not.toMatch(QUEUED_PROMPT_BUTTON_TEXT_PATTERN);
     expect("🛠️ Build Agent").not.toMatch(QUEUED_PROMPT_BUTTON_TEXT_PATTERN);
-    expect("💡 Default").not.toMatch(QUEUED_PROMPT_BUTTON_TEXT_PATTERN);
+    expect("🧠 openrouter\nopenai/gpt-4o · 💡 High").not.toMatch(QUEUED_PROMPT_BUTTON_TEXT_PATTERN);
     expect("📊 150K / 1.5M (10%)").not.toMatch(QUEUED_PROMPT_BUTTON_TEXT_PATTERN);
     expect("Create a migration plan").not.toMatch(QUEUED_PROMPT_BUTTON_TEXT_PATTERN);
     expect("❌ do not do that").not.toMatch(QUEUED_PROMPT_BUTTON_TEXT_PATTERN);
@@ -99,7 +87,6 @@ describe("bot/message-patterns", () => {
     expect(isReplyKeyboardButtonText(getButtonText(defined(keyboard.keyboard[0]?.[0])))).toBe(true);
     expect(isReplyKeyboardButtonText(getButtonText(defined(keyboard.keyboard[0]?.[1])))).toBe(true);
     expect(isReplyKeyboardButtonText(getButtonText(defined(keyboard.keyboard[1]?.[0])))).toBe(true);
-    expect(isReplyKeyboardButtonText(getButtonText(defined(keyboard.keyboard[1]?.[1])))).toBe(true);
     expect(isReplyKeyboardButtonText(formatQueuedPromptButtonLabel(1, "queued"))).toBe(true);
     expect(isReplyKeyboardButtonText("Create a migration plan")).toBe(false);
   });

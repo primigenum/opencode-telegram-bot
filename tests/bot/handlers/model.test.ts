@@ -293,6 +293,62 @@ describe("bot model selection", () => {
       expect(replyOrder).toBeLessThan(variantMenuOrder);
     });
 
+    it("re-opens the variant picker when the already-active model is picked again", async () => {
+      mocked.interactionManagerGetSnapshotMock.mockReturnValue({
+        kind: "inline",
+        metadata: {
+          menuKind: "model",
+          messageId: 999,
+          modelLists: { favorites: [{ providerID: "openai", modelID: "gpt-4o" }], recent: [] },
+        },
+      });
+      mocked.showVariantMenuAfterModelChangeMock.mockResolvedValue(true);
+
+      const ctx = mockContext({
+        callbackQuery: {
+          data: "model:list:favorites:0",
+          message: { message_id: 999 },
+        },
+        api: {},
+      });
+
+      const result = await handleModelSelect(ctx);
+
+      expect(result).toBe(true);
+      expect(mocked.selectModelMock).not.toHaveBeenCalled();
+      expect(mocked.keyboardUpdateModelMock).not.toHaveBeenCalled();
+      expect(mocked.showVariantMenuAfterModelChangeMock).toHaveBeenCalledWith(
+        ctx,
+        expect.objectContaining({ providerID: "openai", modelID: "gpt-4o" }),
+      );
+    });
+
+    it("toasts when the active model is picked again but offers no variant choice", async () => {
+      mocked.interactionManagerGetSnapshotMock.mockReturnValue({
+        kind: "inline",
+        metadata: {
+          menuKind: "model",
+          messageId: 999,
+          modelLists: { favorites: [{ providerID: "openai", modelID: "gpt-4o" }], recent: [] },
+        },
+      });
+      mocked.showVariantMenuAfterModelChangeMock.mockResolvedValue(false);
+
+      const ctx = mockContext({
+        callbackQuery: {
+          data: "model:list:favorites:0",
+          message: { message_id: 999 },
+        },
+        api: {},
+      });
+
+      const result = await handleModelSelect(ctx);
+
+      expect(result).toBe(true);
+      expect(mocked.selectModelMock).not.toHaveBeenCalled();
+      expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({ text: "⚠️ No available variants" });
+    });
+
     it("rejects stale search result callbacks instead of parsing them as legacy models", async () => {
       const ctx = mockContext({
         callbackQuery: {

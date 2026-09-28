@@ -33,12 +33,12 @@ function formatContextForButton(contextInfo: ContextInfo): string {
  * @param currentAgent Current agent name (e.g., "build", "plan")
  * @param currentModel Current model info
  * @param contextInfo Optional context information (tokens used/limit)
- * @param variantName Optional variant display name (e.g., "💭 Default")
+ * @param variantName Optional variant display name (e.g., "💡 Default")
  * @param queuedPromptLabels Optional queued prompt labels, one row each above the fixed grid
  * @param swapProjectLabel Quick project swap row; defaults to the stored swap target.
  *                         Pass null to hide the row explicitly.
  * @returns Reply Keyboard with queued prompts and the project swap on top, agent and
- *          context in the next row, model and variant in the last row
+ *          context in the next row, and the unified model + variant button in the last row
  */
 export function createMainKeyboard(
   currentAgent: string,
@@ -75,8 +75,8 @@ export function createMainKeyboard(
   // Row 1: agent and context buttons
   keyboard.text(agentText).text(contextText).row();
 
-  // Row 2: model and variant buttons
-  keyboard.text(modelText).text(variantText).row();
+  // Row 2: single model button that carries the thinking-effort variant too
+  keyboard.text(`${modelText} · ${variantText}`).row();
 
   return keyboard.resized().persistent();
 }

@@ -8,13 +8,13 @@ import {
   searchModels,
   selectModel,
 } from "../../app/services/model-selection-service.js";
-import { formatVariantForButton } from "../../app/services/variant-selection-service.js";
+import { formatVariantForButton, getCurrentVariant } from "../../app/services/variant-selection-service.js";
 import { formatModelForDisplay } from "../../app/types/model.js";
 import type { ModelInfo, ProviderInfo } from "../../app/types/model.js";
 import { interactionManager } from "../../app/managers/interaction-manager.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
-import { cancelMenu, failure, switched } from "./feedback.js";
+import { cancelMenu, failure, notify, switched } from "./feedback.js";
 import { createMainKeyboard } from "../keyboards/main-reply-keyboard.js";
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
 import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
@@ -291,6 +291,25 @@ async function showProvidersScreen(ctx: Context, page: number): Promise<void> {
  * Used by both the regular inline menu flow and the search results flow.
  */
 async function applyModelSelectionAndNotify(ctx: Context, modelInfo: ModelInfo): Promise<void> {
+  const activeModel = fetchCurrentModel();
+  const isActiveModel =
+    activeModel.providerID === modelInfo.providerID && activeModel.modelID === modelInfo.modelID;
+
+  if (isActiveModel) {
+    // Tapping the already-active model re-opens the thinking-effort picker
+    // instead of re-applying the model (which would reset the variant).
+    const opened = await showVariantSelectionMenuAfterModelChange(ctx, {
+      ...modelInfo,
+      variant: getCurrentVariant(),
+    });
+
+    if (!opened) {
+      await notify(ctx, "variant.menu.empty");
+    }
+
+    return;
+  }
+
   if (ctx.chat) {
     keyboardManager.initialize(ctx.api, ctx.chat.id);
   }
