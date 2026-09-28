@@ -1,11 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import { loadSut } from "#helpers/sut-loader.js";
-import { QUEUED_PROMPT_BUTTON_TEXT_PATTERN } from "#src/bot/message-patterns.js";
+import { QUEUED_PROMPT_BUTTON_TEXT_PATTERN, SWAP_PROJECT_BUTTON_TEXT_PATTERN } from "#src/bot/message-patterns.js";
 import { promptQueue } from "#src/app/managers/prompt-queue-manager.js";
 import { interactionManager } from "#src/app/managers/interaction-manager.js";
 import { t } from "#src/i18n/index.js";
 import { defined } from "#helpers/defined.js";
 import { createIncomingPrompt } from "#src/app/types/prompt.js";
+
+const routeMocks = vi.hoisted(() => ({
+  handleSwapProjectButton: vi.fn(),
+}));
+
+vi.mock("#src/bot/handlers/swap-project-handler.ts", () => ({
+  handleSwapProjectButton: routeMocks.handleSwapProjectButton,
+}));
+
 const { registerMessageRouter } = await loadSut<typeof import("#src/bot/routers/message-router.js")>(
   "#src/bot/routers/message-router.ts",
   import.meta.url,
@@ -23,9 +32,10 @@ describe("bot/routers/message-router", () => {
       setTelegramContext: vi.fn(),
     });
 
-    expect(bot.hears).toHaveBeenCalledTimes(5);
+    expect(bot.hears).toHaveBeenCalledTimes(6);
     // The queued prompt route must win over the other reply keyboard routes.
     expect(defined(bot.hears.mock.calls[0]?.[0])).toBe(QUEUED_PROMPT_BUTTON_TEXT_PATTERN);
+    expect(defined(bot.hears.mock.calls[5]?.[0])).toBe(SWAP_PROJECT_BUTTON_TEXT_PATTERN);
     expect(bot.on.mock.calls.map(([event]) => event)).toEqual([
       "message:text",
       "message:text",
@@ -38,6 +48,26 @@ describe("bot/routers/message-router", () => {
       "message:text",
       "message",
     ]);
+  });
+
+  it("routes project swap presses to the swap handler", async () => {
+    routeMocks.handleSwapProjectButton.mockReset();
+    const ensureEventSubscription = vi.fn();
+    const bot = { on: vi.fn(), hears: vi.fn() };
+
+    registerMessageRouter(bot as never, {
+      ensureEventSubscription,
+      setTelegramContext: vi.fn(),
+    });
+
+    const handler = defined(bot.hears.mock.calls[5]?.[1]) as (ctx: unknown) => Promise<void>;
+    const ctx = { chat: { id: 42 }, message: { text: "🔄 primigenum" } };
+
+    await handler(ctx);
+
+    expect(routeMocks.handleSwapProjectButton).toHaveBeenCalledWith(ctx, {
+      ensureEventSubscription,
+    });
   });
 
   describe("queued prompt button handler", () => {

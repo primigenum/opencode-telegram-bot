@@ -16,6 +16,8 @@ export interface Settings {
   currentAgent?: string | undefined;
   /** Default agent per project worktree; wins over currentAgent for that project */
   projectAgents?: Record<string, string> | undefined;
+  /** Worktree of the project the bottom-keyboard swap button switches to (the project the last switch moved away from) */
+  swapProject?: string | undefined;
   /** Agents shown in the bot agent picker; absent or empty means all available agents */
   agentMenu?: string[] | undefined;
   currentModel?: ModelInfo | undefined;

@@ -14,12 +14,18 @@ export const CONTEXT_BUTTON_TEXT_PATTERN = /^📊\s+\d/;
 
 export const QUEUED_PROMPT_BUTTON_TEXT_PATTERN = /^❌\s\d+\.\s/;
 
+// Quick project swap button: "🔄 {folder name}". Kept deliberately broad (any
+// non-empty text after the icon) so the press works for every folder name; a
+// user prompt realistically never starts with this icon.
+export const SWAP_PROJECT_BUTTON_TEXT_PATTERN = /^🔄\s\S/;
+
 const REPLY_KEYBOARD_BUTTON_TEXT_PATTERNS = [
   AGENT_MODE_BUTTON_TEXT_PATTERN,
   MODEL_BUTTON_TEXT_PATTERN,
   VARIANT_BUTTON_TEXT_PATTERN,
   CONTEXT_BUTTON_TEXT_PATTERN,
   QUEUED_PROMPT_BUTTON_TEXT_PATTERN,
+  SWAP_PROJECT_BUTTON_TEXT_PATTERN,
 ];
 
 /**
