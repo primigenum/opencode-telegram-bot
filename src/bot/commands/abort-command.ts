@@ -84,8 +84,12 @@ export async function abortCurrentOperation(
 
   try {
     abortLocalStreaming();
-    if (!keepQueue) {
-      promptQueue.clear("abort_command");
+    const droppedQueuedPrompts = keepQueue ? 0 : promptQueue.clear("abort_command");
+    if (droppedQueuedPrompts > 0 && notifyUser) {
+      // Discarded prompts must not vanish silently: the user queued them.
+      await ctx
+        .reply(t("queue.discarded", { count: String(droppedQueuedPrompts) }))
+        .catch(() => {});
     }
     // abortLocalStreaming drops the waiting mode, so the attachment has to go with it -
     // otherwise it would ride along on the next, unrelated prompt with no confirmation left.

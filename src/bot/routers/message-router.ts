@@ -18,9 +18,11 @@ import {
   CONTEXT_BUTTON_TEXT_PATTERN,
   MODEL_BUTTON_TEXT_PATTERN,
   QUEUED_PROMPT_BUTTON_TEXT_PATTERN,
+  SAVED_SESSIONS_BUTTON_TEXT_PATTERN,
   SWAP_PROJECT_BUTTON_TEXT_PATTERN,
 } from "../message-patterns.js";
 import { handleSwapProjectButton } from "../handlers/swap-project-handler.js";
+import { showSavedSessionsMenu } from "../menus/saved-sessions-menu.js";
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
 import { findQueuedPromptByButtonLabel } from "../keyboards/queued-prompt-button.js";
 import { showQueuedPromptMenu } from "../menus/queued-prompt-menu.js";
@@ -133,8 +135,24 @@ export function registerMessageRouter(bot: Bot<Context>, deps: MessageRouterDeps
     logger.debug(`[Bot] Project swap button pressed: ${ctx.message?.text}`);
 
     await handleSwapProjectButton(ctx, {
+      bot,
       ensureEventSubscription: deps.ensureEventSubscription,
     });
+  });
+
+  bot.hears(SAVED_SESSIONS_BUTTON_TEXT_PATTERN, async (ctx) => {
+    logger.debug(`[Bot] Saved sessions button pressed: ${ctx.message?.text}`);
+
+    try {
+      if (await blockMenuWhileInteractionActive(ctx)) {
+        return;
+      }
+
+      await showSavedSessionsMenu(ctx);
+    } catch (err) {
+      logger.error("[Bot] Error showing saved sessions menu:", err);
+      await ctx.reply(t("sessions.select_error"));
+    }
   });
 
   bot.on("message:text", async (ctx, next) => {

@@ -9,6 +9,14 @@ const { attachManager } = await loadSut<typeof import("#src/app/managers/attach-
   "#src/app/managers/attach-manager.ts",
   import.meta.url,
 );
+const { assistantRunState } = await loadSut<typeof import("#src/app/managers/assistant-run-state-manager.js")>(
+  "#src/app/managers/assistant-run-state-manager.ts",
+  import.meta.url,
+);
+const { foregroundSessionState } = await loadSut<typeof import("#src/app/managers/foreground-session-state-manager.js")>(
+  "#src/app/managers/foreground-session-state-manager.ts",
+  import.meta.url,
+);
 const { questionManager } = await loadSut<typeof import("#src/app/managers/question-manager.js")>(
   "#src/app/managers/question-manager.ts",
   import.meta.url,
@@ -476,5 +484,17 @@ describe("attach/service", () => {
     expect(mocked.stopEventListeningMock).not.toHaveBeenCalled();
     expect(attachManager.getSnapshot()).toBeNull();
     expect(getStreamThrottleMs("session-1")).toBe(1_000);
+  });
+
+  it("releases the local busy gate and run state of the detached session", () => {
+    attachManager.attach("session-1", "D:\\Projects\\Repo");
+    foregroundSessionState.markBusy("session-1", "D:\\Projects\\Repo");
+    assistantRunState.startRun("session-1", { startedAt: Date.now() });
+
+    detachAttachedSession("project_swapped");
+
+    expect(foregroundSessionState.isBusy()).toBe(false);
+    // finishRun returns null once the run was already cleared by the detach.
+    expect(assistantRunState.finishRun("session-1", "test_check")).toBeNull();
   });
 });

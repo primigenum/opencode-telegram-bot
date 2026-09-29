@@ -10,6 +10,8 @@ import { clearSession, getCurrentSession } from "./session-service.js";
 import { clearPinnedMessageId, clearProject, getCurrentProject } from "../stores/settings-store.js";
 import { getProjects } from "./project-service.js";
 import { attachManager } from "../managers/attach-manager.js";
+import { assistantRunState } from "../managers/assistant-run-state-manager.js";
+import { foregroundSessionState } from "../managers/foreground-session-state-manager.js";
 import { resetStreamThrottle } from "../../bot/streaming/stream-throttle.js";
 import { logger } from "../../utils/logger.js";
 import {
@@ -307,6 +309,11 @@ export function detachAttachedSession(reason: string): void {
   const attachedSessionId = attachManager.getSnapshot()?.sessionId;
   if (attachedSessionId) {
     resetStreamThrottle(attachedSessionId);
+    // Detaching must release the local busy gate and run state: otherwise the
+    // session left behind keeps blocking commands and prompts in the project or
+    // session the bot moved to.
+    foregroundSessionState.markIdle(attachedSessionId);
+    assistantRunState.clearRun(attachedSessionId, reason);
   }
 
   summaryAggregator.clear();

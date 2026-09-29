@@ -34,6 +34,13 @@ function isQueuedPromptButtonPress(ctx: Context): boolean {
   return typeof text === "string" && QUEUED_PROMPT_BUTTON_TEXT_PATTERN.test(text);
 }
 
+// The queue menu manages prompts queued during a run, so its callbacks must
+// reach the queue handler while the busy gate is up: deleting or sending a
+// queued message is exactly what the menu exists for.
+function isActiveQueueMenu(state: InteractionState | null): boolean {
+  return state?.kind === "inline" && state.metadata.menuKind === "queue";
+}
+
 // The project swap button must work while a session is running: the switch
 // detaches that session and moves the bot to the other project.
 function isSwapProjectButtonPress(ctx: Context): boolean {
@@ -200,6 +207,10 @@ export function resolveInteractionGuardDecision(
         getExpectedInputBlockReason(state.expectedInput),
         command,
       );
+    }
+
+    if (inputType === "callback" && isActiveQueueMenu(state)) {
+      return createAllowDecision(inputType, state, command, true);
     }
 
     if (

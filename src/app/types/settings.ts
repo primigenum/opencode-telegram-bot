@@ -35,4 +35,6 @@ export interface Settings {
   scheduledTaskSessionIgnores?: ScheduledTaskSessionIgnoreInfo[] | undefined;
   /** If set, only projects whose folder name matches one of these entries are shown in /projects */
   visibleProjects?: string[] | undefined;
+  /** Sessions bookmarked from the bottom keyboard, each carrying its project directory */
+  savedSessions?: SessionInfo[] | undefined;
 }

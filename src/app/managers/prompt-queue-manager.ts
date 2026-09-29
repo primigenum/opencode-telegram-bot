@@ -126,14 +126,20 @@ class PromptQueueManager {
     return this.queuedMediaBytes;
   }
 
-  clear(reason: string): void {
+  /**
+   * Drop every queued prompt.
+   * @returns how many prompts were discarded, so callers can tell the user
+   */
+  clear(reason: string): number {
     if (this.items.length === 0) {
-      return;
+      return 0;
     }
 
-    logger.info(`[PromptQueue] Cleared queue: reason=${reason}, count=${this.items.length}`);
+    const removed = this.items.length;
+    logger.info(`[PromptQueue] Cleared queue: reason=${reason}, count=${removed}`);
     this.items = [];
     this.queuedMediaBytes = 0;
+    return removed;
   }
 
   __resetForTests(): void {
