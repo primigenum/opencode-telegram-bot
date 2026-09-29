@@ -12,6 +12,7 @@ import { foregroundSessionState } from "../../app/managers/foreground-session-st
 import { attachManager } from "../../app/managers/attach-manager.js";
 import {
   QUEUED_PROMPT_BUTTON_TEXT_PATTERN,
+  SAVED_SESSIONS_BUTTON_TEXT_PATTERN,
   SWAP_PROJECT_BUTTON_TEXT_PATTERN,
 } from "../message-patterns.js";
 import type { LocalCommandRegistry } from "../../app/services/local-command-registry.js";
@@ -34,11 +35,15 @@ function isQueuedPromptButtonPress(ctx: Context): boolean {
   return typeof text === "string" && QUEUED_PROMPT_BUTTON_TEXT_PATTERN.test(text);
 }
 
-// The queue menu manages prompts queued during a run, so its callbacks must
-// reach the queue handler while the busy gate is up: deleting or sending a
-// queued message is exactly what the menu exists for.
-function isActiveQueueMenu(state: InteractionState | null): boolean {
-  return state?.kind === "inline" && state.metadata.menuKind === "queue";
+// Menus whose callbacks must keep working while the busy gate is up: the queue
+// menu manages prompts queued during a run (deleting or sending a queued message
+// is exactly what it exists for), and the saved-sessions menu lets the user
+// bookmark sessions or open another one (opening detaches the active run).
+function isBusyAllowedInlineMenu(state: InteractionState | null): boolean {
+  return (
+    state?.kind === "inline" &&
+    (state.metadata.menuKind === "queue" || state.metadata.menuKind === "saved")
+  );
 }
 
 // The project swap button must work while a session is running: the switch
@@ -46,6 +51,14 @@ function isActiveQueueMenu(state: InteractionState | null): boolean {
 function isSwapProjectButtonPress(ctx: Context): boolean {
   const text = ctx.message?.text;
   return typeof text === "string" && SWAP_PROJECT_BUTTON_TEXT_PATTERN.test(text);
+}
+
+// The saved-sessions button must work while a session is running so the menu can
+// open: bookmarking is local, and opening another session detaches the active run
+// the same way a project swap does.
+function isSavedSessionsButtonPress(ctx: Context): boolean {
+  const text = ctx.message?.text;
+  return typeof text === "string" && SAVED_SESSIONS_BUTTON_TEXT_PATTERN.test(text);
 }
 
 function normalizeIncomingCommand(text: string): string | null {
@@ -209,13 +222,15 @@ export function resolveInteractionGuardDecision(
       );
     }
 
-    if (inputType === "callback" && isActiveQueueMenu(state)) {
+    if (inputType === "callback" && isBusyAllowedInlineMenu(state)) {
       return createAllowDecision(inputType, state, command, true);
     }
 
     if (
       inputType === "text" &&
-      (isQueuedPromptButtonPress(ctx) || isSwapProjectButtonPress(ctx))
+      (isQueuedPromptButtonPress(ctx) ||
+        isSwapProjectButtonPress(ctx) ||
+        isSavedSessionsButtonPress(ctx))
     ) {
       return createAllowDecision(inputType, state, command, true);
     }

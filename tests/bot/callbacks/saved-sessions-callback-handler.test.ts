@@ -6,6 +6,7 @@ import { createSettingsStoreMock } from "#helpers/settings-store-mock.js";
 const mocked = vi.hoisted(() => ({
   isForegroundBusyMock: vi.fn(),
   attachSessionByIdMock: vi.fn(),
+  detachAttachedSessionMock: vi.fn(),
   resolveProjectAgentMock: vi.fn(),
   getStoredModelMock: vi.fn(),
   updateAgentMock: vi.fn(),
@@ -14,7 +15,6 @@ const mocked = vi.hoisted(() => ({
   ensureActiveInlineMenuMock: vi.fn(),
   clearActiveInlineMenuMock: vi.fn(),
   appendInlineMenuCancelButtonMock: vi.fn(),
-  replyBusyBlockedMock: vi.fn(),
   alertMock: vi.fn(),
   notifyMock: vi.fn(),
   failureMock: vi.fn(),
@@ -29,6 +29,15 @@ vi.mock("#src/app/services/run-control-service.js", () => ({
 
 vi.mock("#src/app/services/project-session-service.js", () => ({
   attachSessionById: mocked.attachSessionByIdMock,
+}));
+
+vi.mock("#src/app/services/attach-service.ts", () => ({
+  detachAttachedSession: mocked.detachAttachedSessionMock,
+  attachToSession: vi.fn(),
+  markAttachedSessionBusy: vi.fn(),
+  markAttachedSessionIdle: vi.fn(),
+  restoreAttachedCurrentSession: vi.fn(),
+  configureAttachPresentation: vi.fn(),
 }));
 
 vi.mock("#src/app/services/agent-selection-service.ts", () => ({
@@ -65,10 +74,6 @@ vi.mock("#src/bot/menus/inline-menu.js", () => ({
   appendInlineMenuCancelButton: mocked.appendInlineMenuCancelButtonMock,
   isInlineMenuKind: vi.fn(() => false),
   INLINE_MENU_CANCEL_PREFIX: "inline:cancel:",
-}));
-
-vi.mock("#src/bot/messages/busy-blocked-renderer.js", () => ({
-  replyBusyBlocked: mocked.replyBusyBlockedMock,
 }));
 
 vi.mock("#src/bot/callbacks/feedback.js", () => ({
@@ -112,6 +117,7 @@ describe("bot/callbacks/saved-sessions-callback-handler", () => {
   beforeEach(() => {
     mocked.isForegroundBusyMock.mockReset().mockReturnValue(false);
     mocked.attachSessionByIdMock.mockReset().mockResolvedValue(null);
+    mocked.detachAttachedSessionMock.mockReset();
     mocked.resolveProjectAgentMock.mockReset().mockResolvedValue("build");
     mocked.getStoredModelMock.mockReset().mockReturnValue({ providerID: "p", modelID: "m" });
     mocked.updateAgentMock.mockReset();
@@ -120,7 +126,6 @@ describe("bot/callbacks/saved-sessions-callback-handler", () => {
     mocked.ensureActiveInlineMenuMock.mockReset().mockResolvedValue(true);
     mocked.clearActiveInlineMenuMock.mockReset();
     mocked.appendInlineMenuCancelButtonMock.mockReset().mockImplementation((keyboard) => keyboard);
-    mocked.replyBusyBlockedMock.mockReset();
     mocked.alertMock.mockReset();
     mocked.notifyMock.mockReset();
     mocked.failureMock.mockReset();
@@ -144,13 +149,28 @@ describe("bot/callbacks/saved-sessions-callback-handler", () => {
     expect(mocked.ensureActiveInlineMenuMock).not.toHaveBeenCalled();
   });
 
-  it("refuses while the session is busy", async () => {
+  it("bookmarks the current session while the session is busy", async () => {
     mocked.isForegroundBusyMock.mockReturnValue(true);
+    const current = { id: "ses-current", title: "Current", directory: WORKTREE };
+    settingsStoreMock.getCurrentSession.mockReturnValue(current);
     const ctx = createContext("saved:save");
 
     expect(await handleSavedSessionsCallback(ctx, deps)).toBe(true);
-    expect(mocked.replyBusyBlockedMock).toHaveBeenCalledWith(ctx);
-    expect(settingsStoreMock.saveSession).not.toHaveBeenCalled();
+
+    expect(settingsStoreMock.saveSession).toHaveBeenCalledWith(current);
+    expect(mocked.notifyMock).toHaveBeenCalledWith(ctx, "saved.added", { title: "Current" });
+  });
+
+  it("drops an entry from the saved list while the session is busy", async () => {
+    mocked.isForegroundBusyMock.mockReturnValue(true);
+    settingsStoreMock.getSavedSessions.mockReturnValue([
+      { id: "ses-one", title: "First work", directory: WORKTREE },
+    ]);
+    const ctx = createContext("saved:delete:ses-one");
+
+    expect(await handleSavedSessionsCallback(ctx, deps)).toBe(true);
+
+    expect(settingsStoreMock.removeSavedSession).toHaveBeenCalledWith("ses-one");
   });
 
   it("ignores a stale menu", async () => {
@@ -226,6 +246,30 @@ describe("bot/callbacks/saved-sessions-callback-handler", () => {
       { reply_markup: { keyboard: [] } },
     );
     expect(ctx.deleteMessage).toHaveBeenCalled();
+  });
+
+  it("detaches the active run before opening another session while busy", async () => {
+    mocked.isForegroundBusyMock.mockReturnValue(true);
+    mocked.attachSessionByIdMock.mockResolvedValue("First work");
+    const ctx = createContext("saved:open:ses-one");
+
+    expect(await handleSavedSessionsCallback(ctx, deps)).toBe(true);
+
+    expect(mocked.detachAttachedSessionMock).toHaveBeenCalledWith("saved_session_opened");
+    expect(mocked.attachSessionByIdMock).toHaveBeenCalled();
+    expect(mocked.detachAttachedSessionMock.mock.invocationCallOrder[0]).toBeLessThan(
+      mocked.attachSessionByIdMock.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("does not detach the run when opening a session without a busy run", async () => {
+    mocked.attachSessionByIdMock.mockResolvedValue("First work");
+    const ctx = createContext("saved:open:ses-one");
+
+    expect(await handleSavedSessionsCallback(ctx, deps)).toBe(true);
+
+    expect(mocked.detachAttachedSessionMock).not.toHaveBeenCalled();
+    expect(mocked.attachSessionByIdMock).toHaveBeenCalled();
   });
 
   it("drops a saved session that no longer exists", async () => {

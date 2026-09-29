@@ -2,6 +2,7 @@ import type { Bot, Context } from "grammy";
 import { resolveProjectAgent } from "../../app/services/agent-selection-service.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
 import { attachSessionById } from "../../app/services/project-session-service.js";
+import { detachAttachedSession } from "../../app/services/attach-service.js";
 import { isForegroundBusy } from "../../app/services/run-control-service.js";
 import {
   getCurrentProject,
@@ -18,7 +19,6 @@ import {
   clearActiveInlineMenu,
   ensureActiveInlineMenu,
 } from "../menus/inline-menu.js";
-import { replyBusyBlocked } from "../messages/busy-blocked-renderer.js";
 import {
   buildSavedSessionsMenuView,
   parseSavedSessionsCallback,
@@ -60,11 +60,6 @@ export async function handleSavedSessionsCallback(
   const parsed = parseSavedSessionsCallback(data);
   if (!parsed) {
     return false;
-  }
-
-  if (isForegroundBusy()) {
-    await replyBusyBlocked(ctx);
-    return true;
   }
 
   const isActiveMenu = await ensureActiveInlineMenu(ctx, "saved");
@@ -126,6 +121,12 @@ export async function handleSavedSessionsCallback(
       const chatId = ctx.chat?.id;
       if (!sessionId || !chatId) {
         return false;
+      }
+
+      if (isForegroundBusy()) {
+        // Same semantics as the project swap: the run keeps going on the server,
+        // but opening another session detaches it so the local busy gates release.
+        detachAttachedSession("saved_session_opened");
       }
 
       const title = await attachSessionById({

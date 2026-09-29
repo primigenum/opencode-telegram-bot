@@ -380,6 +380,29 @@ describe("interaction guard", () => {
     expect(decision.busy).toBe(true);
   });
 
+  it("allows the saved sessions button while busy so the menu can open", () => {
+    foregroundSessionState.markBusy("session-1", "D:\\Projects\\Repo");
+
+    const decision = resolveInteractionGuardDecision(createContext({ text: "⭐ Sessions" }));
+
+    expect(decision.allow).toBe(true);
+    expect(decision.busy).toBe(true);
+  });
+
+  it("allows saved-sessions menu callbacks while busy", () => {
+    foregroundSessionState.markBusy("session-1", "D:\\Projects\\Repo");
+    interactionManager.start({
+      kind: "inline",
+      expectedInput: "callback",
+      metadata: { menuKind: "saved", messageId: 5 },
+    });
+
+    const decision = resolveInteractionGuardDecision(createContext({ callbackData: "saved:save" }));
+
+    expect(decision.allow).toBe(true);
+    expect(decision.busy).toBe(true);
+  });
+
   it("allows queue menu callbacks while busy so queued messages can be dropped or sent", () => {
     foregroundSessionState.markBusy("session-1", "D:\\Projects\\Repo");
     interactionManager.start({

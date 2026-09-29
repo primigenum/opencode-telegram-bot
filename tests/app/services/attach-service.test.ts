@@ -497,4 +497,19 @@ describe("attach/service", () => {
     // finishRun returns null once the run was already cleared by the detach.
     expect(assistantRunState.finishRun("session-1", "test_check")).toBeNull();
   });
+
+  it("is a no-op when no session is attached", () => {
+    expect(attachManager.isAttached()).toBe(false);
+    foregroundSessionState.markBusy("session-2", "D:\\Projects\\Other");
+
+    expect(() => detachAttachedSession("saved_session_opened")).not.toThrow();
+
+    expect(attachManager.getSnapshot()).toBeNull();
+    // A busy run that is not attached is left alone: the detach must not
+    // release someone else's busy gate.
+    expect(foregroundSessionState.getBusySessions().map((entry) => entry.sessionId)).toEqual([
+      "session-2",
+    ]);
+    expect(mocked.stopEventListeningMock).not.toHaveBeenCalled();
+  });
 });
