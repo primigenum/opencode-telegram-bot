@@ -197,30 +197,36 @@ export async function getAvailableVariants(
 }
 
 /**
+ * Resolve the variant actually in effect for a model.
+ * Explicit stored variant wins; otherwise the OpenCode CLI config default
+ * (e.g. `reasoningEffort: max`); otherwise "default" as a last resort.
+ * @param providerID Provider ID
+ * @param modelID Model ID
+ * @param storedVariant Variant stored in settings, if any ("default" = no explicit choice)
+ * @returns Effective variant ID
+ */
+export function resolveVariant(
+  providerID: string,
+  modelID: string,
+  storedVariant?: string,
+): string {
+  if (storedVariant && storedVariant !== "default") {
+    return storedVariant;
+  }
+  return getDefaultVariantFromConfig(providerID, modelID) ?? "default";
+}
+
+/**
  * Get current variant from settings
  * @returns Current variant ID (falls back to OpenCode CLI config, then "default")
  */
 export function getCurrentVariant(): string {
   const currentModel = getCurrentModel();
-  if (currentModel?.variant) {
-    // If the stored variant is "default", check if the OpenCode CLI config
-    // specifies a different one (e.g. reasoningEffort: max). This way the
-    // bot picks up the user's opencode config automatically without needing
-    // to clear settings.json.
-    if (currentModel.variant !== "default") return currentModel.variant;
-    const fromConfig = getDefaultVariantFromConfig(
-      currentModel.providerID || "",
-      currentModel.modelID || "",
-    );
-    return fromConfig ?? "default";
-  }
-
-  // Fall back to the OpenCode CLI config
-  const fromConfig = getDefaultVariantFromConfig(
+  return resolveVariant(
     currentModel?.providerID || "",
     currentModel?.modelID || "",
+    currentModel?.variant,
   );
-  return fromConfig ?? "default";
 }
 
 /**

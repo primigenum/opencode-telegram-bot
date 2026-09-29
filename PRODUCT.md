@@ -44,7 +44,7 @@ No public inbound ports are required for normal usage.
 
 - Fetch last N sessions (name + date)
 - Select an existing session and automatically follow its live updates
-- Switching to an existing session adopts the agent, model, and variant it last ran with
+- Switching to an existing session adopts the agent, model, and variant it last ran with; when the session carries no variant, the model's configured default (e.g. `reasoningEffort`) is used instead of the literal `default`
 - Create a new session
 - Use OpenCode-generated session title (based on conversation)
 
@@ -148,7 +148,9 @@ Model picker behavior:
 - Models can be browsed by provider: the picker offers a providers list and a paginated model
   list per provider, with a back button on each screen (page size: `MODELS_LIST_LIMIT`)
 - Picking a model opens the variant picker right after the confirmation when the model offers
-  more than one selectable variant; a model with only `Default` ends at the confirmation
+  at least one selectable real variant different from the active one; the synthetic `Default`
+  row is never offered, so a model with no real variants (or whose only real variant is
+  already active) ends at the confirmation
 - The bottom keyboard exposes a single model button (model + active thinking-effort variant);
   picking the already-active model in the picker re-opens the variant picker as is
 

@@ -50,6 +50,7 @@ const mocked = {
     variant: "high",
   })),
   setCurrentVariantMock: vi.fn(),
+  resolveVariantMock: vi.fn(),
   loggerDebugMock: vi.fn(),
   loggerErrorMock: vi.fn(),
   loggerInfoMock: vi.fn(),
@@ -155,6 +156,7 @@ vi.mock("#src/app/services/model-selection-service.ts", () => ({
 
 vi.mock("#src/app/services/variant-selection-service.ts", () => ({
   setCurrentVariant: mocked.setCurrentVariantMock,
+  resolveVariant: mocked.resolveVariantMock,
   formatVariantForButton: vi.fn((variantId: string) => variantId),
   formatVariantForDisplay: vi.fn((variantId: string) => variantId),
   getCurrentVariant: vi.fn(() => "default"),
@@ -384,6 +386,12 @@ describe("applyAgentConfiguredSettings", () => {
     mocked.appAgentsMock.mockReset();
     mocked.selectModelMock.mockReset();
     mocked.setCurrentVariantMock.mockReset();
+    mocked.resolveVariantMock.mockReset();
+    // Faithful default: an explicit stored variant wins, otherwise no config default.
+    mocked.resolveVariantMock.mockImplementation(
+      (_providerID: string, _modelID: string, storedVariant?: string) =>
+        storedVariant && storedVariant !== "default" ? storedVariant : "default",
+    );
     mocked.getStoredModelMock.mockClear();
     mocked.getStoredModelMock.mockReturnValue({
       providerID: "stored-provider",
@@ -417,6 +425,36 @@ describe("applyAgentConfiguredSettings", () => {
       variant: "high",
     });
     expect(mocked.setCurrentVariantMock).not.toHaveBeenCalled();
+  });
+
+  it("resolves the configured default when no explicit variant can be preserved", async () => {
+    mocked.getStoredModelMock.mockReturnValue({
+      providerID: "stored-provider",
+      modelID: "stored-model",
+      variant: "default",
+    });
+    mocked.resolveVariantMock.mockImplementation(
+      (_providerID: string, _modelID: string, storedVariant?: string) =>
+        storedVariant && storedVariant !== "default" ? storedVariant : "max",
+    );
+    mocked.appAgentsMock.mockResolvedValue(
+      createAgentResponse([
+        {
+          name: "plan",
+          mode: "primary",
+          model: { providerID: "opencode-go", modelID: "deepseek-v4.1-flash" },
+        },
+      ]),
+    );
+
+    const modelApplied = await applyAgentConfiguredSettings("plan");
+
+    expect(modelApplied).toBe(true);
+    expect(mocked.selectModelMock).toHaveBeenCalledWith({
+      providerID: "opencode-go",
+      modelID: "deepseek-v4.1-flash",
+      variant: "max",
+    });
   });
 
   it("writes only the variant and leaves the model", async () => {

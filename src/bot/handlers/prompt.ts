@@ -351,7 +351,8 @@ export async function processUserPrompt(
         modelID: storedModel.modelID,
       };
 
-      // Add variant if specified
+      // The stored model carries the effective variant (getStoredModel resolves
+      // the model's configured default), so the prompt never sends a raw "default".
       if (storedModel.variant) {
         promptOptions.variant = storedModel.variant;
       }
