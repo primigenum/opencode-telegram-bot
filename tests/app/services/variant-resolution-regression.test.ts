@@ -28,6 +28,9 @@ interface StoredModel {
 }
 
 // --- Real config fixture: reasoningEffort "max" for CONFIGURED_MODEL only.
+// The trailing commas (after the model entry and after the provider block) are
+// deliberate: they keep this end-to-end file load-bearing on the JSONC reader
+// (plan T6), so a regression in the reader cannot pass unnoticed here.
 const fakeHome = await mkdtemp(path.join(os.tmpdir(), "bot-variant-cfg-"));
 await mkdir(path.join(fakeHome, ".config", "opencode"), { recursive: true });
 await writeFile(
@@ -37,9 +40,9 @@ await writeFile(
   "provider": {
     "${CONFIGURED_PROVIDER}": {
       "models": {
-        "${CONFIGURED_MODEL}": { "options": { "reasoningEffort": "max" } }
+        "${CONFIGURED_MODEL}": { "options": { "reasoningEffort": "max" } },
       }
-    }
+    },
   }
 }
 `,

@@ -73,6 +73,47 @@ function stripJsoncComments(content: string): string {
   return result;
 }
 
+/**
+ * Remove trailing commas that precede a closing brace/bracket — JSONC allows
+ * them, JSON.parse does not. A character state machine keeps commas inside
+ * string literals intact (e.g. a value containing ",}").
+ */
+function stripTrailingCommas(json: string): string {
+  let result = "";
+  let inString = false;
+  let escape = false;
+
+  for (let i = 0; i < json.length; i++) {
+    const ch = json[i];
+
+    if (escape) {
+      result += ch;
+      escape = false;
+      continue;
+    }
+
+    if (inString) {
+      if (ch === "\\") { escape = true; result += ch; continue; }
+      if (ch === '"') { inString = false; }
+      result += ch;
+      continue;
+    }
+
+    if (ch === '"') { inString = true; result += ch; continue; }
+
+    if (ch === ",") {
+      // Drop the comma when the next non-whitespace character closes a container.
+      let j = i + 1;
+      while (j < json.length && /\s/.test(json[j])) j++;
+      if (json[j] === "}" || json[j] === "]") continue;
+    }
+
+    result += ch;
+  }
+
+  return result;
+}
+
 interface OpenCodeCliProviderConfig {
   provider?: Record<string, {
     models?: Record<string, {
@@ -97,11 +138,15 @@ function getOpenCodeCliConfig(): OpenCodeCliProviderConfig | null {
   if (parsedConfig !== undefined) return parsedConfig;
   try {
     const raw = readFileSync(OPENCODE_CONFIG_PATH, "utf-8");
-    const json = stripJsoncComments(raw);
+    const json = stripTrailingCommas(stripJsoncComments(raw));
     parsedConfig = JSON.parse(json) as OpenCodeCliProviderConfig;
     return parsedConfig;
-  } catch {
+  } catch (err) {
     parsedConfig = null;
+    logger.warn(
+      "[VariantConfig] Failed to load OpenCode CLI config; config-based variant defaults are disabled:",
+      err,
+    );
     return null;
   }
 }
