@@ -146,13 +146,14 @@ describe("app/managers/prompt-queue-manager", () => {
     expect(promptQueue.add(prompt("late"))).not.toBeNull();
   });
 
-  it("clears every queued prompt", () => {
+  it("clears every queued prompt and reports how many were discarded", () => {
     promptQueue.add(prompt("first"));
     promptQueue.add(prompt("second"));
 
-    promptQueue.clear("test");
+    expect(promptQueue.clear("test")).toBe(2);
 
     expect(promptQueue.size()).toBe(0);
+    expect(promptQueue.clear("test")).toBe(0);
   });
 
   it("returns copies so callers cannot mutate the queue", () => {

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import { loadSut } from "#helpers/sut-loader.js";
-import { QUEUED_PROMPT_BUTTON_TEXT_PATTERN, SWAP_PROJECT_BUTTON_TEXT_PATTERN } from "#src/bot/message-patterns.js";
+import { QUEUED_PROMPT_BUTTON_TEXT_PATTERN, SAVED_SESSIONS_BUTTON_TEXT_PATTERN, SWAP_PROJECT_BUTTON_TEXT_PATTERN } from "#src/bot/message-patterns.js";
+import { formatQueuedPromptButtonLabel } from "#src/bot/keyboards/queued-prompt-button.js";
 import { promptQueue } from "#src/app/managers/prompt-queue-manager.js";
 import { interactionManager } from "#src/app/managers/interaction-manager.js";
 import { t } from "#src/i18n/index.js";
@@ -9,10 +10,15 @@ import { createIncomingPrompt } from "#src/app/types/prompt.js";
 
 const routeMocks = vi.hoisted(() => ({
   handleSwapProjectButton: vi.fn(),
+  showSavedSessionsMenu: vi.fn(),
 }));
 
 vi.mock("#src/bot/handlers/swap-project-handler.ts", () => ({
   handleSwapProjectButton: routeMocks.handleSwapProjectButton,
+}));
+
+vi.mock("#src/bot/menus/saved-sessions-menu.js", () => ({
+  showSavedSessionsMenu: routeMocks.showSavedSessionsMenu,
 }));
 
 const { registerMessageRouter } = await loadSut<typeof import("#src/bot/routers/message-router.js")>(
@@ -32,10 +38,11 @@ describe("bot/routers/message-router", () => {
       setTelegramContext: vi.fn(),
     });
 
-    expect(bot.hears).toHaveBeenCalledTimes(5);
+    expect(bot.hears).toHaveBeenCalledTimes(6);
     // The queued prompt route must win over the other reply keyboard routes.
     expect(defined(bot.hears.mock.calls[0]?.[0])).toBe(QUEUED_PROMPT_BUTTON_TEXT_PATTERN);
     expect(defined(bot.hears.mock.calls[4]?.[0])).toBe(SWAP_PROJECT_BUTTON_TEXT_PATTERN);
+    expect(defined(bot.hears.mock.calls[5]?.[0])).toBe(SAVED_SESSIONS_BUTTON_TEXT_PATTERN);
     expect(bot.on.mock.calls.map(([event]) => event)).toEqual([
       "message:text",
       "message:text",
@@ -66,8 +73,26 @@ describe("bot/routers/message-router", () => {
     await handler(ctx);
 
     expect(routeMocks.handleSwapProjectButton).toHaveBeenCalledWith(ctx, {
+      bot,
       ensureEventSubscription,
     });
+  });
+
+  it("routes saved-sessions presses to the menu", async () => {
+    routeMocks.showSavedSessionsMenu.mockReset();
+    const bot = { on: vi.fn(), hears: vi.fn() };
+
+    registerMessageRouter(bot as never, {
+      ensureEventSubscription: vi.fn(),
+      setTelegramContext: vi.fn(),
+    });
+
+    const handler = defined(bot.hears.mock.calls[5]?.[1]) as (ctx: unknown) => Promise<void>;
+    const ctx = { chat: { id: 42 }, message: { text: "⭐ Sesiones" }, reply: vi.fn() };
+
+    await handler(ctx);
+
+    expect(routeMocks.showSavedSessionsMenu).toHaveBeenCalledWith(ctx);
   });
 
   describe("queued prompt button handler", () => {
@@ -100,7 +125,7 @@ describe("bot/routers/message-router", () => {
       promptQueue.add(createIncomingPrompt("second"));
       promptQueue.add(createIncomingPrompt("third"));
       const handler = registerAndGetQueuedPromptHandler();
-      const ctx = makeButtonContext("❌ 2. second");
+      const ctx = makeButtonContext(formatQueuedPromptButtonLabel(2, "second"));
       const next = vi.fn();
 
       await handler(ctx, next);
@@ -129,7 +154,7 @@ describe("bot/routers/message-router", () => {
 
     it("never forwards a stale button label to OpenCode when the queue is empty", async () => {
       const handler = registerAndGetQueuedPromptHandler();
-      const ctx = makeButtonContext("❌ 1. cleared by abort");
+      const ctx = makeButtonContext(formatQueuedPromptButtonLabel(1, "cleared by abort"));
       const next = vi.fn();
 
       await handler(ctx, next);
@@ -141,7 +166,7 @@ describe("bot/routers/message-router", () => {
     it("answers not_found when the label no longer matches the queue", async () => {
       promptQueue.add(createIncomingPrompt("still queued"));
       const handler = registerAndGetQueuedPromptHandler();
-      const ctx = makeButtonContext("❌ 3. already gone");
+      const ctx = makeButtonContext(formatQueuedPromptButtonLabel(3, "already gone"));
       const next = vi.fn();
 
       await handler(ctx, next);

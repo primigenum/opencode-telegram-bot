@@ -21,7 +21,7 @@ const configMock = vi.hoisted(() => ({
   tts: { apiUrl: "", apiKey: "" },
 }));
 vi.mock("#src/config.ts", () => ({ config: configMock }));
-const { __resetSettingsForTests, flushSettings, getCompactOutputMode, getDeleteCompactProgressOnFinish, getPromptQueueEnabled, getProjectAgent, getResponseStreamingMode, getScheduledTasks, getSendDiffFileAttachments, getShowAssistantRunFooter, getShowThinkingContent, getTtsMode, loadSettings, setCompactOutputMode, setProjectAgent, setPromptQueueEnabled, setResponseStreamingMode, setScheduledTasks, setSendDiffFileAttachments, setShowAssistantRunFooter, setShowThinkingContent } = await loadSut<typeof import("#src/app/stores/settings-store.js")>(
+const { __resetSettingsForTests, flushSettings, getCompactOutputMode, getDeleteCompactProgressOnFinish, getPromptQueueEnabled, getProjectAgent, getResponseStreamingMode, getSavedSessions, getScheduledTasks, getSendDiffFileAttachments, getShowAssistantRunFooter, getShowThinkingContent, getTtsMode, isSessionSaved, loadSettings, removeSavedSession, saveSession, setCompactOutputMode, setProjectAgent, setPromptQueueEnabled, setResponseStreamingMode, setScheduledTasks, setSendDiffFileAttachments, setShowAssistantRunFooter, setShowThinkingContent } = await loadSut<typeof import("#src/app/stores/settings-store.js")>(
   "#src/app/stores/settings-store.ts",
   import.meta.url,
 );
@@ -476,5 +476,29 @@ describe("app/stores/settings-store", () => {
     await loadSettings();
 
     expect(getProjectAgent("/workspace/project-a")).toBe("boss");
+  });
+
+  it("bookmarks sessions per project and removes them", async () => {
+    await loadSettings();
+    const first = { id: "ses-1", title: "First", directory: "/workspace/project-a" };
+    const second = { id: "ses-2", title: "Second", directory: "/workspace/project-b" };
+
+    saveSession(first);
+    saveSession(second);
+
+    expect(getSavedSessions()).toEqual([first, second]);
+    expect(getSavedSessions("/workspace/project-a")).toEqual([first]);
+    expect(isSessionSaved("/workspace/project-a", "ses-1")).toBe(true);
+    expect(isSessionSaved("/workspace/project-b", "ses-1")).toBe(false);
+
+    // Re-saving the same id updates its entry instead of duplicating it.
+    saveSession({ ...first, title: "Renamed" });
+    expect(getSavedSessions("/workspace/project-a")).toEqual([
+      { ...first, title: "Renamed" },
+    ]);
+
+    removeSavedSession("ses-1");
+    expect(getSavedSessions("/workspace/project-a")).toEqual([]);
+    expect(isSessionSaved("/workspace/project-a", "ses-1")).toBe(false);
   });
 });

@@ -8,7 +8,7 @@ const { createMainKeyboard } = await loadSut<typeof import("#src/bot/keyboards/m
   "#src/bot/keyboards/main-reply-keyboard.ts",
   import.meta.url,
 );
-const { AGENT_MODE_BUTTON_TEXT_PATTERN, CONTEXT_BUTTON_TEXT_PATTERN, isReplyKeyboardButtonText, MODEL_BUTTON_TEXT_PATTERN, QUEUED_PROMPT_BUTTON_TEXT_PATTERN } = await loadSut<typeof import("#src/bot/message-patterns.js")>(
+const { AGENT_MODE_BUTTON_TEXT_PATTERN, CONTEXT_BUTTON_TEXT_PATTERN, isReplyKeyboardButtonText, MODEL_BUTTON_TEXT_PATTERN, QUEUED_PROMPT_BUTTON_TEXT_PATTERN, SAVED_SESSIONS_BUTTON_TEXT_PATTERN } = await loadSut<typeof import("#src/bot/message-patterns.js")>(
   "#src/bot/message-patterns.ts",
   import.meta.url,
 );
@@ -25,7 +25,12 @@ describe("bot/message-patterns", () => {
       modelID: "openai/gpt-4o",
     });
 
-    const modelButtonText = getButtonText(defined(keyboard.keyboard[1]?.[0]));
+    const modelButtonText = defined(
+      keyboard.keyboard
+        .flat()
+        .map(getButtonText)
+        .find((text) => text.startsWith("🧠")),
+    );
     expect(modelButtonText).toMatch(MODEL_BUTTON_TEXT_PATTERN);
   });
 
@@ -75,6 +80,8 @@ describe("bot/message-patterns", () => {
     expect("📊 150K / 1.5M (10%)").not.toMatch(QUEUED_PROMPT_BUTTON_TEXT_PATTERN);
     expect("Create a migration plan").not.toMatch(QUEUED_PROMPT_BUTTON_TEXT_PATTERN);
     expect("❌ do not do that").not.toMatch(QUEUED_PROMPT_BUTTON_TEXT_PATTERN);
+    // Queued buttons rendered before the ⏳ icon change still resolve to the queue.
+    expect("❌ 3. legacy button").toMatch(QUEUED_PROMPT_BUTTON_TEXT_PATTERN);
   });
 
   it("recognises every reply keyboard button label", () => {
@@ -84,10 +91,20 @@ describe("bot/message-patterns", () => {
       { tokensUsed: 150000, tokensLimit: 1500000 },
     );
 
-    expect(isReplyKeyboardButtonText(getButtonText(defined(keyboard.keyboard[0]?.[0])))).toBe(true);
-    expect(isReplyKeyboardButtonText(getButtonText(defined(keyboard.keyboard[0]?.[1])))).toBe(true);
-    expect(isReplyKeyboardButtonText(getButtonText(defined(keyboard.keyboard[1]?.[0])))).toBe(true);
+    const buttonTexts = keyboard.keyboard.flat().map(getButtonText);
+    expect(buttonTexts.length).toBeGreaterThan(0);
+    for (const text of buttonTexts) {
+      expect(isReplyKeyboardButtonText(text)).toBe(true);
+    }
+
     expect(isReplyKeyboardButtonText(formatQueuedPromptButtonLabel(1, "queued"))).toBe(true);
     expect(isReplyKeyboardButtonText("Create a migration plan")).toBe(false);
+  });
+
+  it("recognises saved-sessions button labels whatever the locale", () => {
+    expect(SAVED_SESSIONS_BUTTON_TEXT_PATTERN.test("⭐ Sesiones")).toBe(true);
+    expect(SAVED_SESSIONS_BUTTON_TEXT_PATTERN.test("⭐ Sessions")).toBe(true);
+    expect(SAVED_SESSIONS_BUTTON_TEXT_PATTERN.test("Create a migration plan")).toBe(false);
+    expect(isReplyKeyboardButtonText("⭐ Sesiones")).toBe(true);
   });
 });

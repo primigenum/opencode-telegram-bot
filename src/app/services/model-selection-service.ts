@@ -3,7 +3,7 @@ import { config } from "../../config.js";
 import { opencodeClient } from "../../opencode/client.js";
 import { isServerUnavailableError } from "../../utils/opencode-error.js";
 import { logger } from "../../utils/logger.js";
-import { getDefaultVariantFromConfig } from "./variant-selection-service.js";
+import { getDefaultVariantFromConfig, resolveVariant } from "./variant-selection-service.js";
 import type {
   ModelInfo,
   FavoriteModel,
@@ -453,9 +453,15 @@ export function getStoredModel(): ModelInfo {
   const storedModel = getCurrentModel();
 
   if (storedModel) {
-    // Ensure variant is set (fall back to OpenCode CLI config, then "default")
-    if (!storedModel.variant) {
-      storedModel.variant = getDefaultVariantFromConfig(storedModel.providerID, storedModel.modelID) ?? "default";
+    // Resolve the effective variant: a real stored variant wins, otherwise the
+    // OpenCode CLI config default (so "default" is never shown/stored when the
+    // model has a configured default such as reasoningEffort: max).
+    if (!storedModel.variant || storedModel.variant === "default") {
+      storedModel.variant = resolveVariant(
+        storedModel.providerID,
+        storedModel.modelID,
+        storedModel.variant,
+      );
     }
     return storedModel;
   }

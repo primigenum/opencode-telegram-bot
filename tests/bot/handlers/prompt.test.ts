@@ -71,10 +71,11 @@ vi.mock("#src/app/services/agent-selection-service.ts", () => ({
 }));
 
 vi.mock("#src/app/services/model-selection-service.ts", () => ({
+  // getStoredModel resolves the effective variant (model's configured default).
   getStoredModel: vi.fn(() => ({
     providerID: "openai",
     modelID: "gpt-5",
-    variant: "default",
+    variant: "max",
   })),
 }));
 
@@ -276,7 +277,7 @@ describe("bot/handlers/prompt", () => {
         providerID: "openai",
         modelID: "gpt-5",
       },
-      variant: "default",
+      variant: "max",
     });
     expect(mocked.sessionPromptMock).not.toHaveBeenCalled();
   });

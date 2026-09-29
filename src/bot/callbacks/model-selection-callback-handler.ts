@@ -8,7 +8,11 @@ import {
   searchModels,
   selectModel,
 } from "../../app/services/model-selection-service.js";
-import { formatVariantForButton, getCurrentVariant } from "../../app/services/variant-selection-service.js";
+import {
+  formatVariantForButton,
+  getCurrentVariant,
+  resolveVariant,
+} from "../../app/services/variant-selection-service.js";
 import { formatModelForDisplay } from "../../app/types/model.js";
 import type { ModelInfo, ProviderInfo } from "../../app/types/model.js";
 import { interactionManager } from "../../app/managers/interaction-manager.js";
@@ -314,8 +318,15 @@ async function applyModelSelectionAndNotify(ctx: Context, modelInfo: ModelInfo):
     keyboardManager.initialize(ctx.api, ctx.chat.id);
   }
 
-  selectModel(modelInfo);
-  keyboardManager.updateModel(modelInfo);
+  // Resolve the effective variant once so it is persisted, shown and sent
+  // consistently (never the literal "default" when the model has a default).
+  const resolvedModel: ModelInfo = {
+    ...modelInfo,
+    variant: resolveVariant(modelInfo.providerID, modelInfo.modelID, modelInfo.variant),
+  };
+
+  selectModel(resolvedModel);
+  keyboardManager.updateModel(resolvedModel);
   await pinnedMessageManager.refreshContextLimit();
 
   const currentAgent = await resolveProjectAgent(getStoredAgent());
@@ -331,17 +342,17 @@ async function applyModelSelectionAndNotify(ctx: Context, modelInfo: ModelInfo):
     keyboardManager.updateContext(contextInfo.tokensUsed, contextInfo.tokensLimit);
   }
 
-  const variantName = formatVariantForButton(modelInfo.variant || "default");
+  const variantName = formatVariantForButton(resolvedModel.variant || "default");
   const keyboard = createMainKeyboard(
     currentAgent,
-    modelInfo,
+    resolvedModel,
     contextInfo ?? undefined,
     variantName,
   );
-  const displayName = formatModelForDisplay(modelInfo.providerID, modelInfo.modelID);
+  const displayName = formatModelForDisplay(resolvedModel.providerID, resolvedModel.modelID);
 
   await switched(ctx, t("model.changed_message", { name: displayName }), keyboard);
-  await showVariantSelectionMenuAfterModelChange(ctx, modelInfo);
+  await showVariantSelectionMenuAfterModelChange(ctx, resolvedModel);
 }
 
 /**

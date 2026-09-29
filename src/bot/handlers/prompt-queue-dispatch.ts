@@ -31,6 +31,30 @@ let queuedPromptContext: Context | null = null;
 // session, losing the prompt the loser took off the queue.
 let dispatchInFlight = false;
 
+// A burst of late SSE events (message.part.*) can re-mark the attached session
+// busy right after the idle event that triggers a drain, which makes that only
+// attempt bail out and leaves the queue stranded while the chat looks idle.
+// Retry with growing delays until the session is free again.
+const DISPATCH_RETRY_BASE_MS = 3_000;
+const DISPATCH_RETRY_MAX_MS = 30_000;
+
+let dispatchRetryTimer: ReturnType<typeof setTimeout> | null = null;
+let dispatchRetryDelayMs = DISPATCH_RETRY_BASE_MS;
+
+function scheduleDispatchRetry(): void {
+  if (dispatchRetryTimer) {
+    return;
+  }
+
+  const delay = dispatchRetryDelayMs;
+  dispatchRetryDelayMs = Math.min(dispatchRetryDelayMs * 2, DISPATCH_RETRY_MAX_MS);
+  dispatchRetryTimer = setTimeout(() => {
+    dispatchRetryTimer = null;
+    void dispatchNextQueuedPrompt();
+  }, delay);
+  logger.debug(`[PromptQueue] Dispatch retry scheduled in ${delay}ms`);
+}
+
 export function initializePromptQueueDispatch(deps: ProcessPromptDeps): void {
   promptDeps = deps;
 }
@@ -152,13 +176,20 @@ export async function dispatchNextQueuedPrompt(): Promise<void> {
     dispatchInFlight ||
     promptQueue.size() === 0 ||
     !promptDeps ||
-    !queuedPromptContext ||
-    isForegroundBusy()
+    !queuedPromptContext
   ) {
     return;
   }
 
+  if (isForegroundBusy()) {
+    // Still running: retry instead of dropping the trigger, so a busy re-mark
+    // that raced the idle event cannot strand the queue.
+    scheduleDispatchRetry();
+    return;
+  }
+
   dispatchInFlight = true;
+  dispatchRetryDelayMs = DISPATCH_RETRY_BASE_MS;
 
   try {
     const item = promptQueue.takeNext();
@@ -217,4 +248,9 @@ export function __resetPromptQueueDispatchForTests(): void {
   promptDeps = null;
   queuedPromptContext = null;
   dispatchInFlight = false;
+  if (dispatchRetryTimer) {
+    clearTimeout(dispatchRetryTimer);
+    dispatchRetryTimer = null;
+  }
+  dispatchRetryDelayMs = DISPATCH_RETRY_BASE_MS;
 }

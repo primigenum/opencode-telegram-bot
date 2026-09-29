@@ -326,6 +326,39 @@ export function clearSessionDirectoryCache(): void {
   void writeSettingsFile(currentSettings);
 }
 
+/** Bookmarked sessions, optionally narrowed to one project worktree. */
+export function getSavedSessions(worktree?: string): SessionInfo[] {
+  const saved = currentSettings.savedSessions ?? [];
+  const scoped = worktree ? saved.filter((session) => session.directory === worktree) : saved;
+  return scoped.map((session) => ({ ...session }));
+}
+
+export function isSessionSaved(worktree: string, sessionId: string): boolean {
+  return (currentSettings.savedSessions ?? []).some(
+    (session) => session.directory === worktree && session.id === sessionId,
+  );
+}
+
+export function saveSession(session: SessionInfo): void {
+  const saved = currentSettings.savedSessions ?? [];
+  currentSettings.savedSessions = [
+    ...saved.filter((entry) => entry.id !== session.id),
+    { ...session },
+  ];
+  void writeSettingsFile(currentSettings);
+}
+
+export function removeSavedSession(sessionId: string): void {
+  const saved = currentSettings.savedSessions ?? [];
+  const remaining = saved.filter((entry) => entry.id !== sessionId);
+  if (remaining.length === saved.length) {
+    return;
+  }
+
+  currentSettings.savedSessions = remaining;
+  void writeSettingsFile(currentSettings);
+}
+
 export function getScheduledTasks(): ScheduledTask[] {
   return cloneScheduledTasks(currentSettings.scheduledTasks) ?? [];
 }

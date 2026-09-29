@@ -29,6 +29,9 @@ vi.mock("#src/app/services/variant-selection-service.ts", () => ({
   ),
   getCurrentVariant: vi.fn(() => "default"),
   getDefaultVariantFromConfig: vi.fn(() => "default"),
+  resolveVariant: vi.fn((_providerID: string, _modelID: string, storedVariant?: string) =>
+    storedVariant && storedVariant !== "default" ? storedVariant : "default",
+  ),
   setCurrentVariant: vi.fn(),
   validateVariantForModel: vi.fn(async () => ({ ok: true })),
 }));
@@ -79,6 +82,40 @@ describe("bot/menus/variant-selection-menu — after a model change", () => {
     expect(ctx.reply).not.toHaveBeenCalled();
   });
 
+  // A model with exactly ONE real variant must still offer it when that variant is
+  // not the active one: the synthetic "default" row is no longer drawn, so the
+  // single real variant is a genuine choice.
+  it("opens the menu with the single real variant when it is not the active one", async () => {
+    mocked.getAvailableVariantsMock.mockResolvedValue([{ id: "default" }, { id: "max" }]);
+    const ctx = mockContext();
+
+    const opened = await showVariantSelectionMenuAfterModelChange(ctx, model);
+
+    expect(opened).toBe(true);
+    expect(mocked.getAvailableVariantsMock).toHaveBeenCalledWith("openai", "gpt-5");
+
+    const options = replyOptions();
+    expect(options.menuKind).toBe("variant");
+
+    const rows = options.keyboard.inline_keyboard.filter((row) => row.length > 0);
+    expect(rows).toHaveLength(1);
+    expect(defined(rows[0]?.[0], "max button").text).toBe("Max");
+    expect(defined(rows[0]?.[0], "max button").callback_data).toBe("variant:max");
+  });
+
+  it("stays silent when the single real variant is already active", async () => {
+    mocked.getAvailableVariantsMock.mockResolvedValue([{ id: "default" }, { id: "max" }]);
+    const ctx = mockContext();
+
+    const opened = await showVariantSelectionMenuAfterModelChange(ctx, {
+      ...model,
+      variant: "max",
+    });
+
+    expect(opened).toBe(false);
+    expect(mocked.replyWithInlineMenuMock).not.toHaveBeenCalled();
+  });
+
   it("stays silent when every extra variant is disabled", async () => {
     mocked.getAvailableVariantsMock.mockResolvedValue([
       { id: "default" },
@@ -94,27 +131,31 @@ describe("bot/menus/variant-selection-menu — after a model change", () => {
     expect(ctx.reply).not.toHaveBeenCalled();
   });
 
-  it("opens the variant menu when the model offers a real choice", async () => {
+  it("opens the variant menu when the model offers a real choice, without a Default row", async () => {
     mocked.getAvailableVariantsMock.mockResolvedValue([
       { id: "default" },
       { id: "high" },
-      { id: "low", disabled: true },
+      { id: "low" },
     ]);
     const ctx = mockContext();
 
-    const opened = await showVariantSelectionMenuAfterModelChange(ctx, model);
+    const opened = await showVariantSelectionMenuAfterModelChange(ctx, {
+      ...model,
+      variant: "high",
+    });
 
     expect(opened).toBe(true);
     expect(mocked.getAvailableVariantsMock).toHaveBeenCalledWith("openai", "gpt-5");
 
     const options = replyOptions();
     expect(options.menuKind).toBe("variant");
-    expect(options.text).toBe(t("variant.menu.current", { name: "Default" }));
+    expect(options.text).toBe(t("variant.menu.current", { name: "High" }));
 
     const rows = options.keyboard.inline_keyboard.filter((row) => row.length > 0);
     expect(rows).toHaveLength(2);
-    expect(defined(rows[0]?.[0], "default button").text).toBe("✅ Default");
-    expect(defined(rows[1]?.[0], "high button").text).toBe("High");
+    expect(defined(rows[0]?.[0], "high button").text).toBe("✅ High");
+    expect(defined(rows[1]?.[0], "low button").text).toBe("Low");
+    expect(rows.some((row) => row.some((button) => button.text.includes("Default")))).toBe(false);
   });
 
   it("stays silent when the variants cannot be read", async () => {

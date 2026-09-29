@@ -381,6 +381,18 @@ describe("interactionGuardMiddleware", () => {
     expect(ctx.reply).toHaveBeenCalledWith(t("bot.session_busy"));
   });
 
+  it("passes the saved sessions button through while busy so the menu can open", async () => {
+    foregroundSessionState.markBusy("session-1", "D:\\Projects\\Repo");
+
+    const ctx = createTextContext("⭐ Sessions");
+    const next: NextFunction = vi.fn().mockResolvedValue(undefined);
+
+    await interactionGuardMiddleware(ctx, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(ctx.reply).not.toHaveBeenCalled();
+  });
+
   it("passes through after on-demand reconciliation clears stale busy state", async () => {
     foregroundSessionState.markBusy("session-1", "D:\\Projects\\Repo");
     mocked.reconcileForegroundBusyStateMock.mockImplementationOnce(async () => {
