@@ -54,6 +54,9 @@ const MESSAGES: Record<string, unknown[]> = {
 
 let baseUrl = "";
 let requests: RecordedRequest[] = [];
+// Session ids whose title the server reports as already changed since the list
+// snapshot (simulates OpenCode's title agent or a manual /rename in between).
+const changedTitles = new Map<string, string>();
 
 function titles(): Record<string, string> {
   return Object.fromEntries(sessions.map((session) => [session.id, session.title]));
@@ -61,11 +64,19 @@ function titles(): Record<string, string> {
 
 function resetState(): void {
   requests = [];
+  changedTitles.clear();
   sessions.splice(0, sessions.length, ...INITIAL.map((session) => ({ ...session })));
 }
 
-async function runScript(args: string[], apiUrl?: string): Promise<ScriptRun> {
+async function runScript(
+  args: string[],
+  apiUrl?: string,
+  changed: Record<string, string> = {},
+): Promise<ScriptRun> {
   resetState();
+  for (const [id, title] of Object.entries(changed)) {
+    changedTitles.set(id, title);
+  }
   const titlesBefore = titles();
   const proc = Bun.spawn(["bun", "run", "--no-env-file", SCRIPT_PATH, ...args], {
     cwd: REPO_ROOT,
@@ -140,6 +151,20 @@ describe("scripts/backfill-session-titles", () => {
         }
 
         const session = url.pathname.match(/^\/session\/([^/]+)$/);
+        if (session && method === "GET") {
+          requests.push({
+            method,
+            path: url.pathname,
+            query: Object.fromEntries(url.searchParams),
+            body: null,
+          });
+          const target = sessions.find((candidate) => candidate.id === session[1]);
+          if (!target) {
+            return new Response(JSON.stringify({ error: "not found" }), { status: 404 });
+          }
+          const changed = changedTitles.get(session[1]);
+          return Response.json({ ...target, title: changed ?? target.title });
+        }
         if (session && method === "PATCH") {
           return request.text().then((raw) => {
             const body = JSON.parse(raw) as { title?: string };
@@ -194,8 +219,25 @@ describe("scripts/backfill-session-titles", () => {
     });
     // The failing session is reported and counted as skipped; the run continues.
     expect(run.stderr).toContain("ses_def_2");
-    expect(run.stdout).toContain("skipped:  1 (no text: 0, errors: 1)");
+    expect(run.stdout).toContain("skipped:  1 (no text: 0, title changed: 0, errors: 1)");
     expect(run.stdout).toContain("renamed:  2");
+  });
+
+  it("--apply re-checks the title and skips a session renamed between LIST and PATCH", async () => {
+    const run = await runScript(["--apply"], undefined, {
+      ses_def_1: "Renombrada por OpenCode a mitad",
+    });
+    expect(run.exitCode).toBe(0);
+    // ses_def_1 changed underneath -> no PATCH; ses_def_3 still gets renamed.
+    expect(patchBodies(run)).toEqual([
+      { path: "/session/ses_def_3", title: "prompt de la sesion 3" },
+    ]);
+    expect(run.stdout).toContain("ses_def_1");
+    expect(run.stdout).toContain("title changed to \"Renombrada por OpenCode a mitad\"");
+    expect(run.stdout).toContain("skipped:  2 (no text: 0, title changed: 1, errors: 1)");
+    expect(run.stdout).toContain("renamed:  1");
+    expect(run.titlesAfter.ses_def_1).toBe(DEFAULT_TITLE);
+    expect(run.titlesAfter.ses_def_3).toBe("prompt de la sesion 3");
   });
 
   it("--directory scopes the listing and the per-session requests", async () => {

@@ -157,6 +157,7 @@ async function main(): Promise<void> {
 
   let renamed = 0;
   let skippedNoText = 0;
+  let skippedTitleChanged = 0;
   let skippedError = 0;
 
   console.log(`Scanned ${scanned} root session(s); ${defaults.length} have the default title.`);
@@ -179,6 +180,26 @@ async function main(): Promise<void> {
       if (!args.apply) {
         renamed += 1;
         console.log(`${label}: would rename "${session.title}" -> "${title}"`);
+        continue;
+      }
+
+      // Re-read right before writing: between the list snapshot and now the
+      // title may have been set by OpenCode's own title agent or a manual
+      // /rename, and a real title must never be overwritten (TOCTOU).
+      const { data: current, error: getError } = await client.session.get({
+        sessionID: session.id,
+        ...(directory ? { directory } : {}),
+      });
+      if (getError || !current) {
+        skippedError += 1;
+        console.error(
+          `${label}: re-read failed (${getError ? formatError(getError) : "no session data"}); skipped`,
+        );
+        continue;
+      }
+      if (!isDefaultSessionTitle(current.title)) {
+        skippedTitleChanged += 1;
+        console.log(`${label}: skipped (title changed to "${current.title}")`);
         continue;
       }
 
@@ -207,7 +228,7 @@ async function main(): Promise<void> {
   console.log(`  default:  ${defaults.length}`);
   console.log(`  renamed:  ${renamed}${args.apply ? "" : " (dry-run)"}`);
   console.log(
-    `  skipped:  ${skippedNoText + skippedError} (no text: ${skippedNoText}, errors: ${skippedError})`,
+    `  skipped:  ${skippedNoText + skippedTitleChanged + skippedError} (no text: ${skippedNoText}, title changed: ${skippedTitleChanged}, errors: ${skippedError})`,
   );
 }
 
