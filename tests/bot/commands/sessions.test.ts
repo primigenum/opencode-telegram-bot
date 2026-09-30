@@ -498,9 +498,193 @@ describe("bot/commands/sessions", () => {
     ]);
     expect(safeBackgroundTaskMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        taskName: "sessions.sendPreview",
+        taskName: "sessions.sendPreviewAndLatestAssistantResponse",
       }),
     );
+  });
+
+  it("sends the recent-messages recap and then the full latest assistant response when selecting a session from the menu", async () => {
+    mocked.sessionGetMock.mockResolvedValueOnce({
+      data: createSession(0),
+      error: null,
+    });
+    const latestResponse = `Final assistant response. ${"More details. ".repeat(380)}`.trimEnd();
+    mocked.sessionMessagesMock.mockResolvedValue({
+      data: [
+        createSessionMessage("user", "Old user prompt", 100),
+        createSessionMessage("assistant", "Older assistant answer", 200),
+        createSessionMessage("user", "User prompt should not be forwarded", 300),
+        createSessionMessage("assistant", "Summary should be ignored", 400, true),
+        createSessionMessage("assistant", latestResponse, 500),
+      ],
+      error: null,
+    });
+
+    interactionManager.start({
+      kind: "inline",
+      expectedInput: "callback",
+      metadata: {
+        menuKind: "session",
+        messageId: 456,
+      },
+    });
+
+    const ctx = createCallbackContext("session:session-1", 456);
+    const handled = await handleSessionSelect(ctx, createDeps());
+
+    expect(handled).toBe(true);
+    expect(safeBackgroundTaskMock).toHaveBeenCalledOnce();
+    expect(safeBackgroundTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskName: "sessions.sendPreviewAndLatestAssistantResponse",
+      }),
+    );
+
+    const taskOptions = safeBackgroundTaskMock.mock.calls[0]?.[0];
+    if (!taskOptions) {
+      throw new Error("Expected session recap task");
+    }
+
+    const sendMessageMock = ctx.api.sendMessage as ReturnType<typeof vi.fn>;
+    const sendRichMessageMock = ctx.api.sendRichMessage as ReturnType<typeof vi.fn>;
+    const previousMessageCount = sendMessageMock.mock.calls.length;
+    const previousRichCount = sendRichMessageMock.mock.calls.length;
+
+    await taskOptions.task();
+
+    expect(mocked.sessionMessagesMock).toHaveBeenCalledWith({
+      sessionID: "session-1",
+      directory: "/repo",
+      limit: 6,
+    });
+    expect(mocked.sessionMessagesMock).toHaveBeenCalledWith({
+      sessionID: "session-1",
+      directory: "/repo",
+      limit: 20,
+    });
+
+    const recapCalls = sendMessageMock.mock.calls.slice(previousMessageCount);
+    const recapText = recapCalls
+      .map((call) => call[1] as string)
+      .find((text) => text.startsWith(t("sessions.preview.title")));
+    expect(recapText).toBeDefined();
+
+    const assistantResponseCalls = sendRichMessageMock.mock.calls.slice(previousRichCount);
+    expect(assistantResponseCalls.length).toBeGreaterThan(0);
+    const sentText = assistantResponseCalls
+      .map(
+        (call) =>
+          (call[1] as { blocks?: Array<{ text?: string; plainText?: string }> }).blocks
+            ?.map((b) => b.text ?? b.plainText ?? "")
+            .join("") ?? "",
+      )
+      .join("");
+    expect(sentText).toBe(latestResponse);
+    expect(sentText).not.toContain("User prompt should not be forwarded");
+    expect(sentText).not.toContain("Summary should be ignored");
+
+    expect(defined(sendMessageMock.mock.invocationCallOrder[previousMessageCount])).toBeLessThan(
+      defined(sendRichMessageMock.mock.invocationCallOrder[previousRichCount]),
+    );
+  });
+
+  it("sends only the recap when the selected session has no assistant text to forward", async () => {
+    mocked.sessionGetMock.mockResolvedValueOnce({
+      data: createSession(0),
+      error: null,
+    });
+    mocked.sessionMessagesMock.mockResolvedValue({
+      data: [
+        createSessionMessage("user", "Only a user prompt", 100),
+        createSessionMessage("assistant", null, 200),
+      ],
+      error: null,
+    });
+
+    interactionManager.start({
+      kind: "inline",
+      expectedInput: "callback",
+      metadata: {
+        menuKind: "session",
+        messageId: 456,
+      },
+    });
+
+    const ctx = createCallbackContext("session:session-1", 456);
+    const handled = await handleSessionSelect(ctx, createDeps());
+
+    expect(handled).toBe(true);
+
+    const taskOptions = safeBackgroundTaskMock.mock.calls[0]?.[0];
+    if (!taskOptions) {
+      throw new Error("Expected session recap task");
+    }
+
+    const sendMessageMock = ctx.api.sendMessage as ReturnType<typeof vi.fn>;
+    const sendRichMessageMock = ctx.api.sendRichMessage as ReturnType<typeof vi.fn>;
+    const previousMessageCount = sendMessageMock.mock.calls.length;
+    const previousRichCount = sendRichMessageMock.mock.calls.length;
+
+    let taskError: unknown = null;
+    try {
+      await taskOptions.task();
+    } catch (err) {
+      taskError = err;
+    }
+    expect(taskError).toBeNull();
+
+    const recapCalls = sendMessageMock.mock.calls.slice(previousMessageCount);
+    expect(recapCalls.length).toBe(1);
+    expect(recapCalls[0]?.[1]).toContain("Only a user prompt");
+    expect(sendRichMessageMock.mock.calls.length).toBe(previousRichCount);
+  });
+
+  it("sends only the empty recap when the session messages cannot be fetched", async () => {
+    mocked.sessionGetMock.mockResolvedValueOnce({
+      data: createSession(0),
+      error: null,
+    });
+    mocked.sessionMessagesMock.mockResolvedValue({
+      data: null,
+      error: new Error("session messages failed"),
+    });
+
+    interactionManager.start({
+      kind: "inline",
+      expectedInput: "callback",
+      metadata: {
+        menuKind: "session",
+        messageId: 456,
+      },
+    });
+
+    const ctx = createCallbackContext("session:session-1", 456);
+    const handled = await handleSessionSelect(ctx, createDeps());
+
+    expect(handled).toBe(true);
+
+    const taskOptions = safeBackgroundTaskMock.mock.calls[0]?.[0];
+    if (!taskOptions) {
+      throw new Error("Expected session recap task");
+    }
+
+    const sendMessageMock = ctx.api.sendMessage as ReturnType<typeof vi.fn>;
+    const sendRichMessageMock = ctx.api.sendRichMessage as ReturnType<typeof vi.fn>;
+    const previousMessageCount = sendMessageMock.mock.calls.length;
+    const previousRichCount = sendRichMessageMock.mock.calls.length;
+
+    let taskError: unknown = null;
+    try {
+      await taskOptions.task();
+    } catch (err) {
+      taskError = err;
+    }
+    expect(taskError).toBeNull();
+
+    const recapCalls = sendMessageMock.mock.calls.slice(previousMessageCount);
+    expect(recapCalls.length).toBe(1);
+    expect(recapCalls[0]?.[1]).toBe(t("sessions.preview.empty"));
+    expect(sendRichMessageMock.mock.calls.length).toBe(previousRichCount);
   });
 
   it("pulls the settings of the selected session before attaching to it", async () => {
@@ -669,11 +853,15 @@ describe("bot/commands/sessions", () => {
     const previousRichCount = sendRichMessageMock.mock.calls.length;
     await taskOptions.task();
 
+    expect(safeBackgroundTaskMock).toHaveBeenCalledOnce();
     expect(mocked.sessionMessagesMock).toHaveBeenCalledWith({
       sessionID: "session-1",
       directory: "/repo",
       limit: 20,
     });
+    expect(mocked.sessionMessagesMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 6 }),
+    );
 
     const assistantResponseCalls = sendRichMessageMock.mock.calls.slice(previousRichCount);
     expect(assistantResponseCalls.length).toBeGreaterThan(0);

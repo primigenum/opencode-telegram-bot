@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Bot, Context } from "grammy";
 import { loadSut } from "#helpers/sut-loader.js";
 import { createSettingsStoreMock } from "#helpers/settings-store-mock.js";
+import { defined } from "#helpers/defined.js";
 import { promptQueue } from "#src/app/managers/prompt-queue-manager.js";
 import { createIncomingPrompt } from "#src/app/types/prompt.js";
 
@@ -15,6 +16,8 @@ const mocked = vi.hoisted(() => ({
   updateAgentMock: vi.fn(),
   updateModelMock: vi.fn(),
   getKeyboardMock: vi.fn(),
+  safeBackgroundTaskMock: vi.fn(),
+  sendRecapMock: vi.fn(),
   presentation: { kind: "switch-presentation" },
 }));
 
@@ -61,6 +64,12 @@ vi.mock("#src/bot/services/project-switch-presentation.ts", () => ({
 vi.mock("#src/utils/logger.ts", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
+vi.mock("#src/utils/safe-background-task.ts", () => ({
+  safeBackgroundTask: mocked.safeBackgroundTaskMock,
+}));
+vi.mock("#src/bot/services/session-recap-service.ts", () => ({
+  sendSessionRecapAndLatestResponse: mocked.sendRecapMock,
+}));
 
 const { handleSwapProjectButton } = await loadSut<
   typeof import("#src/bot/handlers/swap-project-handler.js")
@@ -104,6 +113,8 @@ describe("bot/handlers/swap-project", () => {
     mocked.updateAgentMock.mockReset();
     mocked.updateModelMock.mockReset();
     mocked.getKeyboardMock.mockReset().mockReturnValue(undefined);
+    mocked.safeBackgroundTaskMock.mockReset();
+    mocked.sendRecapMock.mockReset();
     settingsStoreMock.getCurrentProject.mockReset().mockReturnValue(toolsProject);
     settingsStoreMock.getSwapProject.mockReset().mockReturnValue(undefined);
   });
@@ -130,7 +141,11 @@ describe("bot/handlers/swap-project", () => {
   });
 
   it("attaches the target project's most recent session after the switch", async () => {
-    mocked.attachLatestProjectSessionMock.mockResolvedValue("Latest work");
+    mocked.attachLatestProjectSessionMock.mockResolvedValue({
+      id: "ses-latest",
+      title: "Latest work",
+      directory: primigenumProject.worktree,
+    });
     mocked.getKeyboardMock.mockReturnValue({ keyboard: [[{ text: "refreshed" }]] });
 
     const ctx = createContext();
@@ -149,6 +164,30 @@ describe("bot/handlers/swap-project", () => {
       expect.objectContaining({ reply_markup: { keyboard: [[{ text: "refreshed" }]] } }),
     );
     expect(ctx.reply).toHaveBeenCalledWith(t("sessions.selected", { title: "Latest work" }));
+    expect(mocked.safeBackgroundTaskMock).toHaveBeenCalledTimes(1);
+    expect(mocked.safeBackgroundTaskMock).toHaveBeenCalledWith({
+      taskName: "projects.sendRecapAndLatestResponse",
+      task: expect.any(Function),
+    });
+
+    await mocked.safeBackgroundTaskMock.mock.calls[0]![0].task();
+    expect(mocked.sendRecapMock).toHaveBeenCalledWith(ctx.api, 42, {
+      id: "ses-latest",
+      title: "Latest work",
+      directory: "/home/user/primigenum",
+    });
+
+    // Both swap replies land before the recap task is registered, so the recap
+    // cannot overtake "Proyecto" / "Sesión seleccionada".
+    const replyOrders = (ctx.reply as unknown as { mock: { invocationCallOrder: number[] } }).mock
+      .invocationCallOrder;
+    expect(replyOrders.length).toBe(2);
+    const lastReplyOrder = defined(replyOrders[1], "sessions.selected reply order");
+    const recapOrder = defined(
+      mocked.safeBackgroundTaskMock.mock.invocationCallOrder[0],
+      "recap task order",
+    );
+    expect(recapOrder).toBeGreaterThan(lastReplyOrder);
   });
 
   it("tells the user when the target project has no sessions", async () => {
@@ -159,6 +198,7 @@ describe("bot/handlers/swap-project", () => {
       t("sessions.none_in_project", { project: "primigenum" }),
     );
     expect(mocked.updateAgentMock).not.toHaveBeenCalled();
+    expect(mocked.safeBackgroundTaskMock).not.toHaveBeenCalled();
   });
 
   it("still confirms the switch when landing on a session fails", async () => {
@@ -172,6 +212,7 @@ describe("bot/handlers/swap-project", () => {
       expect.anything(),
     );
     expect(ctx.reply).not.toHaveBeenCalledWith(t("projects.select_error"));
+    expect(mocked.safeBackgroundTaskMock).not.toHaveBeenCalled();
   });
 
   it("falls back to the folder name when the target project has no name", async () => {

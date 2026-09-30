@@ -6,12 +6,15 @@ import { getProjects } from "../../app/services/project-service.js";
 import { attachLatestProjectSession } from "../../app/services/project-session-service.js";
 import { switchToProject } from "../../app/services/project-switch-service.js";
 import { getCurrentProject, getSwapProject } from "../../app/stores/settings-store.js";
+import type { SessionInfo } from "../../app/types/session.js";
 import { isSameWorktree } from "../keyboards/swap-project-button.js";
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
 import { getProjectFolderName } from "../menus/project-selection-menu.js";
 import { createProjectSwitchPresentation } from "../services/project-switch-presentation.js";
+import { sendSessionRecapAndLatestResponse } from "../services/session-recap-service.js";
 import { t } from "../../i18n/index.js";
 import { logger } from "../../utils/logger.js";
+import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 
 export interface SwapProjectDeps {
   bot: Bot<Context>;
@@ -63,17 +66,21 @@ export async function handleSwapProjectButton(
 
     // Land on the target project's most recent session. Without this the swap
     // left the chat with no session to prompt and no pinned session.
-    let sessionTitle: string | null = null;
+    let attachedSession: SessionInfo | null = null;
+    let sessionChatId: number | null = null;
     if (ctx.chat) {
+      const chatId = ctx.chat.id;
       try {
-        sessionTitle = await attachLatestProjectSession({
+        const attached = await attachLatestProjectSession({
           bot: deps.bot,
-          chatId: ctx.chat.id,
+          chatId,
           directory: target.worktree,
           ensureEventSubscription: deps.ensureEventSubscription,
         });
 
-        if (sessionTitle) {
+        if (attached) {
+          attachedSession = attached;
+          sessionChatId = chatId;
           // The session's agent and model were adopted by the attach: refresh the
           // keyboard so its buttons match the session we landed on.
           keyboardManager.updateAgent(await resolveProjectAgent());
@@ -83,20 +90,29 @@ export async function handleSwapProjectButton(
         // The project is already switched: a landing failure must not report the
         // swap itself as failed.
         logger.error("[Bot] Failed to land on a session after the project swap:", error);
-        sessionTitle = null;
+        attachedSession = null;
       }
     }
 
-    const replyKeyboard = (sessionTitle ? keyboardManager.getKeyboard() : undefined) ?? keyboard;
+    const replyKeyboard = (attachedSession ? keyboardManager.getKeyboard() : undefined) ?? keyboard;
 
     await ctx.reply(t("projects.selected", { project: projectName }), {
       reply_markup: replyKeyboard,
     });
 
-    if (sessionTitle) {
-      await ctx.reply(t("sessions.selected", { title: sessionTitle })).catch(() => {});
+    if (attachedSession) {
+      await ctx.reply(t("sessions.selected", { title: attachedSession.title })).catch(() => {});
     } else {
       await ctx.reply(t("sessions.none_in_project", { project: projectName })).catch(() => {});
+    }
+
+    if (attachedSession !== null && sessionChatId !== null) {
+      const session = attachedSession;
+      const chatId = sessionChatId;
+      safeBackgroundTask({
+        taskName: "projects.sendRecapAndLatestResponse",
+        task: () => sendSessionRecapAndLatestResponse(ctx.api, chatId, session),
+      });
     }
 
     if (droppedQueuedPrompts > 0) {

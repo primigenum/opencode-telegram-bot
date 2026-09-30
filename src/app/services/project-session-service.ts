@@ -24,9 +24,9 @@ export interface AttachSessionByIdDeps {
 /**
  * Attach one session of a project by id, adopting its agent and model like the
  * sessions menu does.
- * @returns the session title, or null when the session no longer exists
+ * @returns the attached session, or null when the session no longer exists
  */
-export async function attachSessionById(deps: AttachSessionByIdDeps): Promise<string | null> {
+export async function attachSessionById(deps: AttachSessionByIdDeps): Promise<SessionInfo | null> {
   const { data: session, error } = await opencodeClient.session.get({
     sessionID: deps.sessionId,
     directory: deps.directory,
@@ -60,7 +60,7 @@ export async function attachSessionById(deps: AttachSessionByIdDeps): Promise<st
   logger.info(
     `[ProjectSession] Attached session: session=${session.id}, directory=${deps.directory}`,
   );
-  return session.title;
+  return sessionInfo;
 }
 
 /**
@@ -68,11 +68,11 @@ export async function attachSessionById(deps: AttachSessionByIdDeps): Promise<st
  * Used after switching projects: a switch that lands on no session strands the
  * chat with no pinned session and no prompt target. Mirrors selecting a session
  * from the sessions menu: the session's agent and model are adopted too.
- * @returns the attached session title, or null when the directory has no sessions
+ * @returns the attached session, or null when the directory has no sessions
  */
 export async function attachLatestProjectSession(
   deps: AttachLatestProjectSessionDeps,
-): Promise<string | null> {
+): Promise<SessionInfo | null> {
   const { data: sessions, error } = await opencodeClient.session.list({
     directory: deps.directory,
     limit: 1,
