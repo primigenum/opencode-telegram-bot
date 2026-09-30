@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Bot, Context } from "grammy";
 import { loadSut } from "#helpers/sut-loader.js";
 import { createSettingsStoreMock } from "#helpers/settings-store-mock.js";
+import { defined } from "#helpers/defined.js";
 
 const mocked = vi.hoisted(() => ({
   isForegroundBusyMock: vi.fn(),
@@ -18,6 +19,8 @@ const mocked = vi.hoisted(() => ({
   alertMock: vi.fn(),
   notifyMock: vi.fn(),
   failureMock: vi.fn(),
+  safeBackgroundTaskMock: vi.fn(),
+  sendRecapMock: vi.fn(),
 }));
 
 const settingsStoreMock = createSettingsStoreMock();
@@ -89,6 +92,14 @@ vi.mock("#src/utils/logger.js", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
+vi.mock("#src/utils/safe-background-task.ts", () => ({
+  safeBackgroundTask: mocked.safeBackgroundTaskMock,
+}));
+
+vi.mock("#src/bot/services/session-recap-service.ts", () => ({
+  sendSessionRecapAndLatestResponse: mocked.sendRecapMock,
+}));
+
 const { handleSavedSessionsCallback } = await loadSut<
   typeof import("#src/bot/callbacks/saved-sessions-callback-handler.js")
 >("#src/bot/callbacks/saved-sessions-callback-handler.ts", import.meta.url);
@@ -129,6 +140,8 @@ describe("bot/callbacks/saved-sessions-callback-handler", () => {
     mocked.alertMock.mockReset();
     mocked.notifyMock.mockReset();
     mocked.failureMock.mockReset();
+    mocked.safeBackgroundTaskMock.mockReset();
+    mocked.sendRecapMock.mockReset();
 
     settingsStoreMock.getCurrentProject.mockReset().mockReturnValue({
       id: "project-a",
@@ -228,7 +241,11 @@ describe("bot/callbacks/saved-sessions-callback-handler", () => {
   });
 
   it("opens a saved session and confirms with the refreshed keyboard", async () => {
-    mocked.attachSessionByIdMock.mockResolvedValue("First work");
+    mocked.attachSessionByIdMock.mockResolvedValue({
+      id: "ses-one",
+      title: "First work",
+      directory: WORKTREE,
+    });
     const ctx = createContext("saved:open:ses-one");
 
     expect(await handleSavedSessionsCallback(ctx, deps)).toBe(true);
@@ -246,11 +263,40 @@ describe("bot/callbacks/saved-sessions-callback-handler", () => {
       { reply_markup: { keyboard: [] } },
     );
     expect(ctx.deleteMessage).toHaveBeenCalled();
+    expect(mocked.safeBackgroundTaskMock).toHaveBeenCalledTimes(1);
+    expect(mocked.safeBackgroundTaskMock).toHaveBeenCalledWith({
+      taskName: "saved.sendRecapAndLatestResponse",
+      task: expect.any(Function),
+    });
+
+    await mocked.safeBackgroundTaskMock.mock.calls[0]![0].task();
+    expect(mocked.sendRecapMock).toHaveBeenCalledWith(ctx.api, 42, {
+      id: "ses-one",
+      title: "First work",
+      directory: WORKTREE,
+    });
+
+    // The recap must be registered after the confirmation message, so the chat
+    // shows "Sesión seleccionada" before the recap + latest response.
+    const confirmationOrder = defined(
+      (ctx.reply as unknown as { mock: { invocationCallOrder: number[] } }).mock
+        .invocationCallOrder[0],
+      "sessions.selected reply order",
+    );
+    const recapOrder = defined(
+      mocked.safeBackgroundTaskMock.mock.invocationCallOrder[0],
+      "recap task order",
+    );
+    expect(recapOrder).toBeGreaterThan(confirmationOrder);
   });
 
   it("detaches the active run before opening another session while busy", async () => {
     mocked.isForegroundBusyMock.mockReturnValue(true);
-    mocked.attachSessionByIdMock.mockResolvedValue("First work");
+    mocked.attachSessionByIdMock.mockResolvedValue({
+      id: "ses-one",
+      title: "First work",
+      directory: WORKTREE,
+    });
     const ctx = createContext("saved:open:ses-one");
 
     expect(await handleSavedSessionsCallback(ctx, deps)).toBe(true);
@@ -263,7 +309,11 @@ describe("bot/callbacks/saved-sessions-callback-handler", () => {
   });
 
   it("does not detach the run when opening a session without a busy run", async () => {
-    mocked.attachSessionByIdMock.mockResolvedValue("First work");
+    mocked.attachSessionByIdMock.mockResolvedValue({
+      id: "ses-one",
+      title: "First work",
+      directory: WORKTREE,
+    });
     const ctx = createContext("saved:open:ses-one");
 
     expect(await handleSavedSessionsCallback(ctx, deps)).toBe(true);
@@ -280,6 +330,7 @@ describe("bot/callbacks/saved-sessions-callback-handler", () => {
     expect(settingsStoreMock.removeSavedSession).toHaveBeenCalledWith("ses-gone");
     expect(mocked.alertMock).toHaveBeenCalledWith(ctx, "saved.not_found");
     expect(ctx.reply).not.toHaveBeenCalled();
+    expect(mocked.safeBackgroundTaskMock).not.toHaveBeenCalled();
   });
 
   it("reports a failure when opening a saved session throws", async () => {
@@ -289,5 +340,6 @@ describe("bot/callbacks/saved-sessions-callback-handler", () => {
     expect(await handleSavedSessionsCallback(ctx, deps)).toBe(true);
 
     expect(mocked.failureMock).toHaveBeenCalledWith(ctx, "sessions.select_error");
+    expect(mocked.safeBackgroundTaskMock).not.toHaveBeenCalled();
   });
 });
