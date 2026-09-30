@@ -14,8 +14,19 @@ const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
   import.meta.url,
 );
 
+const {
+  scheduleSessionTitleFallback,
+  applyScheduledSessionTitle,
+  __resetSessionTitleFallbackForTests,
+} = await loadSut<typeof import("#src/app/services/session-title-fallback-service.js")>(
+  "#src/app/services/session-title-fallback-service.ts",
+  import.meta.url,
+);
+
 const mocked = vi.hoisted(() => ({
   sessionCreateMock: vi.fn(),
+  sessionGetMock: vi.fn(),
+  sessionUpdateMock: vi.fn(),
   getCurrentProjectMock: vi.fn(),
   attachToSessionMock: vi.fn(),
   ensureEventSubscriptionMock: vi.fn(),
@@ -25,6 +36,8 @@ vi.mock("#src/opencode/client.ts", () => ({
   opencodeClient: {
     session: {
       create: mocked.sessionCreateMock,
+      get: mocked.sessionGetMock,
+      update: mocked.sessionUpdateMock,
     },
   },
 }));
@@ -107,6 +120,9 @@ describe("bot/commands/new", () => {
   beforeEach(() => {
     foregroundSessionState.__resetForTests();
     mocked.sessionCreateMock.mockReset();
+    mocked.sessionGetMock.mockReset();
+    mocked.sessionUpdateMock.mockReset();
+    __resetSessionTitleFallbackForTests();
     mocked.getCurrentProjectMock.mockReset();
     mocked.attachToSessionMock.mockReset();
     mocked.attachToSessionMock.mockResolvedValue({
@@ -154,5 +170,37 @@ describe("bot/commands/new", () => {
         reply_markup: { keyboard: true },
       }),
     );
+  });
+
+  it("registers the new session so the first prompt seeds its title", async () => {
+    mocked.sessionCreateMock.mockResolvedValueOnce({
+      data: { id: "session-2", title: "New session - 2026-10-01T10:00:00.000Z" },
+      error: null,
+    });
+    mocked.sessionGetMock.mockResolvedValueOnce({
+      data: { id: "session-2", title: "New session - 2026-10-01T10:00:00.000Z" },
+      error: null,
+    });
+    mocked.sessionUpdateMock.mockResolvedValueOnce({
+      data: { id: "session-2", title: "Fix the login bug" },
+      error: null,
+    });
+
+    const ctx = createContext();
+    await newCommand(ctx as never, createDeps());
+
+    // Stand-in for the first prompt after /new (prompt.ts seeds the title).
+    scheduleSessionTitleFallback("session-2", "Fix the login bug");
+
+    expect(await applyScheduledSessionTitle("session-2")).toEqual({
+      renamed: true,
+      title: "Fix the login bug",
+      directory: "/repo",
+    });
+    expect(mocked.sessionUpdateMock).toHaveBeenCalledWith({
+      sessionID: "session-2",
+      directory: "/repo",
+      title: "Fix the login bug",
+    });
   });
 });

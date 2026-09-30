@@ -206,6 +206,7 @@ Agent picker behavior:
 - [x] Opening a session (from /sessions, the saved-sessions menu, or after a project swap) shows the recent-messages recap and re-sends the full latest assistant response
 - [x] Native Telegram rich message formatting for assistant replies (Bot API 10.1)
 - [x] Incoming Telegram rich formatted messages (Bot API 10.1): converted to Markdown, accepted anywhere text is accepted, with photos attached and unsupported message types answered explicitly
+- [x] Fallback session titles: sessions created from Telegram get their title from the first user prompt when OpenCode leaves the default "New session - <timestamp>" title
 
 ## Current Task List
 

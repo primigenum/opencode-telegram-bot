@@ -27,8 +27,12 @@ import {
   getShowThinkingContent,
   type ResponseStreamingMode,
 } from "../../app/stores/settings-store.js";
-import { getCurrentSession } from "../../app/services/session-service.js";
+import { getCurrentSession, setCurrentSession } from "../../app/services/session-service.js";
 import { ingestSessionInfoForCache } from "../../app/services/session-cache-service.js";
+import {
+  applyScheduledSessionTitle,
+  clearSessionTitleFallback,
+} from "../../app/services/session-title-fallback-service.js";
 import { logger } from "../../utils/logger.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
@@ -1172,6 +1176,29 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     });
 
     summaryAggregator.setOnSessionIdle(async (sessionId) => {
+      // Runs before the early returns below: the fallback must apply even when
+      // the session is no longer the current one when it eventually renames.
+      safeBackgroundTask({
+        taskName: "session.applyTitleFallback",
+        task: () => applyScheduledSessionTitle(sessionId),
+        onSuccess: async (result) => {
+          if (!result?.renamed || !result.title || !result.directory) {
+            return;
+          }
+          if (getCurrentSession()?.id !== sessionId) {
+            return;
+          }
+          setCurrentSession({
+            id: sessionId,
+            title: result.title,
+            directory: result.directory,
+          });
+          if (pinnedMessageManager.isInitialized()) {
+            await pinnedMessageManager.onSessionTitleUpdate(result.title);
+          }
+        },
+      });
+
       resetStreamThrottle(sessionId);
       await markAttachedSessionIdle(sessionId);
       // Cleared unconditionally: a session can go idle after it stopped being
@@ -1233,6 +1260,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     });
 
     summaryAggregator.setOnSessionError(async (sessionId, message) => {
+      clearSessionTitleFallback(sessionId, "session_error");
       await markAttachedSessionIdle(sessionId);
       this.clearToolElapsedState(sessionId, "session_error");
 

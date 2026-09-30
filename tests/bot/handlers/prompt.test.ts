@@ -15,6 +15,9 @@ const { t } = await loadSut<typeof import("#src/i18n/index.js")>(
   "#src/i18n/index.ts",
   import.meta.url,
 );
+const { applyScheduledSessionTitle, __resetSessionTitleFallbackForTests } = await loadSut<
+  typeof import("#src/app/services/session-title-fallback-service.js")
+>("#src/app/services/session-title-fallback-service.ts", import.meta.url);
 
 const mocked = vi.hoisted(() => ({
   resolvePendingAttachmentMock: vi.fn(),
@@ -30,6 +33,8 @@ const mocked = vi.hoisted(() => ({
   sessionPromptMock: vi.fn(),
   sessionPromptAsyncMock: vi.fn(),
   sessionCreateMock: vi.fn(),
+  sessionGetMock: vi.fn(),
+  sessionUpdateMock: vi.fn(),
   suppressionRegisterMock: vi.fn(),
   safeBackgroundTaskMock: vi.fn(),
   setSessionSummaryMock: vi.fn(),
@@ -45,6 +50,8 @@ vi.mock("#src/opencode/client.ts", () => ({
       prompt: mocked.sessionPromptMock,
       promptAsync: mocked.sessionPromptAsyncMock,
       create: mocked.sessionCreateMock,
+      get: mocked.sessionGetMock,
+      update: mocked.sessionUpdateMock,
     },
   },
 }));
@@ -95,7 +102,12 @@ vi.mock("#src/bot/keyboards/keyboard-manager.ts", () => ({
     initialize: vi.fn(),
     clearContext: vi.fn(),
     updateAgent: vi.fn(),
+    getContextInfo: vi.fn(() => null),
   },
+}));
+
+vi.mock("#src/bot/keyboards/main-reply-keyboard.ts", () => ({
+  createMainKeyboard: vi.fn(() => ({ keyboard: true })),
 }));
 
 vi.mock("#src/app/managers/summary-aggregation-manager.ts", () => ({
@@ -215,6 +227,9 @@ describe("bot/handlers/prompt", () => {
     mocked.sessionPromptMock.mockReset();
     mocked.sessionPromptAsyncMock.mockReset();
     mocked.sessionCreateMock.mockReset();
+    mocked.sessionGetMock.mockReset();
+    mocked.sessionUpdateMock.mockReset();
+    __resetSessionTitleFallbackForTests();
     mocked.suppressionRegisterMock.mockReset();
     mocked.safeBackgroundTaskMock.mockReset();
     mocked.setSessionSummaryMock.mockReset();
@@ -742,6 +757,46 @@ describe("bot/handlers/prompt", () => {
       expect(handled).toBe(false);
       expect(ctx.reply).toHaveBeenCalledWith(t("bot.photo_vision_fallback_error"));
       expect(mocked.sessionPromptAsyncMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("session title fallback", () => {
+    it("schedules a rename from the original prompt for a bot-created session", async () => {
+      mocked.currentSession = null;
+      mocked.sessionCreateMock.mockResolvedValueOnce({
+        data: { id: "session-2", title: "New session - 2026-10-01T10:00:00.000Z" },
+        error: null,
+      });
+      mocked.sessionGetMock.mockResolvedValueOnce({
+        data: { id: "session-2", title: "New session - 2026-10-01T10:00:00.000Z" },
+        error: null,
+      });
+      mocked.sessionUpdateMock.mockResolvedValueOnce({
+        data: { id: "session-2", title: "Fix the login bug" },
+        error: null,
+      });
+
+      await processUserPrompt(createContext(), "Fix the login bug", createDeps());
+
+      const result = await applyScheduledSessionTitle("session-2");
+
+      expect(mocked.sessionUpdateMock).toHaveBeenCalledWith({
+        sessionID: "session-2",
+        directory: "D:\\Projects\\Repo",
+        title: "Fix the login bug",
+      });
+      expect(result).toEqual({
+        renamed: true,
+        title: "Fix the login bug",
+        directory: "D:\\Projects\\Repo",
+      });
+    });
+
+    it("does not schedule anything for an existing session", async () => {
+      await processUserPrompt(createContext(), "Fix the login bug", createDeps());
+
+      expect(await applyScheduledSessionTitle("session-1")).toBeNull();
+      expect(mocked.sessionUpdateMock).not.toHaveBeenCalled();
     });
   });
 });
