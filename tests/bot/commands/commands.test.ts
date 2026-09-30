@@ -30,6 +30,13 @@ const { foregroundSessionState } = await loadSut<typeof import("#src/app/manager
   "#src/app/managers/foreground-session-state-manager.ts",
   import.meta.url,
 );
+const {
+  applyScheduledSessionTitle,
+  __resetSessionTitleFallbackForTests,
+} = await loadSut<typeof import("#src/app/services/session-title-fallback-service.js")>(
+  "#src/app/services/session-title-fallback-service.ts",
+  import.meta.url,
+);
 import { attachManager } from "#src/app/managers/attach-manager.js";
 import { defined } from "#helpers/defined.js";
 import { logger } from "#src/utils/logger.js";
@@ -47,6 +54,8 @@ const mocked = vi.hoisted(() => ({
   commandListMock: vi.fn(),
   sessionStatusMock: vi.fn(),
   sessionCreateMock: vi.fn(),
+  sessionGetMock: vi.fn(),
+  sessionUpdateMock: vi.fn(),
   sessionCommandMock: vi.fn(),
   setCurrentSessionMock: vi.fn(),
   clearSessionMock: vi.fn(),
@@ -89,6 +98,8 @@ vi.mock("#src/opencode/client.ts", () => ({
     session: {
       status: mocked.sessionStatusMock,
       create: mocked.sessionCreateMock,
+      get: mocked.sessionGetMock,
+      update: mocked.sessionUpdateMock,
       command: mocked.sessionCommandMock,
     },
   },
@@ -228,6 +239,9 @@ describe("bot/commands/commands", () => {
     mocked.commandListMock.mockReset();
     mocked.sessionStatusMock.mockReset();
     mocked.sessionCreateMock.mockReset();
+    mocked.sessionGetMock.mockReset();
+    mocked.sessionUpdateMock.mockReset();
+    __resetSessionTitleFallbackForTests();
     mocked.sessionCommandMock.mockReset();
     mocked.setCurrentSessionMock.mockReset();
     mocked.clearSessionMock.mockReset();
@@ -407,6 +421,64 @@ describe("bot/commands/commands", () => {
       model: "openai/gpt-5",
       variant: "default",
     });
+  });
+
+  it("seeds the fallback title from the catalog command of a bot-created session", async () => {
+    mocked.currentSession = null;
+    mocked.sessionCreateMock.mockResolvedValueOnce({
+      data: { id: "session-9", title: "New session - 2026-10-01T10:00:00.000Z" },
+      error: null,
+    });
+    mocked.sessionGetMock.mockResolvedValueOnce({
+      data: { id: "session-9", title: "New session - 2026-10-01T10:00:00.000Z" },
+      error: null,
+    });
+    mocked.sessionUpdateMock.mockResolvedValueOnce({
+      data: { id: "session-9", title: "/poem about spring" },
+      error: null,
+    });
+    interactionManager.start({
+      kind: "custom",
+      expectedInput: "mixed",
+      metadata: {
+        flow: "commands",
+        stage: "confirm",
+        messageId: 600,
+        projectDirectory: "D:\\Projects\\Repo",
+        commandName: "poem",
+      },
+    });
+
+    const ctx = createTextContext("about spring");
+    await handleCommandTextArguments(ctx, createDeps());
+
+    expect(mocked.sessionCreateMock).toHaveBeenCalled();
+    expect(await applyScheduledSessionTitle("session-9")).toEqual({
+      renamed: true,
+      title: "/poem about spring",
+      directory: "D:\\Projects\\Repo",
+    });
+  });
+
+  it("does not seed a fallback title when the session was not created by the bot", async () => {
+    interactionManager.start({
+      kind: "custom",
+      expectedInput: "mixed",
+      metadata: {
+        flow: "commands",
+        stage: "confirm",
+        messageId: 601,
+        projectDirectory: "D:\\Projects\\Repo",
+        commandName: "poem",
+      },
+    });
+
+    const ctx = createTextContext("about spring");
+    await handleCommandTextArguments(ctx, createDeps());
+
+    expect(mocked.sessionCreateMock).not.toHaveBeenCalled();
+    expect(await applyScheduledSessionTitle("session-1")).toBeNull();
+    expect(mocked.sessionUpdateMock).not.toHaveBeenCalled();
   });
 
   it("notifies the user when session.command reports an error while attached", async () => {
