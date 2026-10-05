@@ -8,6 +8,10 @@ import {
 } from "../../app/services/session-service.js";
 import type { SessionInfo } from "../../app/types/session.js";
 import { ingestSessionInfoForCache } from "../../app/services/session-cache-service.js";
+import {
+  registerBotCreatedSession,
+  scheduleSessionTitleFallback,
+} from "../../app/services/session-title-fallback-service.js";
 import { interactionManager } from "../../app/managers/interaction-manager.js";
 import type { InteractionState } from "../../app/types/interaction.js";
 import { summaryAggregator } from "../../app/managers/summary-aggregation-manager.js";
@@ -233,6 +237,7 @@ async function ensureSessionForProject(
   };
 
   setCurrentSession(sessionInfo);
+  registerBotCreatedSession(sessionInfo.id, projectDirectory);
   await ingestSessionInfoForCache(session);
   await ctx.reply(t("bot.session_created", { title: session.title }));
 
@@ -286,6 +291,11 @@ export async function executeCommand(
     configuredModelID: storedModel.modelID,
   });
   externalUserInputSuppressionManager.register(
+    session.id,
+    args ? `/${params.commandName} ${args}` : `/${params.commandName}`,
+  );
+
+  scheduleSessionTitleFallback(
     session.id,
     args ? `/${params.commandName} ${args}` : `/${params.commandName}`,
   );

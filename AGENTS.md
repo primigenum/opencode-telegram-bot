@@ -294,6 +294,10 @@ When the active model doesn't support PDF input (`input.pdf === false`, e.g. `op
 
 Service: `src/app/services/local-pdf-extractor-service.ts` (availability = `pdftotext` on PATH). No new dependencies — poppler-utils is a system package, already present on the deploy host. Added 2026-09-25.
 
+## Session title fallback (fork addition)
+
+OpenCode assigns `New session - <ISO timestamp>` on creation and replaces it once after the first message; if that upstream call fails the error is swallowed and never retried (upstream issues #30662, #31042, #13710). The bot renames sessions **it created itself**: when such a session goes idle and its title is still the default placeholder, it sets the title from the first user prompt via `session.update`. Key files: pure helpers `src/app/utils/session-title.ts`, in-memory service `src/app/services/session-title-fallback-service.ts`, hooks in `prompt.ts`, `new-command.ts`, `command-catalog-callback-handler.ts` and `event-subscription-service.ts`. Sessions with a real title, pre-existing sessions and child sessions are never touched. `scripts/backfill-session-titles.ts` (dry-run by default) covers sessions created before the bot restarted.
+
 ## CJK guard + auto-correction (fork addition)
 
 The model occasionally answers in Chinese/Japanese/Korean despite language instructions. **The primary fix lives in opencode itself** (global plugin `~/.config/opencode/plugins/cjk-guard.ts`, hook `experimental.text.complete`): it replaces mostly-CJK completed text with a Spanish notice before persisting and prompts the model to rewrite in Spanish at `session.idle` — so the TUI and every other client get the clean version too. The bot-side implementation below is the **delivery layer**: it filters live streaming deltas (which no opencode hook can intercept) and remains as a fallback if the plugin is absent — it stays dormant when the plugin already replaced the text.

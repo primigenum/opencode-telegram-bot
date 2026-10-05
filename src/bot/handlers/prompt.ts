@@ -8,6 +8,10 @@ import {
   setCurrentSession,
 } from "../../app/services/session-service.js";
 import { ingestSessionInfoForCache } from "../../app/services/session-cache-service.js";
+import {
+  registerBotCreatedSession,
+  scheduleSessionTitleFallback,
+} from "../../app/services/session-title-fallback-service.js";
 import { getCurrentProject, getTtsMode } from "../../app/stores/settings-store.js";
 import { getStoredAgent, resolveProjectAgent } from "../../app/services/agent-selection-service.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
@@ -237,6 +241,7 @@ export async function processUserPrompt(
 
     setCurrentSession(currentSession);
     await ingestSessionInfoForCache(session);
+    registerBotCreatedSession(currentSession.id, currentSession.directory);
     createdNewSession = true;
   } else {
     logger.info(
@@ -324,6 +329,12 @@ export async function processUserPrompt(
           preparedInput.fileParts.length === 1 ? "See attached file" : "See attached files";
         parts.unshift({ type: "text", text: attachmentText });
       }
+    }
+
+    // Seed the fallback title from the user's ORIGINAL text (never the combined
+    // vision description). No-op unless the bot created this session.
+    if (input.text.trim().length > 0) {
+      scheduleSessionTitleFallback(currentSession.id, input.text);
     }
 
     // Counted from `parts` rather than `fileParts`: a file attached through /ls is added
