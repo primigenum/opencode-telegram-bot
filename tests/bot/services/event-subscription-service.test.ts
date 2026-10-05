@@ -324,6 +324,41 @@ function emitPermissionReplied(
   } as unknown as Event);
 }
 
+function emitQuestionAsked(
+  summaryAggregator: { processEvent(event: Event): void },
+  requestID: string,
+): void {
+  summaryAggregator.processEvent({
+    type: "question.asked",
+    properties: {
+      id: requestID,
+      sessionID: "session-1",
+      questions: [
+        {
+          header: "Choose",
+          question: "Pick one",
+          options: [{ label: "A", description: "Option A" }],
+        },
+      ],
+    },
+  } as unknown as Event);
+}
+
+function emitQuestionResolved(
+  summaryAggregator: { processEvent(event: Event): void },
+  type: "question.replied" | "question.rejected",
+  requestID: string,
+): void {
+  summaryAggregator.processEvent({
+    type,
+    properties: {
+      sessionID: "session-1",
+      requestID,
+      ...(type === "question.replied" ? { answers: [] } : {}),
+    },
+  } as unknown as Event);
+}
+
 describe("bot/services/event-subscription-service", () => {
   let tempHome: string;
   let activeService: { cleanup(reason: string): void } | null = null;
@@ -832,5 +867,305 @@ describe("bot/services/event-subscription-service", () => {
       expect(permissionManager.getPendingCount()).toBe(1);
     });
     expect(interactionManager.getSnapshot()?.kind).toBe("rename");
+  });
+
+  describe("question resolved outside the bot", () => {
+    it("clears the active question poll when OpenCode replies it", async () => {
+      const { api, summaryAggregator } = await setupService(true);
+      const [{ questionManager }, { interactionManager }] = await Promise.all([
+        import("../../../src/app/managers/question-manager.js"),
+        import("../../../src/app/managers/interaction-manager.js"),
+      ]);
+
+      emitQuestionAsked(summaryAggregator, "question-1");
+
+      await vi.waitFor(() => {
+        expect(questionManager.isActive()).toBe(true);
+        expect(questionManager.getMessageIds()).toContain(100);
+      });
+      expect(interactionManager.getSnapshot()?.kind).toBe("question");
+
+      emitQuestionResolved(summaryAggregator, "question.replied", "question-1");
+
+      await vi.waitFor(() => {
+        expect(questionManager.isActive()).toBe(false);
+      });
+      expect(interactionManager.getSnapshot()?.kind).not.toBe("question");
+      expect(api.deleteMessage).toHaveBeenCalledWith(42, 100);
+    });
+
+    it("clears the active question poll when OpenCode rejects it", async () => {
+      const { api, summaryAggregator } = await setupService(true);
+      const [{ questionManager }, { interactionManager }] = await Promise.all([
+        import("../../../src/app/managers/question-manager.js"),
+        import("../../../src/app/managers/interaction-manager.js"),
+      ]);
+
+      emitQuestionAsked(summaryAggregator, "question-1");
+
+      await vi.waitFor(() => {
+        expect(questionManager.isActive()).toBe(true);
+        expect(questionManager.getMessageIds()).toContain(100);
+      });
+      expect(interactionManager.getSnapshot()?.kind).toBe("question");
+
+      emitQuestionResolved(summaryAggregator, "question.rejected", "question-1");
+
+      await vi.waitFor(() => {
+        expect(questionManager.isActive()).toBe(false);
+      });
+      expect(interactionManager.getSnapshot()?.kind).not.toBe("question");
+      expect(api.deleteMessage).toHaveBeenCalledWith(42, 100);
+    });
+
+    it("keeps the active question poll when a different request is resolved", async () => {
+      const { api, summaryAggregator } = await setupService(true);
+      const [{ questionManager }, { interactionManager }] = await Promise.all([
+        import("../../../src/app/managers/question-manager.js"),
+        import("../../../src/app/managers/interaction-manager.js"),
+      ]);
+
+      emitQuestionAsked(summaryAggregator, "question-1");
+
+      await vi.waitFor(() => {
+        expect(questionManager.isActive()).toBe(true);
+      });
+
+      emitQuestionResolved(summaryAggregator, "question.replied", "other-question");
+
+      await new Promise((resolve) => setImmediate(resolve));
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(questionManager.isActive()).toBe(true);
+      expect(questionManager.getRequestID()).toBe("question-1");
+      expect(interactionManager.getSnapshot()?.kind).toBe("question");
+      expect(api.deleteMessage).not.toHaveBeenCalled();
+    });
+
+    it("discards a question card resolved while its Telegram message is being sent", async () => {
+      const { api, summaryAggregator } = await setupService(true);
+      const [{ questionManager }, { interactionManager }] = await Promise.all([
+        import("../../../src/app/managers/question-manager.js"),
+        import("../../../src/app/managers/interaction-manager.js"),
+      ]);
+      let resolveSend: (message: { message_id: number }) => void = () => {};
+      const pendingSend = new Promise<{ message_id: number }>((resolve) => {
+        resolveSend = resolve;
+      });
+      api.sendMessage.mockReturnValueOnce(pendingSend);
+
+      emitQuestionAsked(summaryAggregator, "question-race");
+      await vi.waitFor(() => {
+        expect(api.sendMessage).toHaveBeenCalledTimes(1);
+      });
+
+      emitQuestionResolved(summaryAggregator, "question.replied", "question-race");
+      await vi.waitFor(() => {
+        expect(questionManager.isResolved("question-race")).toBe(true);
+      });
+
+      resolveSend({ message_id: 100 });
+
+      await vi.waitFor(() => {
+        expect(api.deleteMessage).toHaveBeenCalledWith(42, 100);
+      });
+      expect(questionManager.isActive()).toBe(false);
+      expect(interactionManager.getSnapshot()?.kind).not.toBe("question");
+    });
+
+    it("ignores an asked event whose request was already resolved", async () => {
+      const { api, summaryAggregator } = await setupService(true);
+      const [{ questionManager }, { interactionManager }] = await Promise.all([
+        import("../../../src/app/managers/question-manager.js"),
+        import("../../../src/app/managers/interaction-manager.js"),
+      ]);
+
+      emitQuestionResolved(summaryAggregator, "question.replied", "late-q");
+      await new Promise((resolve) => setImmediate(resolve));
+      await new Promise((resolve) => setImmediate(resolve));
+
+      const sendsBefore = api.sendMessage.mock.calls.length;
+      emitQuestionAsked(summaryAggregator, "late-q");
+      await new Promise((resolve) => setImmediate(resolve));
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(questionManager.isActive()).toBe(false);
+      expect(api.sendMessage.mock.calls.length).toBe(sendsBefore);
+      expect(interactionManager.getSnapshot()?.kind).not.toBe("question");
+    });
+
+    it("clears a stale question poll on session idle when the server no longer lists it", async () => {
+      const { api, summaryAggregator } = await setupService(true);
+      const [{ questionManager }, { interactionManager }, { opencodeClient }] = await Promise.all([
+        import("../../../src/app/managers/question-manager.js"),
+        import("../../../src/app/managers/interaction-manager.js"),
+        import("../../../src/opencode/client.js"),
+      ]);
+      const listSpy = vi
+        .spyOn(opencodeClient.question, "list")
+        .mockResolvedValue({ data: [], error: null });
+
+      try {
+        emitQuestionAsked(summaryAggregator, "question-1");
+
+        await vi.waitFor(() => {
+          expect(questionManager.isActive()).toBe(true);
+          expect(questionManager.getMessageIds()).toContain(100);
+        });
+
+        emitSessionIdle(summaryAggregator);
+
+        await vi.waitFor(() => {
+          expect(questionManager.isActive()).toBe(false);
+        });
+        expect(api.deleteMessage).toHaveBeenCalledWith(42, 100);
+        expect(listSpy).toHaveBeenCalledWith({ directory: "D:/repo" });
+        expect(interactionManager.getSnapshot()?.kind).not.toBe("question");
+      } finally {
+        listSpy.mockRestore();
+      }
+    });
+
+    it("keeps the active question poll on session idle when the server still lists it", async () => {
+      const { api, summaryAggregator } = await setupService(true);
+      const [{ questionManager }, { opencodeClient }] = await Promise.all([
+        import("../../../src/app/managers/question-manager.js"),
+        import("../../../src/opencode/client.js"),
+      ]);
+      const listSpy = vi.spyOn(opencodeClient.question, "list").mockResolvedValue({
+        data: [{ id: "question-1", sessionID: "session-1", questions: [] }],
+        error: null,
+      });
+
+      try {
+        emitQuestionAsked(summaryAggregator, "question-1");
+
+        await vi.waitFor(() => {
+          expect(questionManager.isActive()).toBe(true);
+        });
+
+        emitSessionIdle(summaryAggregator);
+        await new Promise((resolve) => setImmediate(resolve));
+        await new Promise((resolve) => setImmediate(resolve));
+
+        expect(questionManager.isActive()).toBe(true);
+        expect(questionManager.getRequestID()).toBe("question-1");
+        expect(api.deleteMessage).not.toHaveBeenCalled();
+      } finally {
+        listSpy.mockRestore();
+      }
+    });
+
+    it("does not query pending questions on session idle without an active poll", async () => {
+      const { summaryAggregator } = await setupService(true);
+      const { opencodeClient } = await import("../../../src/opencode/client.js");
+      const listSpy = vi
+        .spyOn(opencodeClient.question, "list")
+        .mockResolvedValue({ data: [], error: null });
+
+      try {
+        emitSessionIdle(summaryAggregator);
+        await new Promise((resolve) => setImmediate(resolve));
+        await new Promise((resolve) => setImmediate(resolve));
+
+        expect(listSpy).not.toHaveBeenCalled();
+      } finally {
+        listSpy.mockRestore();
+      }
+    });
+
+    it("keeps the active question poll on session idle when the server lookup fails", async () => {
+      const { api, summaryAggregator } = await setupService(true);
+      const [{ questionManager }, { opencodeClient }] = await Promise.all([
+        import("../../../src/app/managers/question-manager.js"),
+        import("../../../src/opencode/client.js"),
+      ]);
+      const listSpy = vi
+        .spyOn(opencodeClient.question, "list")
+        .mockResolvedValue({ data: null, error: new Error("boom") });
+
+      try {
+        emitQuestionAsked(summaryAggregator, "question-1");
+
+        await vi.waitFor(() => {
+          expect(questionManager.isActive()).toBe(true);
+        });
+
+        emitSessionIdle(summaryAggregator);
+        await new Promise((resolve) => setImmediate(resolve));
+        await new Promise((resolve) => setImmediate(resolve));
+
+        expect(questionManager.isActive()).toBe(true);
+        expect(questionManager.getRequestID()).toBe("question-1");
+        expect(api.deleteMessage).not.toHaveBeenCalled();
+      } finally {
+        listSpy.mockRestore();
+      }
+    });
+
+    it("does not query pending questions on session idle when there is no current session", async () => {
+      const { api, summaryAggregator } = await setupService(true);
+      const [{ questionManager }, sessionService, { opencodeClient }] = await Promise.all([
+        import("../../../src/app/managers/question-manager.js"),
+        import("../../../src/app/services/session-service.js"),
+        import("../../../src/opencode/client.js"),
+      ]);
+      const listSpy = vi
+        .spyOn(opencodeClient.question, "list")
+        .mockResolvedValue({ data: [], error: null });
+
+      try {
+        emitQuestionAsked(summaryAggregator, "question-1");
+
+        await vi.waitFor(() => {
+          expect(questionManager.isActive()).toBe(true);
+          expect(questionManager.getMessageIds()).toContain(100);
+        });
+
+        sessionService.clearSession();
+        emitSessionIdle(summaryAggregator);
+        await new Promise((resolve) => setImmediate(resolve));
+        await new Promise((resolve) => setImmediate(resolve));
+
+        expect(listSpy).not.toHaveBeenCalled();
+        expect(questionManager.isActive()).toBe(true);
+        expect(questionManager.getRequestID()).toBe("question-1");
+        expect(api.deleteMessage).not.toHaveBeenCalled();
+      } finally {
+        listSpy.mockRestore();
+      }
+    });
+
+    it("does not query pending questions on session idle when the poll was cancelled with its requestID retained", async () => {
+      const { api, summaryAggregator } = await setupService(true);
+      const [{ questionManager }, { opencodeClient }] = await Promise.all([
+        import("../../../src/app/managers/question-manager.js"),
+        import("../../../src/opencode/client.js"),
+      ]);
+      const listSpy = vi
+        .spyOn(opencodeClient.question, "list")
+        .mockResolvedValue({ data: [], error: null });
+
+      try {
+        emitQuestionAsked(summaryAggregator, "question-1");
+
+        await vi.waitFor(() => {
+          expect(questionManager.isActive()).toBe(true);
+        });
+
+        questionManager.cancel();
+        expect(questionManager.isActive()).toBe(false);
+        expect(questionManager.getRequestID()).toBe("question-1");
+
+        emitSessionIdle(summaryAggregator);
+        await new Promise((resolve) => setImmediate(resolve));
+        await new Promise((resolve) => setImmediate(resolve));
+
+        expect(listSpy).not.toHaveBeenCalled();
+        expect(api.deleteMessage).not.toHaveBeenCalled();
+      } finally {
+        listSpy.mockRestore();
+      }
+    });
   });
 });

@@ -2,6 +2,8 @@ import type { Question, QuestionState, QuestionAnswer } from "../types/question.
 import { logger } from "../../utils/logger.js";
 
 class QuestionManager {
+  private resolvedRequestIDs = new Set<string>();
+
   private state: QuestionState = {
     questions: [],
     currentIndex: 0,
@@ -201,6 +203,15 @@ class QuestionManager {
       isActive: false,
       requestID: null,
     };
+    this.resolvedRequestIDs.clear();
+  }
+
+  markResolved(requestID: string): void {
+    this.resolvedRequestIDs.add(requestID);
+  }
+
+  isResolved(requestID: string): boolean {
+    return this.resolvedRequestIDs.has(requestID);
   }
 
   getAllAnswers(): QuestionAnswer[] {

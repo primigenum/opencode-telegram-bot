@@ -101,6 +101,8 @@ type ToolFileCallback = (fileInfo: ToolFileInfo) => void;
 
 type QuestionCallback = (questions: Question[], requestID: string, sessionId: string) => void;
 
+type QuestionResolvedCallback = (sessionId: string, requestID: string) => void | Promise<void>;
+
 type QuestionErrorCallback = () => void;
 
 type ThinkingCallback = (update: ThinkingUpdate) => void;
@@ -295,6 +297,7 @@ class SummaryAggregator {
   private onRootToolUpdateCallback: RootToolUpdateCallback | null = null;
   private onToolFileCallback: ToolFileCallback | null = null;
   private onQuestionCallback: QuestionCallback | null = null;
+  private onQuestionResolvedCallback: QuestionResolvedCallback | null = null;
   private onQuestionErrorCallback: QuestionErrorCallback | null = null;
   private onThinkingCallback: ThinkingCallback | null = null;
   private onThinkingFinishedCallback: ThinkingFinishedCallback | null = null;
@@ -367,6 +370,10 @@ class SummaryAggregator {
 
   setOnQuestion(callback: QuestionCallback): void {
     this.onQuestionCallback = callback;
+  }
+
+  setOnQuestionResolved(callback: QuestionResolvedCallback): void {
+    this.onQuestionResolvedCallback = callback;
   }
 
   setOnQuestionError(callback: QuestionErrorCallback): void {
@@ -523,10 +530,8 @@ class SummaryAggregator {
         this.handleQuestionAsked(event);
         break;
       case "question.replied":
-        logger.info(`[Aggregator] Question replied: requestID=${event.properties.requestID}`);
-        break;
       case "question.rejected":
-        logger.info(`[Aggregator] Question rejected: requestID=${event.properties.requestID}`);
+        this.handleQuestionResolved(event);
         break;
       case "session.diff":
         this.handleSessionDiff(event);
@@ -2304,6 +2309,27 @@ class SummaryAggregator {
           await callback(sessionID, requestID);
         } catch (err) {
           logger.error("[Aggregator] Error in permission replied callback:", err);
+        }
+      });
+    }
+  }
+
+  private handleQuestionResolved(
+    event: Event & {
+      type: "question.replied" | "question.rejected";
+    },
+  ): void {
+    const { sessionID, requestID } = event.properties;
+
+    logger.info(`[Aggregator] Question resolved: requestID=${requestID}`);
+
+    if (this.onQuestionResolvedCallback) {
+      const callback = this.onQuestionResolvedCallback;
+      setImmediate(async () => {
+        try {
+          await callback(sessionID, requestID);
+        } catch (err) {
+          logger.error("[Aggregator] Error in question resolved callback:", err);
         }
       });
     }
