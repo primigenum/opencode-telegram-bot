@@ -1,16 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "#vitest";
 import type { Bot, Context } from "grammy";
 import { loadSut } from "#helpers/sut-loader.js";
+import { defined } from "#helpers/defined.js";
 
 // Independent busy-gate coverage with the real guard, the real inline-menu
 // bookkeeping, the real attach service and the real settings store. Only the
 // OpenCode network call (attachSessionById) is faked.
 const mocked = vi.hoisted(() => ({
   attachSessionByIdMock: vi.fn(),
+  safeBackgroundTaskMock: vi.fn(),
 }));
 
 vi.mock("#src/app/services/project-session-service.js", () => ({
   attachSessionById: mocked.attachSessionByIdMock,
+}));
+
+vi.mock("#src/utils/safe-background-task.ts", () => ({
+  safeBackgroundTask: mocked.safeBackgroundTaskMock,
 }));
 
 vi.mock("#src/utils/logger.js", () => ({
@@ -85,6 +91,7 @@ describe("saved-sessions menu while busy (real guard, real attach service)", () 
       settingsStore.removeSavedSession(entry.id);
     }
     mocked.attachSessionByIdMock.mockReset();
+    mocked.safeBackgroundTaskMock.mockReset();
     settingsStore.setCurrentProject({ id: "project-a", name: "project-a", worktree: WORKTREE });
   });
 
@@ -116,7 +123,7 @@ describe("saved-sessions menu while busy (real guard, real attach service)", () 
     let attachedWhenOpening: unknown = "attach never ran";
     mocked.attachSessionByIdMock.mockImplementation(async () => {
       attachedWhenOpening = attachManager.getSnapshot();
-      return "Target";
+      return { id: "ses-target", title: "Target", directory: WORKTREE };
     });
 
     const ctx = createCallbackContext("saved:open:ses-target");
@@ -130,11 +137,50 @@ describe("saved-sessions menu while busy (real guard, real attach service)", () 
     expect(foregroundSessionState.isBusy()).toBe(false);
   });
 
+  it("registers the recap task without running it, keeping the recap path off the network", async () => {
+    settingsStore.saveSession({ id: "ses-target", title: "Target", directory: WORKTREE });
+    openSavedMenu();
+    mocked.attachSessionByIdMock.mockResolvedValue({
+      id: "ses-target",
+      title: "Target",
+      directory: WORKTREE,
+    });
+
+    const ctx = createCallbackContext("saved:open:ses-target");
+
+    expect(await handleSavedSessionsCallback(ctx, deps)).toBe(true);
+
+    // The safeBackgroundTask mock is load-bearing: the real one would run
+    // sendSessionRecapAndLatestResponse and hit OpenCode for the recap and the
+    // latest response. Asserting the registration keeps the mock in place.
+    expect(mocked.safeBackgroundTaskMock).toHaveBeenCalledTimes(1);
+    expect(mocked.safeBackgroundTaskMock).toHaveBeenCalledWith({
+      taskName: "saved.sendRecapAndLatestResponse",
+      task: expect.any(Function),
+    });
+    expect(
+      defined(
+        (ctx.reply as unknown as { mock: { invocationCallOrder: number[] } }).mock
+          .invocationCallOrder[0],
+        "sessions.selected reply order",
+      ),
+    ).toBeLessThan(
+      defined(
+        mocked.safeBackgroundTaskMock.mock.invocationCallOrder[0],
+        "recap task order",
+      ),
+    );
+  });
+
   it("leaves the attached session alone when no run is active", async () => {
     attachManager.attach("ses-current", WORKTREE);
     settingsStore.saveSession({ id: "ses-target", title: "Target", directory: WORKTREE });
     openSavedMenu();
-    mocked.attachSessionByIdMock.mockResolvedValue("Target");
+    mocked.attachSessionByIdMock.mockResolvedValue({
+      id: "ses-target",
+      title: "Target",
+      directory: WORKTREE,
+    });
 
     const ctx = createCallbackContext("saved:open:ses-target");
 

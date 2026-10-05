@@ -87,9 +87,13 @@ describe("app/services/project-session-service", () => {
     mocked.sessionGetMock.mockResolvedValue({ data: latest, error: null });
     const deps = attachDeps();
 
-    const title = await attachLatestProjectSession(deps);
+    const attached = await attachLatestProjectSession(deps);
 
-    expect(title).toBe("Latest work");
+    expect(attached).toEqual({
+      id: "session-latest",
+      title: "Latest work",
+      directory: deps.directory,
+    });
     expect(mocked.sessionListMock).toHaveBeenCalledWith({
       directory: deps.directory,
       limit: 1,
@@ -141,7 +145,7 @@ describe("app/services/project-session-service", () => {
       error: null,
     });
 
-    const title = await attachSessionById({
+    const attached = await attachSessionById({
       bot,
       chatId: 777,
       sessionId: "session-x",
@@ -149,7 +153,11 @@ describe("app/services/project-session-service", () => {
       ensureEventSubscription: mocked.ensureEventSubscriptionMock,
     });
 
-    expect(title).toBe("Saved one");
+    expect(attached).toEqual({
+      id: "session-x",
+      title: "Saved one",
+      directory: "D:\\Projects\\Repo",
+    });
     expect(mocked.setCurrentSessionMock).toHaveBeenCalledWith({
       id: "session-x",
       title: "Saved one",

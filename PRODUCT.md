@@ -203,6 +203,7 @@ Agent picker behavior:
 - [x] Optional message queue for text, voice, photos, rich formatted messages with photos, documents, and media groups sent while the agent is busy, managed from the bottom keyboard
 - [x] Quick project swap from the bottom keyboard (one tap switches to the other project, detaching a running session and following that project's most recent session)
 - [x] Saved sessions from the bottom keyboard (`⭐ Sessions` menu: bookmark the current session, reopen a bookmarked one, or drop it; bookmarks are kept per project). The menu works while a task is running: bookmarking is always allowed, and opening another session detaches the active run (same semantics as the project swap; the run keeps going on the server)
+- [x] Opening a session (from /sessions, the saved-sessions menu, or after a project swap) shows the recent-messages recap and re-sends the full latest assistant response
 - [x] Native Telegram rich message formatting for assistant replies (Bot API 10.1)
 - [x] Incoming Telegram rich formatted messages (Bot API 10.1): converted to Markdown, accepted anywhere text is accepted, with photos attached and unsupported message types answered explicitly
 

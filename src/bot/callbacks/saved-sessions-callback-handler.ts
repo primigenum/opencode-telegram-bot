@@ -13,6 +13,8 @@ import {
 } from "../../app/stores/settings-store.js";
 import { t } from "../../i18n/index.js";
 import { logger } from "../../utils/logger.js";
+import { safeBackgroundTask } from "../../utils/safe-background-task.js";
+import { sendSessionRecapAndLatestResponse } from "../services/session-recap-service.js";
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
 import {
   appendInlineMenuCancelButton,
@@ -129,7 +131,7 @@ export async function handleSavedSessionsCallback(
         detachAttachedSession("saved_session_opened");
       }
 
-      const title = await attachSessionById({
+      const attached = await attachSessionById({
         bot: deps.bot,
         chatId,
         sessionId,
@@ -137,7 +139,7 @@ export async function handleSavedSessionsCallback(
         ensureEventSubscription: deps.ensureEventSubscription,
       });
 
-      if (!title) {
+      if (!attached) {
         // The session is gone: drop it from the saved list so the menu stays honest.
         removeSavedSession(sessionId);
         await alert(ctx, "saved.not_found");
@@ -153,10 +155,15 @@ export async function handleSavedSessionsCallback(
       const keyboard = keyboardManager.getKeyboard();
 
       await ctx.reply(
-        t("sessions.selected", { title }),
+        t("sessions.selected", { title: attached.title }),
         keyboard ? { reply_markup: keyboard } : {},
       );
       await ctx.deleteMessage().catch(() => {});
+
+      safeBackgroundTask({
+        taskName: "saved.sendRecapAndLatestResponse",
+        task: () => sendSessionRecapAndLatestResponse(ctx.api, chatId, attached),
+      });
       return true;
     }
 
