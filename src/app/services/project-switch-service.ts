@@ -7,7 +7,7 @@ import type {
 } from "grammy/types";
 import type { ProjectInfo } from "../types/project.js";
 import type { ModelInfo } from "../types/model.js";
-import { setCurrentProject } from "../stores/settings-store.js";
+import { getCurrentProject, setCurrentProject, setSwapProject } from "../stores/settings-store.js";
 import { clearSession } from "./session-service.js";
 import { summaryAggregator } from "../managers/summary-aggregation-manager.js";
 import { detachAttachedSession } from "./attach-service.js";
@@ -56,10 +56,13 @@ export async function switchToProject(
   reason: string,
   options: SwitchToProjectOptions,
 ) {
+  const outgoingProject = getCurrentProject();
+
   detachAttachedSession(reason);
   stopEventListening();
   backgroundSessionTracker.clear();
   setCurrentProject(project);
+  recordSwapProject(outgoingProject, project);
   clearSession();
   summaryAggregator.clear();
   clearAllInteractionState(reason);
@@ -86,4 +89,14 @@ export async function switchToProject(
   }
 
   return options.presentation.createMainKeyboard(currentAgent, currentModel, contextInfo, variantName);
+}
+
+// The project a switch moves away from becomes the swap-button target, so a tap
+// on the keyboard takes the user back where they came from (alt-tab style).
+function recordSwapProject(outgoing: ProjectInfo | undefined, incoming: ProjectInfo): void {
+  if (!outgoing || outgoing.worktree === incoming.worktree) {
+    return;
+  }
+
+  setSwapProject(outgoing.worktree);
 }

@@ -188,6 +188,7 @@ export const fr: I18nDictionary = {
   "projects.selected":
     "✅ Projet sélectionné : {project}\n\n📋 La session a été réinitialisée. Utilisez /sessions ou /new pour ce projet.",
   "projects.select_error": "🔴 Impossible de sélectionner le projet.",
+  "projects.swap_unavailable": "🔄 Aucun autre projet vers lequel basculer.",
 
   "sessions.project_not_selected":
     "🏗 Aucun projet n'est sélectionné.\n\nSélectionnez d'abord un projet avec /projects.",

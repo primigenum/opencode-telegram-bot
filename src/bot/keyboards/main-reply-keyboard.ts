@@ -3,6 +3,7 @@ import { getAgentButtonLabel } from "../../app/types/agent.js";
 import { formatModelForButton } from "../../app/types/model.js";
 import type { ModelInfo } from "../../app/types/model.js";
 import type { ContextInfo } from "./keyboard-types.js";
+import { getSwapProjectButtonLabel } from "./swap-project-button.js";
 import { t } from "../../i18n/index.js";
 
 /**
@@ -34,8 +35,10 @@ function formatContextForButton(contextInfo: ContextInfo): string {
  * @param contextInfo Optional context information (tokens used/limit)
  * @param variantName Optional variant display name (e.g., "💭 Default")
  * @param queuedPromptLabels Optional queued prompt labels, one row each above the fixed grid
- * @returns Reply Keyboard with queued prompts on top, agent and context in the next row,
- *          model and variant in the last row
+ * @param swapProjectLabel Quick project swap row; defaults to the stored swap target.
+ *                         Pass null to hide the row explicitly.
+ * @returns Reply Keyboard with queued prompts and the project swap on top, agent and
+ *          context in the next row, model and variant in the last row
  */
 export function createMainKeyboard(
   currentAgent: string,
@@ -43,6 +46,7 @@ export function createMainKeyboard(
   contextInfo?: ContextInfo,
   variantName?: string,
   queuedPromptLabels: string[] = [],
+  swapProjectLabel: string | null | undefined = getSwapProjectButtonLabel(),
 ): Keyboard {
   const keyboard = new Keyboard();
   const agentText = getAgentButtonLabel(currentAgent);
@@ -61,6 +65,11 @@ export function createMainKeyboard(
   // Queued prompts sit above the fixed grid, one per row
   for (const label of queuedPromptLabels) {
     keyboard.text(label).row();
+  }
+
+  // Quick project swap sits above the fixed grid too, below the queued prompts
+  if (swapProjectLabel) {
+    keyboard.text(swapProjectLabel).row();
   }
 
   // Row 1: agent and context buttons

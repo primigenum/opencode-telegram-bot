@@ -9,6 +9,8 @@ const mocked = vi.hoisted(() => ({
   clearSessionMock: vi.fn(),
   summaryAggregatorClearMock: vi.fn(),
   clearAllInteractionStateMock: vi.fn(),
+  getCurrentProjectMock: vi.fn(),
+  setSwapProjectMock: vi.fn(),
   pinnedClearMock: vi.fn().mockResolvedValue(undefined),
   pinnedRefreshMock: vi.fn().mockResolvedValue(undefined),
   pinnedGetLimitMock: vi.fn(() => 128000),
@@ -30,6 +32,8 @@ const mocked = vi.hoisted(() => ({
 
 const settingsStoreMock = createSettingsStoreMock();
 settingsStoreMock.setCurrentProject = mocked.setCurrentProjectMock;
+settingsStoreMock.getCurrentProject = mocked.getCurrentProjectMock;
+settingsStoreMock.setSwapProject = mocked.setSwapProjectMock;
 vi.mock("#src/app/stores/settings-store.ts", () => settingsStoreMock);
 vi.mock("#src/app/services/session-service.ts", () => ({
   clearSession: mocked.clearSessionMock,
@@ -105,6 +109,8 @@ describe("app/services/project-switch-service", () => {
     mocked.clearSessionMock.mockReset();
     mocked.summaryAggregatorClearMock.mockReset();
     mocked.clearAllInteractionStateMock.mockReset();
+    mocked.getCurrentProjectMock.mockReset();
+    mocked.setSwapProjectMock.mockReset();
     mocked.pinnedClearMock.mockReset().mockResolvedValue(undefined);
     mocked.pinnedRefreshMock.mockReset().mockResolvedValue(undefined);
     mocked.pinnedGetLimitMock.mockReset().mockReturnValue(128000);
@@ -191,5 +197,25 @@ describe("app/services/project-switch-service", () => {
 
     expect(mocked.createMainKeyboardMock).toHaveBeenCalled();
     expect(result).toEqual({ keyboard: [[{ text: "mock" }]] });
+  });
+
+  it("records the project it left as the swap target", async () => {
+    mocked.getCurrentProjectMock.mockReturnValue({
+      id: "old-project",
+      worktree: "/home/user/old-app",
+      name: "Old App",
+    });
+    const ctx = createCtx();
+    await switchTestProject(ctx);
+
+    expect(mocked.setSwapProjectMock).toHaveBeenCalledWith("/home/user/old-app");
+  });
+
+  it("does not record a swap target when switching to the same worktree", async () => {
+    mocked.getCurrentProjectMock.mockReturnValue(testProject);
+    const ctx = createCtx();
+    await switchTestProject(ctx);
+
+    expect(mocked.setSwapProjectMock).not.toHaveBeenCalled();
   });
 });

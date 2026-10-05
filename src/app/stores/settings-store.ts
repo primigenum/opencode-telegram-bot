@@ -275,6 +275,15 @@ export function setProjectAgent(worktree: string, agentName: string): void {
   void writeSettingsFile(currentSettings);
 }
 
+export function getSwapProject(): string | undefined {
+  return currentSettings.swapProject;
+}
+
+export function setSwapProject(worktree: string): void {
+  currentSettings.swapProject = worktree;
+  void writeSettingsFile(currentSettings);
+}
+
 export function getCurrentModel(): ModelInfo | undefined {
   return currentSettings.currentModel;
 }

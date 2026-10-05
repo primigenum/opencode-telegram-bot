@@ -81,6 +81,51 @@ describe("bot/keyboards/main-reply-keyboard", () => {
     expect(buttonTextAt(keyboard, 3, 1)).toBe("💡 Default");
   });
 
+  it("puts the project swap row above the fixed grid when a label is given", () => {
+    const keyboard = createMainKeyboard(
+      "build",
+      { providerID: "openrouter", modelID: "openai/gpt-4o" },
+      undefined,
+      undefined,
+      [],
+      "🔄 primigenum",
+    );
+
+    expect(buttonTextAt(keyboard, 0, 0)).toBe("🔄 primigenum");
+    expect(buttonTextAt(keyboard, 1, 0)).toBe("🛠️ Build Agent");
+    expect(buttonTextAt(keyboard, 1, 1)).toBe("📊 0");
+    expect(buttonTextAt(keyboard, 2, 0)).toBe("🧠 openrouter\nopenai/gpt-4o");
+  });
+
+  it("keeps queued prompts on top of the project swap row", () => {
+    const keyboard = createMainKeyboard(
+      "build",
+      { providerID: "openrouter", modelID: "openai/gpt-4o" },
+      undefined,
+      undefined,
+      ["❌ 1. first"],
+      "🔄 primigenum",
+    );
+
+    expect(buttonTextAt(keyboard, 0, 0)).toBe("❌ 1. first");
+    expect(buttonTextAt(keyboard, 1, 0)).toBe("🔄 primigenum");
+    expect(buttonTextAt(keyboard, 2, 0)).toBe("🛠️ Build Agent");
+  });
+
+  it("hides the project swap row when the label is null", () => {
+    const keyboard = createMainKeyboard(
+      "build",
+      { providerID: "openrouter", modelID: "openai/gpt-4o" },
+      undefined,
+      undefined,
+      [],
+      null,
+    );
+
+    expect(keyboard.keyboard.filter((row) => row.length > 0)).toHaveLength(2);
+    expect(buttonTextAt(keyboard, 0, 0)).toBe("🛠️ Build Agent");
+  });
+
   it("creates custom agent keyboard and remove payload", () => {
     const keyboard = createAgentKeyboard("custom");
     const nonEmptyRows = keyboard.keyboard.filter((row) => row.length > 0);
