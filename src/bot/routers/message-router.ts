@@ -13,14 +13,12 @@ import { handleRenameTextAnswer } from "../callbacks/rename-callback-handler.js"
 import { handleContextButtonPress } from "../menus/context-control-menu.js";
 import { showAgentSelectionMenu } from "../menus/agent-selection-menu.js";
 import { showModelSelectionMenu } from "../menus/model-selection-menu.js";
-import { showVariantSelectionMenu } from "../menus/variant-selection-menu.js";
 import {
   AGENT_MODE_BUTTON_TEXT_PATTERN,
   CONTEXT_BUTTON_TEXT_PATTERN,
   MODEL_BUTTON_TEXT_PATTERN,
   QUEUED_PROMPT_BUTTON_TEXT_PATTERN,
   SWAP_PROJECT_BUTTON_TEXT_PATTERN,
-  VARIANT_BUTTON_TEXT_PATTERN,
 } from "../message-patterns.js";
 import { handleSwapProjectButton } from "../handlers/swap-project-handler.js";
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
@@ -128,21 +126,6 @@ export function registerMessageRouter(bot: Bot<Context>, deps: MessageRouterDeps
     } catch (err) {
       logger.error("[Bot] Error handling context button:", err);
       await ctx.reply(t("error.context_button"));
-    }
-  });
-
-  bot.hears(VARIANT_BUTTON_TEXT_PATTERN, async (ctx) => {
-    logger.debug(`[Bot] Variant button pressed: ${ctx.message?.text}`);
-
-    try {
-      if (await blockMenuWhileInteractionActive(ctx)) {
-        return;
-      }
-
-      await showVariantSelectionMenu(ctx);
-    } catch (err) {
-      logger.error("[Bot] Error showing variant menu:", err);
-      await ctx.reply(t("error.load_variants"));
     }
   });
 

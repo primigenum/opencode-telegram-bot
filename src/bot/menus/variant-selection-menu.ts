@@ -1,9 +1,7 @@
 import { Context, InlineKeyboard } from "grammy";
-import { getStoredModel } from "../../app/services/model-selection-service.js";
 import {
   formatVariantForDisplay,
   getAvailableVariants,
-  getCurrentVariant,
 } from "../../app/services/variant-selection-service.js";
 import type { ModelInfo } from "../../app/types/model.js";
 import { logger } from "../../utils/logger.js";
@@ -53,55 +51,17 @@ export async function buildVariantSelectionMenu(
 }
 
 /**
- * Show variant selection menu
- * @param ctx grammY context
- */
-export async function showVariantSelectionMenu(ctx: Context): Promise<void> {
-  try {
-    const currentModel = getStoredModel();
-
-    if (!currentModel.providerID || !currentModel.modelID) {
-      await ctx.reply(t("variant.select_model_first"));
-      return;
-    }
-
-    const currentVariant = getCurrentVariant();
-    const keyboard = await buildVariantSelectionMenu(
-      currentVariant,
-      currentModel.providerID,
-      currentModel.modelID,
-    );
-
-    if (keyboard.inline_keyboard.length === 0) {
-      await ctx.reply(t("variant.menu.empty"));
-      return;
-    }
-
-    const displayName = formatVariantForDisplay(currentVariant);
-    const text = t("variant.menu.current", { name: displayName });
-
-    await replyWithInlineMenu(ctx, {
-      menuKind: "variant",
-      text,
-      keyboard,
-    });
-  } catch (err) {
-    logger.error("[VariantHandler] Error showing variant menu:", err);
-    await ctx.reply(t("variant.menu.error"));
-  }
-}
-
-/**
  * Show the variant selection menu right after a model was picked.
  * Opens only when the model offers more than one selectable variant; any failure
  * leaves the flow at the model confirmation instead of surfacing an error.
  * @param ctx grammY context
  * @param model Model that was just applied
+ * @returns true when the picker was opened
  */
 export async function showVariantSelectionMenuAfterModelChange(
   ctx: Context,
   model: ModelInfo,
-): Promise<void> {
+): Promise<boolean> {
   try {
     const currentVariant = model.variant || "default";
     const keyboard = await buildVariantSelectionMenu(
@@ -117,7 +77,7 @@ export async function showVariantSelectionMenuAfterModelChange(
       logger.debug(
         `[VariantHandler] No variant choice for ${model.providerID}/${model.modelID}, menu skipped`,
       );
-      return;
+      return false;
     }
 
     const displayName = formatVariantForDisplay(currentVariant);
@@ -128,7 +88,10 @@ export async function showVariantSelectionMenuAfterModelChange(
       text,
       keyboard,
     });
+
+    return true;
   } catch (err) {
     logger.error("[VariantHandler] Error showing variant menu after model change:", err);
+    return false;
   }
 }

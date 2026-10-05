@@ -127,7 +127,7 @@ Current command set:
 - `/help` - show command help
 - `/ls` - interactive file browser for the current project directory; a text file can be attached to the next prompt from its detail view
 
-Model, agent, variant, and context actions are available from the persistent bottom keyboard.
+Model (with its thinking-effort variant), agent, and context actions are available from the persistent bottom keyboard.
 
 Text messages (non-commands) are treated as prompts for OpenCode only when no blocking interaction is active. Voice/audio messages are transcribed and then sent as prompts when STT is configured. When TTS mode in `/settings` is set to `all`, completed assistant replies include a generated audio file if TTS is configured. When it is set to `auto`, audio replies are sent only after voice/audio prompts.
 
@@ -149,6 +149,8 @@ Model picker behavior:
   list per provider, with a back button on each screen (page size: `MODELS_LIST_LIMIT`)
 - Picking a model opens the variant picker right after the confirmation when the model offers
   more than one selectable variant; a model with only `Default` ends at the confirmation
+- The bottom keyboard exposes a single model button (model + active thinking-effort variant);
+  picking the already-active model in the picker re-opens the variant picker as is
 
 Agent picker behavior:
 
@@ -170,7 +172,7 @@ Agent picker behavior:
 - [x] Telegram-friendly result delivery, including sending generated code/files when needed
 - [x] Interactive question and permission handling directly in chat (buttons + custom answers)
 - [x] Live pinned session status in chat (project, model with variant in parentheses when set, context usage, changed files)
-- [x] In-chat controls for model, agent, variant, and context
+- [x] In-chat controls for model (including its thinking-effort variant), agent, and context
 - [x] Built-in and custom command catalog access (`/commands`)
 - [x] Trusted local JSON commands from the persistent application home, executed without OpenCode or model tokens
 - [x] Skills catalog access (`/skills`)

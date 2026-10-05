@@ -72,8 +72,9 @@ describe("bot/menus/variant-selection-menu — after a model change", () => {
     mocked.getAvailableVariantsMock.mockResolvedValue([{ id: "default" }]);
     const ctx = mockContext();
 
-    await showVariantSelectionMenuAfterModelChange(ctx, model);
+    const opened = await showVariantSelectionMenuAfterModelChange(ctx, model);
 
+    expect(opened).toBe(false);
     expect(mocked.replyWithInlineMenuMock).not.toHaveBeenCalled();
     expect(ctx.reply).not.toHaveBeenCalled();
   });
@@ -86,8 +87,9 @@ describe("bot/menus/variant-selection-menu — after a model change", () => {
     ]);
     const ctx = mockContext();
 
-    await showVariantSelectionMenuAfterModelChange(ctx, model);
+    const opened = await showVariantSelectionMenuAfterModelChange(ctx, model);
 
+    expect(opened).toBe(false);
     expect(mocked.replyWithInlineMenuMock).not.toHaveBeenCalled();
     expect(ctx.reply).not.toHaveBeenCalled();
   });
@@ -100,8 +102,9 @@ describe("bot/menus/variant-selection-menu — after a model change", () => {
     ]);
     const ctx = mockContext();
 
-    await showVariantSelectionMenuAfterModelChange(ctx, model);
+    const opened = await showVariantSelectionMenuAfterModelChange(ctx, model);
 
+    expect(opened).toBe(true);
     expect(mocked.getAvailableVariantsMock).toHaveBeenCalledWith("openai", "gpt-5");
 
     const options = replyOptions();
@@ -118,8 +121,9 @@ describe("bot/menus/variant-selection-menu — after a model change", () => {
     mocked.getAvailableVariantsMock.mockRejectedValue(new Error("providers unavailable"));
     const ctx = mockContext();
 
-    await showVariantSelectionMenuAfterModelChange(ctx, model);
+    const opened = await showVariantSelectionMenuAfterModelChange(ctx, model);
 
+    expect(opened).toBe(false);
     expect(mocked.replyWithInlineMenuMock).not.toHaveBeenCalled();
     expect(ctx.reply).not.toHaveBeenCalled();
   });
