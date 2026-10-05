@@ -44,7 +44,7 @@ No public inbound ports are required for normal usage.
 
 - Fetch last N sessions (name + date)
 - Select an existing session and automatically follow its live updates
-- Switching to an existing session adopts the agent, model, and variant it last ran with
+- Switching to an existing session adopts the agent, model, and variant it last ran with; when the session carries no variant, the model's configured default (e.g. `reasoningEffort`) is used instead of the literal `default`
 - Create a new session
 - Use OpenCode-generated session title (based on conversation)
 
@@ -129,6 +129,8 @@ Current command set:
 
 Model (with its thinking-effort variant), agent, and context actions are available from the persistent bottom keyboard.
 
+While a task is running, the queued-prompt menu, the project swap button, and the saved-sessions menu stay usable: queue and bookmark operations are local, and swapping project or opening another session detaches the running session (the run keeps going on the server and background tracking keeps notifying when enabled). `/sessions`, `/projects`, and the other bottom-keyboard menus stay blocked while busy.
+
 Text messages (non-commands) are treated as prompts for OpenCode only when no blocking interaction is active. Voice/audio messages are transcribed and then sent as prompts when STT is configured. When TTS mode in `/settings` is set to `all`, completed assistant replies include a generated audio file if TTS is configured. When it is set to `auto`, audio replies are sent only after voice/audio prompts.
 
 Interaction routing rules:
@@ -148,7 +150,9 @@ Model picker behavior:
 - Models can be browsed by provider: the picker offers a providers list and a paginated model
   list per provider, with a back button on each screen (page size: `MODELS_LIST_LIMIT`)
 - Picking a model opens the variant picker right after the confirmation when the model offers
-  more than one selectable variant; a model with only `Default` ends at the confirmation
+  at least one selectable real variant different from the active one; the synthetic `Default`
+  row is never offered, so a model with no real variants (or whose only real variant is
+  already active) ends at the confirmation
 - The bottom keyboard exposes a single model button (model + active thinking-effort variant);
   picking the already-active model in the picker re-opens the variant picker as is
 
@@ -197,7 +201,8 @@ Agent picker behavior:
 - [x] Attaching a project file from `/ls` to the next prompt as a native OpenCode file part
 - [x] `/messages` command: browse session messages with revert and fork functionality
 - [x] Optional message queue for text, voice, photos, rich formatted messages with photos, documents, and media groups sent while the agent is busy, managed from the bottom keyboard
-- [x] Quick project swap from the bottom keyboard (one tap switches to the other project, detaching a running session)
+- [x] Quick project swap from the bottom keyboard (one tap switches to the other project, detaching a running session and following that project's most recent session)
+- [x] Saved sessions from the bottom keyboard (`⭐ Sessions` menu: bookmark the current session, reopen a bookmarked one, or drop it; bookmarks are kept per project). The menu works while a task is running: bookmarking is always allowed, and opening another session detaches the active run (same semantics as the project swap; the run keeps going on the server)
 - [x] Native Telegram rich message formatting for assistant replies (Bot API 10.1)
 - [x] Incoming Telegram rich formatted messages (Bot API 10.1): converted to Markdown, accepted anywhere text is accepted, with photos attached and unsupported message types answered explicitly
 

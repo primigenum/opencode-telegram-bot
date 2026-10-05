@@ -28,13 +28,12 @@ export async function buildVariantSelectionMenu(
     return keyboard;
   }
 
-  // Filter only active variants (not disabled)
-  const activeVariants = variants.filter((v) => !v.disabled);
+  // Offer only real variants (not disabled): the synthetic "default" row is
+  // not shown when the model has a configured default (e.g. reasoningEffort).
+  const activeVariants = variants.filter((v) => !v.disabled && v.id !== "default");
 
   if (activeVariants.length === 0) {
-    logger.warn("[VariantHandler] No active variants found");
-    // If no active variants, show default at least
-    keyboard.text(`✅ ${formatVariantForDisplay("default")}`, "variant:default").row();
+    logger.warn("[VariantHandler] No selectable variants found");
     return keyboard;
   }
 
@@ -52,8 +51,10 @@ export async function buildVariantSelectionMenu(
 
 /**
  * Show the variant selection menu right after a model was picked.
- * Opens only when the model offers more than one selectable variant; any failure
- * leaves the flow at the model confirmation instead of surfacing an error.
+ * Opens when the model offers at least one selectable real variant different from
+ * the active one (0 variants, or a single one already active, ends at the model
+ * confirmation). Any failure leaves the flow at the model confirmation instead of
+ * surfacing an error.
  * @param ctx grammY context
  * @param model Model that was just applied
  * @returns true when the picker was opened
@@ -70,10 +71,20 @@ export async function showVariantSelectionMenuAfterModelChange(
       model.modelID,
     );
 
-    // The builder leaves a trailing empty row, so count the rows that carry a button
-    const drawnVariants = keyboard.inline_keyboard.filter((row) => row.length > 0).length;
+    // The builder only draws real variants (no synthetic "default" row); read the
+    // variant ids back from the buttons to offer the choice when any drawn variant
+    // differs from the active one.
+    const drawnVariants = keyboard.inline_keyboard
+      .flat()
+      .map((button) => button.callback_data)
+      .filter((data): data is string => typeof data === "string" && data.startsWith("variant:"))
+      .map((data) => data.slice("variant:".length));
 
-    if (drawnVariants < 2) {
+    const hasChoice =
+      drawnVariants.length > 1 ||
+      (drawnVariants.length === 1 && drawnVariants[0] !== currentVariant);
+
+    if (!hasChoice) {
       logger.debug(
         `[VariantHandler] No variant choice for ${model.providerID}/${model.modelID}, menu skipped`,
       );

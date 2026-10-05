@@ -8,7 +8,7 @@ import {
 } from "../stores/settings-store.js";
 import { getCurrentSession } from "./session-service.js";
 import { getStoredModel, selectModel } from "./model-selection-service.js";
-import { setCurrentVariant } from "./variant-selection-service.js";
+import { resolveVariant, setCurrentVariant } from "./variant-selection-service.js";
 import { logger } from "../../utils/logger.js";
 import type { AgentInfo } from "../types/agent.js";
 
@@ -196,7 +196,10 @@ export async function applyAgentConfiguredSettings(agentName: string): Promise<b
     const hasModel = Boolean(providerID && modelID);
 
     if (hasModel && providerID && modelID) {
-      const storedVariant = variant ?? getStoredModel().variant ?? "default";
+      // Keep an explicit stored variant; otherwise fall back to the adopted
+      // model's configured default (never the literal "default" when one exists).
+      const storedVariant =
+        variant ?? resolveVariant(providerID, modelID, getStoredModel().variant);
       selectModel({
         providerID,
         modelID,

@@ -37,8 +37,11 @@ function formatContextForButton(contextInfo: ContextInfo): string {
  * @param queuedPromptLabels Optional queued prompt labels, one row each above the fixed grid
  * @param swapProjectLabel Quick project swap row; defaults to the stored swap target.
  *                         Pass null to hide the row explicitly.
- * @returns Reply Keyboard with queued prompts and the project swap on top, agent and
- *          context in the next row, and the unified model + variant button in the last row
+ * @param savedSessionsLabel Saved-sessions row, sharing the swap row when both exist.
+ *                           Pass null to hide it explicitly.
+ * @returns Reply Keyboard with queued prompts on top, then the project swap and
+ *          saved-sessions buttons, agent and context in the next row, and the
+ *          unified model + variant button in the last row
  */
 export function createMainKeyboard(
   currentAgent: string,
@@ -47,6 +50,7 @@ export function createMainKeyboard(
   variantName?: string,
   queuedPromptLabels: string[] = [],
   swapProjectLabel: string | null | undefined = getSwapProjectButtonLabel(),
+  savedSessionsLabel: string | null = t("keyboard.saved_sessions"),
 ): Keyboard {
   const keyboard = new Keyboard();
   const agentText = getAgentButtonLabel(currentAgent);
@@ -67,9 +71,15 @@ export function createMainKeyboard(
     keyboard.text(label).row();
   }
 
-  // Quick project swap sits above the fixed grid too, below the queued prompts
-  if (swapProjectLabel) {
-    keyboard.text(swapProjectLabel).row();
+  // Project swap and saved sessions share a row above the fixed grid too
+  const utilityLabels = [swapProjectLabel, savedSessionsLabel].filter(
+    (label): label is string => Boolean(label),
+  );
+  if (utilityLabels.length > 0) {
+    for (const label of utilityLabels) {
+      keyboard.text(label);
+    }
+    keyboard.row();
   }
 
   // Row 1: agent and context buttons

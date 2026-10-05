@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "#vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "#vitest";
 import { createSettingsStoreMock } from "#helpers/settings-store-mock.js";
 import type { Context } from "grammy";
 import { defined } from "#helpers/defined.js";
@@ -164,6 +164,12 @@ describe("bot/handlers/prompt-queue-dispatch", () => {
       initializePromptQueueDispatch(DEPS);
     });
 
+    afterEach(() => {
+      // Drop any retry timer armed by a test so it cannot leak into the next one.
+      __resetPromptQueueDispatchForTests();
+      vi.useRealTimers();
+    });
+
     it("does nothing when the queue is empty", async () => {
       await dispatchNextQueuedPrompt();
 
@@ -179,6 +185,50 @@ describe("bot/handlers/prompt-queue-dispatch", () => {
 
       expect(processUserPromptMock).not.toHaveBeenCalled();
       expect(promptQueue.size()).toBe(1);
+    });
+
+    it("retries a dispatch that was skipped while the session was busy", async () => {
+      vi.useFakeTimers();
+      await tryEnqueuePrompt(makeContext(), "do the thing");
+      isForegroundBusyMock.mockReturnValue(true);
+
+      await dispatchNextQueuedPrompt();
+      expect(processUserPromptMock).not.toHaveBeenCalled();
+
+      isForegroundBusyMock.mockReturnValue(false);
+      await vi.advanceTimersByTimeAsync(3_000);
+
+      expect(processUserPromptMock).toHaveBeenCalledTimes(1);
+      expect(promptQueue.size()).toBe(0);
+    });
+
+    it("keeps waiting with a growing delay while the session stays busy", async () => {
+      vi.useFakeTimers();
+      await tryEnqueuePrompt(makeContext(), "do the thing");
+      isForegroundBusyMock.mockReturnValue(true);
+
+      await dispatchNextQueuedPrompt();
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(processUserPromptMock).not.toHaveBeenCalled();
+
+      isForegroundBusyMock.mockReturnValue(false);
+      await vi.advanceTimersByTimeAsync(6_000);
+
+      expect(processUserPromptMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("stops retrying once the queued prompt is dispatched", async () => {
+      vi.useFakeTimers();
+      await tryEnqueuePrompt(makeContext(), "do the thing");
+      isForegroundBusyMock.mockReturnValue(true);
+
+      await dispatchNextQueuedPrompt();
+      isForegroundBusyMock.mockReturnValue(false);
+      await vi.advanceTimersByTimeAsync(3_000);
+
+      await vi.advanceTimersByTimeAsync(30_000);
+
+      expect(processUserPromptMock).toHaveBeenCalledTimes(1);
     });
 
     it("sends the first prompt and echoes it as external user input", async () => {

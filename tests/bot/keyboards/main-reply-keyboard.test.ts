@@ -1,5 +1,6 @@
 import { describe, expect, it } from "#vitest";
 import { loadSut } from "#helpers/sut-loader.js";
+import { t } from "#src/i18n/index.js";
 const { createAgentKeyboard, createMainKeyboard, removeKeyboard } = await loadSut<typeof import("#src/bot/keyboards/main-reply-keyboard.js")>(
   "#src/bot/keyboards/main-reply-keyboard.ts",
   import.meta.url,
@@ -25,10 +26,11 @@ describe("bot/keyboards/main-reply-keyboard", () => {
       modelID: "openai/gpt-4o",
     });
 
-    expect(buttonTextAt(keyboard, 0, 0)).toBe("🛠️ Build Agent");
-    expect(buttonTextAt(keyboard, 0, 1)).toBe("📊 0");
-    expect(buttonTextAt(keyboard, 1, 0)).toBe("🧠 openrouter\nopenai/gpt-4o · 💡 Default");
-    expect(keyboard.keyboard[1]).toHaveLength(1);
+    expect(buttonTextAt(keyboard, 0, 0)).toBe(t("keyboard.saved_sessions"));
+    expect(buttonTextAt(keyboard, 1, 0)).toBe("🛠️ Build Agent");
+    expect(buttonTextAt(keyboard, 1, 1)).toBe("📊 0");
+    expect(buttonTextAt(keyboard, 2, 0)).toBe("🧠 openrouter\nopenai/gpt-4o · 💡 Default");
+    expect(keyboard.keyboard[2]).toHaveLength(1);
     expect(keyboard.resize_keyboard).toBe(true);
     expect(keyboard.is_persistent).toBe(true);
   });
@@ -47,9 +49,9 @@ describe("bot/keyboards/main-reply-keyboard", () => {
       "⚡ Fast",
     );
 
-    expect(buttonTextAt(keyboard, 0, 0)).toBe("📋 Plan Agent");
-    expect(buttonTextAt(keyboard, 0, 1)).toBe("📊 150K / 1.5M (10%)");
-    expect(buttonTextAt(keyboard, 1, 0)).toBe("🧠 provider\nmodel · ⚡ Fast");
+    expect(buttonTextAt(keyboard, 1, 0)).toBe("📋 Plan Agent");
+    expect(buttonTextAt(keyboard, 1, 1)).toBe("📊 150K / 1.5M (10%)");
+    expect(buttonTextAt(keyboard, 2, 0)).toBe("🧠 provider\nmodel · ⚡ Fast");
   });
 
   it("keeps the fixed grid when no prompt is queued", () => {
@@ -61,7 +63,7 @@ describe("bot/keyboards/main-reply-keyboard", () => {
       [],
     );
 
-    expect(keyboard.keyboard.filter((row) => row.length > 0)).toHaveLength(2);
+    expect(keyboard.keyboard.filter((row) => row.length > 0)).toHaveLength(3);
   });
 
   it("puts queued prompt rows above the fixed grid", () => {
@@ -70,17 +72,18 @@ describe("bot/keyboards/main-reply-keyboard", () => {
       { providerID: "openrouter", modelID: "openai/gpt-4o" },
       undefined,
       undefined,
-      ["❌ 1. first", "❌ 2. second"],
+      ["⏳ 1. first", "⏳ 2. second"],
     );
 
-    expect(buttonTextAt(keyboard, 0, 0)).toBe("❌ 1. first");
-    expect(buttonTextAt(keyboard, 1, 0)).toBe("❌ 2. second");
-    expect(buttonTextAt(keyboard, 2, 0)).toBe("🛠️ Build Agent");
-    expect(buttonTextAt(keyboard, 2, 1)).toBe("📊 0");
-    expect(buttonTextAt(keyboard, 3, 0)).toBe("🧠 openrouter\nopenai/gpt-4o · 💡 Default");
+    expect(buttonTextAt(keyboard, 0, 0)).toBe("⏳ 1. first");
+    expect(buttonTextAt(keyboard, 1, 0)).toBe("⏳ 2. second");
+    expect(buttonTextAt(keyboard, 2, 0)).toBe(t("keyboard.saved_sessions"));
+    expect(buttonTextAt(keyboard, 3, 0)).toBe("🛠️ Build Agent");
+    expect(buttonTextAt(keyboard, 3, 1)).toBe("📊 0");
+    expect(buttonTextAt(keyboard, 4, 0)).toBe("🧠 openrouter\nopenai/gpt-4o · 💡 Default");
   });
 
-  it("puts the project swap row above the fixed grid when a label is given", () => {
+  it("shares the utility row between the project swap and the saved sessions buttons", () => {
     const keyboard = createMainKeyboard(
       "build",
       { providerID: "openrouter", modelID: "openai/gpt-4o" },
@@ -91,33 +94,36 @@ describe("bot/keyboards/main-reply-keyboard", () => {
     );
 
     expect(buttonTextAt(keyboard, 0, 0)).toBe("🔄 primigenum");
+    expect(buttonTextAt(keyboard, 0, 1)).toBe(t("keyboard.saved_sessions"));
     expect(buttonTextAt(keyboard, 1, 0)).toBe("🛠️ Build Agent");
     expect(buttonTextAt(keyboard, 1, 1)).toBe("📊 0");
     expect(buttonTextAt(keyboard, 2, 0)).toBe("🧠 openrouter\nopenai/gpt-4o · 💡 Default");
   });
 
-  it("keeps queued prompts on top of the project swap row", () => {
+  it("keeps queued prompts on top of the utility row", () => {
     const keyboard = createMainKeyboard(
       "build",
       { providerID: "openrouter", modelID: "openai/gpt-4o" },
       undefined,
       undefined,
-      ["❌ 1. first"],
+      ["⏳ 1. first"],
       "🔄 primigenum",
     );
 
-    expect(buttonTextAt(keyboard, 0, 0)).toBe("❌ 1. first");
+    expect(buttonTextAt(keyboard, 0, 0)).toBe("⏳ 1. first");
     expect(buttonTextAt(keyboard, 1, 0)).toBe("🔄 primigenum");
+    expect(buttonTextAt(keyboard, 1, 1)).toBe(t("keyboard.saved_sessions"));
     expect(buttonTextAt(keyboard, 2, 0)).toBe("🛠️ Build Agent");
   });
 
-  it("hides the project swap row when the label is null", () => {
+  it("hides the utility row when both labels are null", () => {
     const keyboard = createMainKeyboard(
       "build",
       { providerID: "openrouter", modelID: "openai/gpt-4o" },
       undefined,
       undefined,
       [],
+      null,
       null,
     );
 

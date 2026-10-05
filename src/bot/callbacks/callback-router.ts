@@ -24,6 +24,7 @@ import { handlePromptAttachmentCancel } from "./prompt-attachment-callback-handl
 import { handleQuestionCallback } from "./question-callback-handler.js";
 import { handleQueueCallback } from "./queue-callback-handler.js";
 import { handleRenameCancel } from "./rename-callback-handler.js";
+import { handleSavedSessionsCallback } from "./saved-sessions-callback-handler.js";
 import { handleSettingsCallback } from "./settings-callback-handler.js";
 import {
   handleBackgroundSessionOpen,
@@ -177,6 +178,20 @@ export function registerCallbackRouter(bot: Bot<Context>, deps: CallbackRouterDe
     [
       "rename",
       { name: "rename", handlers: [handleRenameCancel], errorScope: "rename" },
+    ],
+    [
+      "saved",
+      {
+        name: "saved",
+        handlers: [
+          (ctx) =>
+            handleSavedSessionsCallback(ctx, {
+              bot,
+              ensureEventSubscription: deps.ensureEventSubscription,
+            }),
+        ],
+        errorScope: "interaction",
+      },
     ],
     [
       "session",
