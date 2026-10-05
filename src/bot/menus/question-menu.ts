@@ -127,6 +127,8 @@ export async function showCurrentQuestion(bot: Context["api"], chatId: number): 
 
   logger.debug(`[QuestionHandler] Sending message with keyboard, chatId=${chatId}`);
 
+  const requestID = questionManager.getRequestID();
+
   try {
     const { messageId } = await sendRenderedBotPart({
       api: bot,
@@ -136,6 +138,17 @@ export async function showCurrentQuestion(bot: Context["api"], chatId: number): 
         reply_markup: keyboard,
       },
     });
+
+    if (!questionManager.isActive() || questionManager.getRequestID() !== requestID) {
+      logger.info(
+        `[QuestionHandler] Discarding question message resolved while it was being sent: messageId=${messageId}`,
+      );
+      await bot.deleteMessage(chatId, messageId).catch((err) => {
+        logger.warn(`[QuestionHandler] Failed to delete stale question message ${messageId}:`, err);
+      });
+      return;
+    }
+
     questionManager.addMessageId(messageId);
 
     logger.debug(`[QuestionHandler] Message sent, messageId=${messageId}`);

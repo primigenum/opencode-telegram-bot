@@ -92,12 +92,13 @@ import {
 import { buildBackgroundSessionOpenKeyboard } from "../menus/session-selection-menu.js";
 import { questionManager } from "../../app/managers/question-manager.js";
 import { permissionManager } from "../../app/managers/permission-manager.js";
-import { showCurrentQuestion } from "../menus/question-menu.js";
+import { clearQuestionInteraction, showCurrentQuestion } from "../menus/question-menu.js";
 import { showPermissionRequest, syncPermissionInteractionState } from "../menus/permission-menu.js";
 import {
   clearAllInteractionState,
   interactionManager,
 } from "../../app/managers/interaction-manager.js";
+import { opencodeClient } from "../../opencode/client.js";
 import { stopEventListening, subscribeToEvents } from "../../opencode/events.js";
 
 const TELEGRAM_DOCUMENT_CAPTION_MAX_LENGTH = 1024;
@@ -508,6 +509,82 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         this.completedToolDurations.delete(key);
       }
     }
+  }
+
+  private async clearResolvedQuestion(requestID: string, reason: string): Promise<void> {
+    const isActivePoll = questionManager.getRequestID() === requestID;
+    const messageIds: number[] = [];
+
+    if (isActivePoll) {
+      messageIds.push(...questionManager.getMessageIds());
+      // Clear the local state before touching Telegram: if the deletion hangs,
+      // the command guard is already released (same order as permissions).
+      clearQuestionInteraction(reason);
+      questionManager.clear();
+    }
+
+    // Always remember the request as resolved so a late delivery of the same
+    // question (message still in flight, or asked event arriving after the
+    // resolution) is discarded instead of resurrecting a stale poll.
+    questionManager.markResolved(requestID);
+
+    if (messageIds.length > 0 && this.botInstance && this.chatIdInstance) {
+      const api = this.botInstance.api;
+      const chatId = this.chatIdInstance;
+      await Promise.all(
+        messageIds.map((messageId) =>
+          api.deleteMessage(chatId, messageId).catch((err) => {
+            logger.warn(`[Bot] Failed to delete resolved question message ${messageId}:`, err);
+          }),
+        ),
+      );
+    }
+
+    if (isActivePoll) {
+      logger.info(
+        `[Bot] Cleared resolved question: requestID=${requestID}, messages=${messageIds.length}, reason=${reason}`,
+      );
+    }
+  }
+
+  private async reconcileStaleQuestionOnIdle(sessionId: string): Promise<void> {
+    if (!questionManager.isActive()) {
+      return;
+    }
+
+    const currentSession = getCurrentSession();
+    if (!currentSession || currentSession.id !== sessionId) {
+      return;
+    }
+
+    const requestID = questionManager.getRequestID();
+    if (!requestID) {
+      return;
+    }
+
+    // Verify against the server before clearing: a genuinely pending question
+    // keeps the session busy, but a lost `question.replied`/`question.rejected`
+    // SSE event would otherwise leave a stale poll blocking every command.
+    const { data, error } = await opencodeClient.question.list({
+      directory: currentSession.directory,
+    });
+
+    if (error || !data) {
+      // Do not clear on a failed lookup: without server confirmation we cannot
+      // tell a stale poll from a live one, and clearing a live card would be a
+      // regression.
+      logger.warn(
+        `[Bot] Could not verify pending question on session idle; keeping poll: requestID=${requestID}`,
+        error,
+      );
+      return;
+    }
+
+    if (data.some((request) => request.id === requestID)) {
+      return;
+    }
+
+    await this.clearResolvedQuestion(requestID, "question_stale_on_session_idle");
   }
 
   private appendToolDuration(message: string, sessionId: string, callId: string): string {
@@ -957,6 +1034,13 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         this.toolCallStreamer.flushSession(currentSession.id, "question_asked"),
       ]);
 
+      if (questionManager.isResolved(requestID)) {
+        logger.info(
+          `[Bot] Skipping already resolved question: requestID=${requestID}, reason=question_resolved_before_asked`,
+        );
+        return;
+      }
+
       if (questionManager.isActive()) {
         logger.warn("[Bot] Replacing active poll with a new one");
 
@@ -986,6 +1070,10 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       }
 
       clearAllInteractionState("question_error");
+    });
+
+    summaryAggregator.setOnQuestionResolved(async (_sessionId, requestID) => {
+      await this.clearResolvedQuestion(requestID, "question_resolved_externally");
     });
 
     summaryAggregator.setOnPermission(async (request) => {
@@ -1176,6 +1264,15 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     });
 
     summaryAggregator.setOnSessionIdle(async (sessionId) => {
+      // Background task: `question.list` has no timeout, so awaiting it here
+      // would block the whole idle finalization (finishRun, tool flush, footer,
+      // queue) if the server hangs. A throw inside the callback must not
+      // truncate the idle either.
+      safeBackgroundTask({
+        taskName: "question.reconcileOnSessionIdle",
+        task: () => this.reconcileStaleQuestionOnIdle(sessionId),
+      });
+
       // Runs before the early returns below: the fallback must apply even when
       // the session is no longer the current one when it eventually renames.
       safeBackgroundTask({
